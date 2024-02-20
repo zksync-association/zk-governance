@@ -1,7 +1,15 @@
 [profile.default]
+  build_info = true
   evm_version = "paris"
+  extra_output = ["storageLayout"]
+  ffi = true
   optimizer = true
   optimizer_runs = 10_000_000
+  remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
+  ]
   solc_version = "0.8.24"
   verbosity = 3
 
