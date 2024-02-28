@@ -7,11 +7,11 @@ import {ERC20VotesUpgradeable} from
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgradeable {
-  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-  bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-
   bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
   bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
+
+  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+  bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
   function initialize(address _admin) public initializer {
     __ERC20_init("zkSync", "ZK");
@@ -24,5 +24,9 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
 
   function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
     _mint(to, amount);
+  }
+
+  function burn(address from, uint256 amount) public onlyRole(BURNER_ROLE) {
+    _burn(from, amount);
   }
 }

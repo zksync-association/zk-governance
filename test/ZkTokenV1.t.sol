@@ -5,9 +5,12 @@ import {Test, console2} from "forge-std/Test.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {ZkTokenV1} from "src/ZkTokenV1.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 
 contract ZkTokenV1Test is Test {
   ZkTokenV1 token;
+  address proxyAdmin;
+
   address proxyOwner = makeAddr("Proxy Owner");
   address admin = makeAddr("Admin");
 
@@ -21,16 +24,26 @@ contract ZkTokenV1Test is Test {
   // As defined internally in ERC20Votes
   uint256 MAX_MINT_SUPPLY = type(uint208).max;
 
-  function setUp() public {
+  function setUp() public virtual {
     address _proxy =
       Upgrades.deployTransparentProxy("ZkTokenV1.sol", proxyOwner, abi.encodeCall(ZkTokenV1.initialize, (admin)));
     vm.label(_proxy, "Proxy");
 
-    token = ZkTokenV1(_proxy);
+    // The ProxyAdmin is a contract deployed internally by the TransparentUpgradeableProxy contract, which is not
+    // exposed publicly, but can be accessed directly at a predictable slot position.
+    bytes32 _proxyAdminSlot = vm.load(_proxy, ERC1967Utils.ADMIN_SLOT);
+    proxyAdmin = address(uint160(uint256(_proxyAdminSlot)));
+    vm.label(proxyAdmin, "ProxyAdmin");
 
-    // TODO: if the fuzzer chooses the ProxyAdmin contract as an address that will call into the contract, it will
-    // end up throwing a ProxyDeniedAdminAccess error. How do we get access to the address of the deployed ProxyAdmin,
-    // such that we can write an _assumeNotProxyAdmin function to prevent selection by the fuzzer.
+    token = ZkTokenV1(_proxy);
+    vm.label(address(token), "Token");
+  }
+
+  // Helper to prevent the fuzzer from selecting the ProxyAdmin for a given address. By definition, the ProxyAdmin
+  // address is not allowed to call any "normal" (i.e. non-upgrade-related) methods on the token contract, so this
+  // helper should be called on any address selected by the fuzzer that will call a method on the token contract.
+  function _assumeNotProxyAdmin(address _account) public view {
+    vm.assume(_account != proxyAdmin);
   }
 }
 
@@ -74,6 +87,7 @@ contract Initialize is ZkTokenV1Test {
   }
 
   function testFuzz_InitializesTheTokenSuchThatTheAdminRolesCanGrantTheRoleToOthers(address _newAdmin) public {
+    _assumeNotProxyAdmin(_newAdmin);
     vm.assume(_newAdmin != admin);
 
     // The default admin can add another default admin
@@ -100,6 +114,7 @@ contract Mint is ZkTokenV1Test {
   function testFuzz_AllowsAnAccountWithTheMinterRoleToMintTokens(address _minter, address _receiver, uint256 _amount)
     public
   {
+    _assumeNotProxyAdmin(_minter);
     vm.assume(_receiver != address(0));
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
@@ -120,6 +135,8 @@ contract Mint is ZkTokenV1Test {
     address _receiver2,
     uint256 _amount2
   ) public {
+    _assumeNotProxyAdmin(_minter1);
+    _assumeNotProxyAdmin(_minter2);
     vm.assume(_receiver1 != address(0) && _receiver2 != address(0) && _receiver1 != _receiver2);
     _amount1 = bound(_amount1, 0, MAX_MINT_SUPPLY / 2);
     _amount2 = bound(_amount2, 0, MAX_MINT_SUPPLY / 2);
@@ -147,6 +164,7 @@ contract Mint is ZkTokenV1Test {
     address _receiver,
     uint256 _amount
   ) public {
+    _assumeNotProxyAdmin(_notMinter);
     vm.assume(_receiver != address(0));
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
@@ -162,6 +180,7 @@ contract Mint is ZkTokenV1Test {
     address _receiver,
     uint256 _amount
   ) public {
+    _assumeNotProxyAdmin(_formerMinter);
     vm.assume(_receiver != address(0));
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
@@ -181,5 +200,136 @@ contract Mint is ZkTokenV1Test {
     );
     vm.prank(_formerMinter);
     token.mint(_receiver, _amount);
+  }
+}
+
+contract ZkTokenV1BurnTest is ZkTokenV1Test {
+  address minter = makeAddr("Minter");
+
+  function setUp() public virtual override {
+    super.setUp();
+
+    // grant appropriate role to the minting address
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, minter);
+  }
+
+  function _assumeSafeReceiverBoundAndMint(address _to, uint256 _amount) public returns (uint256 _boundedAmount) {
+    _boundedAmount = _assumeSafeReceiverBoundAndMint(_to, _amount, MAX_MINT_SUPPLY);
+  }
+
+  function _assumeSafeReceiverBoundAndMint(address _to, uint256 _amount, uint256 _maxAmount)
+    public
+    returns (uint256 _boundedAmount)
+  {
+    vm.assume(_to != address(0));
+    _boundedAmount = bound(_amount, 0, _maxAmount);
+
+    vm.prank(minter);
+    token.mint(_to, _boundedAmount);
+  }
+}
+
+contract Burn is ZkTokenV1BurnTest {
+  function testFuzz_AllowsAnAccountWithTheBurnerRoleToBurnTokens(
+    address _burner,
+    address _receiver,
+    uint256 _mintAmount,
+    uint256 _burnAmount
+  ) public {
+    _assumeNotProxyAdmin(_burner);
+    _mintAmount = _assumeSafeReceiverBoundAndMint(_receiver, _mintAmount);
+    _burnAmount = bound(_burnAmount, 0, _mintAmount);
+
+    vm.prank(admin);
+    token.grantRole(BURNER_ROLE, _burner);
+
+    vm.prank(_burner);
+    token.burn(_receiver, _burnAmount);
+
+    assertEq(token.balanceOf(_receiver), _mintAmount - _burnAmount);
+  }
+
+  function testFuzz_AllowsMultipleAccountsWithTheBurnerRoleToBurnTokens(
+    address _burner1,
+    address _receiver1,
+    uint256 _mintAmount1,
+    uint256 _burnAmount1,
+    address _burner2,
+    address _receiver2,
+    uint256 _mintAmount2,
+    uint256 _burnAmount2
+  ) public {
+    _assumeNotProxyAdmin(_burner1);
+    _assumeNotProxyAdmin(_burner2);
+    vm.assume(_receiver1 != _receiver2);
+    _mintAmount1 = _assumeSafeReceiverBoundAndMint(_receiver1, _mintAmount1, MAX_MINT_SUPPLY / 2);
+    _burnAmount1 = bound(_burnAmount1, 0, _mintAmount1);
+    _mintAmount2 = _assumeSafeReceiverBoundAndMint(_receiver2, _mintAmount2, MAX_MINT_SUPPLY / 2);
+    _burnAmount2 = bound(_burnAmount2, 0, _mintAmount2);
+
+    // grant burner role to multiple accounts
+    vm.startPrank(admin);
+    token.grantRole(BURNER_ROLE, _burner1);
+    token.grantRole(BURNER_ROLE, _burner2);
+    vm.stopPrank();
+
+    // first burner burns some tokens
+    vm.prank(_burner1);
+    token.burn(_receiver1, _burnAmount1);
+
+    // second burner burns some tokens
+    vm.prank(_burner2);
+    token.burn(_receiver2, _burnAmount2);
+
+    assertEq(token.balanceOf(_receiver1), _mintAmount1 - _burnAmount1);
+    assertEq(token.balanceOf(_receiver2), _mintAmount2 - _burnAmount2);
+  }
+
+  function testFuzz_RevertIf_AnAccountWithoutTheBurnerRoleAttemptsToBurnTokens(
+    address _notBurner,
+    address _receiver,
+    uint256 _mintAmount,
+    uint256 _burnAmount
+  ) public {
+    _assumeNotProxyAdmin(_notBurner);
+    _mintAmount = _assumeSafeReceiverBoundAndMint(_receiver, _mintAmount);
+    _burnAmount = bound(_burnAmount, 0, _mintAmount);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, _notBurner, BURNER_ROLE)
+    );
+    vm.prank(_notBurner);
+    token.burn(_receiver, _burnAmount);
+  }
+
+  function testFuzz_RevertIf_AnAccountThatHasHadTheBurnerRoleRevokedAttemptsToBurn(
+    address _formerBurner,
+    address _receiver,
+    uint256 _mintAmount,
+    uint256 _burnAmount
+  ) public {
+    _assumeNotProxyAdmin(_formerBurner);
+    _mintAmount = _assumeSafeReceiverBoundAndMint(_receiver, _mintAmount);
+    _burnAmount = bound(_burnAmount, 0, _mintAmount / 2); // divide by 2 so two burns _should_ be possible
+
+    // grant the burner role
+    vm.prank(admin);
+    token.grantRole(BURNER_ROLE, _formerBurner);
+
+    // burn some tokens
+    vm.prank(_formerBurner);
+    token.burn(_receiver, _burnAmount);
+
+    // revoke the burner role
+    vm.prank(admin);
+    token.revokeRole(BURNER_ROLE, _formerBurner);
+
+    // Attempting to burn now should revert with access error
+    vm.expectRevert(
+      abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, _formerBurner, BURNER_ROLE)
+    );
+    vm.prank(_formerBurner);
+    token.burn(_receiver, _burnAmount);
   }
 }
