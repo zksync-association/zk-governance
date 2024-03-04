@@ -6,10 +6,12 @@ import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {ZkTokenV1} from "src/ZkTokenV1.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
+import {ZkTokenFakeV2} from "test/harnesses/ZkTokenFakeV2.sol";
 
 contract ZkTokenV1Test is Test {
   ZkTokenV1 token;
   address proxyAdmin;
+  address proxy;
 
   address proxyOwner = makeAddr("Proxy Owner");
   address admin = makeAddr("Admin");
@@ -25,17 +27,16 @@ contract ZkTokenV1Test is Test {
   uint256 MAX_MINT_SUPPLY = type(uint208).max;
 
   function setUp() public virtual {
-    address _proxy =
-      Upgrades.deployTransparentProxy("ZkTokenV1.sol", proxyOwner, abi.encodeCall(ZkTokenV1.initialize, (admin)));
-    vm.label(_proxy, "Proxy");
+    proxy = Upgrades.deployTransparentProxy("ZkTokenV1.sol", proxyOwner, abi.encodeCall(ZkTokenV1.initialize, (admin)));
+    vm.label(proxy, "Proxy");
 
     // The ProxyAdmin is a contract deployed internally by the TransparentUpgradeableProxy contract, which is not
     // exposed publicly, but can be accessed directly at a predictable slot position.
-    bytes32 _proxyAdminSlot = vm.load(_proxy, ERC1967Utils.ADMIN_SLOT);
+    bytes32 _proxyAdminSlot = vm.load(proxy, ERC1967Utils.ADMIN_SLOT);
     proxyAdmin = address(uint160(uint256(_proxyAdminSlot)));
     vm.label(proxyAdmin, "ProxyAdmin");
 
-    token = ZkTokenV1(_proxy);
+    token = ZkTokenV1(proxy);
     vm.label(address(token), "Token");
   }
 
@@ -378,5 +379,73 @@ contract Burn is ZkTokenV1BurnTest {
     );
     vm.prank(_formerBurner);
     token.burn(_receiver, _burnAmount);
+  }
+}
+
+contract Upgrade is ZkTokenV1Test {
+  // We limit the fuzz runs of this test because it performs FFI actions to run the node script, which takes
+  // significant time and resources
+  /// forge-config: default.fuzz.runs = 5
+  /// forge-config: ci.fuzz.runs = 1
+  /// forge-config: lite.fuzz.runs = 1
+  function testFuzz_PerformsAndInitializesAnUpgradeThatAddsNewFunctionalityToTheToken(
+    uint256 _initialValue,
+    address _minter,
+    uint256 _mintAmount,
+    address _burner,
+    uint256 _burnAmount,
+    uint256 _nextValue
+  ) public {
+    _assumeNotProxyAdmin(_minter);
+    _assumeNotProxyAdmin(_burner);
+    vm.assume(_minter != address(0) && _burner != address(0));
+    _mintAmount = bound(_mintAmount, 0, MAX_MINT_SUPPLY);
+    _burnAmount = bound(_burnAmount, 0, _mintAmount);
+
+    // Assign the burner role before performing the upgrade
+    vm.prank(admin);
+    token.grantRole(BURNER_ROLE, _burner);
+    assertTrue(token.hasRole(BURNER_ROLE, _burner));
+
+    // Perform the upgrade
+    vm.startPrank(proxyOwner);
+    Upgrades.upgradeProxy(
+      address(token), "ZkTokenFakeV2.sol", abi.encodeCall(ZkTokenFakeV2.initializeFakeV2, (_initialValue))
+    );
+    vm.stopPrank();
+
+    // Ensure the contract is initialized correctly
+    ZkTokenFakeV2 _tokenV2 = ZkTokenFakeV2(address(token));
+    assertEq(_tokenV2.fakeStateVar(), _initialValue);
+
+    // Grant the minter role
+    vm.prank(admin);
+    _tokenV2.grantRole(MINTER_ROLE, _minter);
+    assertTrue(_tokenV2.hasRole(MINTER_ROLE, _minter));
+
+    // Ensure we can exercise pre-upgrade functionality, such as minting
+    vm.prank(_minter);
+    _tokenV2.mint(_minter, _mintAmount);
+    assertEq(_tokenV2.balanceOf(_minter), _mintAmount);
+
+    // Ensure a role applied pre-upgrade, in this case the burner, still functions as expected
+    vm.prank(_burner);
+    _tokenV2.burn(_minter, _burnAmount);
+    assertEq(_tokenV2.balanceOf(_minter), _mintAmount - _burnAmount);
+
+    // Ensure we can exercise some new functionality included in the upgrade
+    vm.prank(_minter);
+    vm.expectEmit();
+    emit ZkTokenFakeV2.FakeStateVarSet(_initialValue, _nextValue);
+    _tokenV2.setFakeStateVar(_nextValue);
+    assertEq(_tokenV2.fakeStateVar(), _nextValue);
+
+    // Ensure the role ACL applied to the new method works
+    address _notMinter = address(uint160(uint256(keccak256(abi.encode(_minter)))));
+    vm.expectRevert(
+      abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, _notMinter, MINTER_ROLE)
+    );
+    vm.prank(_notMinter);
+    token.mint(_notMinter, _mintAmount);
   }
 }
