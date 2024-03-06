@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
-import {ZkTokenV1} from "src/ZkTokenV1.sol";
+import {ZkTokenV1, Initializable} from "src/ZkTokenV1.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {ZkTokenFakeV2} from "test/harnesses/ZkTokenFakeV2.sol";
@@ -108,6 +108,11 @@ contract Initialize is ZkTokenV1Test {
     vm.prank(_newAdmin);
     token.revokeRole(DEFAULT_ADMIN_ROLE, admin);
     assertFalse(token.hasRole(DEFAULT_ADMIN_ROLE, admin));
+  }
+
+  function testFuzz_RevertIf_TheInitializerIsCalledTwice(address _admin) public {
+    vm.expectRevert(Initializable.InvalidInitialization.selector);
+    token.initialize(_admin);
   }
 }
 
@@ -447,5 +452,11 @@ contract Upgrade is ZkTokenV1Test {
     );
     vm.prank(_notMinter);
     token.mint(_notMinter, _mintAmount);
+
+    // Ensure initialization cannot be called again
+    vm.expectRevert(Initializable.InvalidInitialization.selector);
+    _tokenV2.initialize(_minter);
+    vm.expectRevert(Initializable.InvalidInitialization.selector);
+    _tokenV2.initializeFakeV2(_nextValue);
   }
 }
