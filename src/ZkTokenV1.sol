@@ -13,13 +13,14 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
   bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-  function initialize(address _admin) public initializer {
+  function initialize(address _admin, uint256 _mintAmount) public initializer {
     __ERC20_init("zkSync", "ZK");
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(MINTER_ADMIN_ROLE, _admin);
     _grantRole(BURNER_ADMIN_ROLE, _admin);
     _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
     _setRoleAdmin(BURNER_ROLE, BURNER_ADMIN_ROLE);
+    _mint(_admin, _mintAmount);
   }
 
   function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
