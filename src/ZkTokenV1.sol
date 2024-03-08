@@ -6,13 +6,35 @@ import {ERC20VotesUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
+/// @title ZkTokenV1
+/// @author [ScopeLift](https://scopelift.co)
+/// @notice A proxy-upgradeable governance token with minting and burning capability gated by access controls.
 contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgradeable {
+  /// @notice The unique identifier constant used to represent the administrator of the minter role. An address that
+  /// has this role may grant or revoke the minter role from other addresses. This role itself may be granted or
+  /// revoked by the DEFAULT_ADMIN_ROLE.
   bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
+
+  /// @notice The unique identifier constant used to represent the administrator of the burner role. An address that
+  /// has this role may grant or revoke the burner role from other addresses. This role itself may be granted or
+  /// revoked by the DEFAULT_ADMIN_ROLE.
   bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
 
+  /// @notice The unique identifier constant used to represent the minter role. An address that has this role may call
+  /// the `mint` method, creating new tokens and assigning them to specified address. This role may be granted or
+  /// revoked by the MINTER_ADMIN_ROLE.
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+  /// @notice The unique identifier constant used to represent the burner role. An address that has this role may call
+  /// the `burn` method, destroying tokens held by a given address, removing them from the total supply. This role may
+  // be granted or revoked by and address holding the BURNER_ADMIN_ROLE.
   bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
+  /// @notice A one-time configuration method meant to be called immediately upon the deployment of ZkTokenV1. It sets
+  /// up the token's name and symbol, configures and assigns role admins, and mints the initial token supply.
+  /// @param _admin The address that will be be assigned all three role admins, as well as receive the initial
+  /// token supply.
+  /// @param _mintAmount The amount of tokens, in raw decimals, that will be minted to the admin's wallet.
   function initialize(address _admin, uint256 _mintAmount) public initializer {
     __ERC20_init("zkSync", "ZK");
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
@@ -23,11 +45,21 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
     _mint(_admin, _mintAmount);
   }
 
-  function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
-    _mint(to, amount);
+  /// @notice Creates a new quantity of tokens for a given address.
+  /// @param _to The address that will receive the new tokens.
+  /// @param _amount The quantity of tokens, in raw decimals, that will be created.
+  /// @dev This method may only be called by an address that has been assigned the minter role by the minter role
+  /// admin.
+  function mint(address _to, uint256 _amount) public onlyRole(MINTER_ROLE) {
+    _mint(_to, _amount);
   }
 
-  function burn(address from, uint256 amount) public onlyRole(BURNER_ROLE) {
-    _burn(from, amount);
+  /// @notice Destroys tokens held by a given address and removes them from the total supply.
+  /// @param _from The address from which tokens will be removed and destroyed.
+  /// @param _amount The quantity of tokens, in raw decimals, that will be destroyed.
+  /// @dev This method may only be called by an address that has been assigned the burner role by the burner role
+  /// admin.
+  function burn(address _from, uint256 _amount) public onlyRole(BURNER_ROLE) {
+    _burn(_from, _amount);
   }
 }
