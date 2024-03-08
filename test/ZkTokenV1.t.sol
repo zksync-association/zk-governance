@@ -111,6 +111,26 @@ contract Initialize is ZkTokenV1Test {
 }
 
 contract Mint is ZkTokenV1Test {
+  function testFuzz_AllowsAnAccountWithTheMinterRoleToMintTokensWithoutProxy(
+    address _minter,
+    address _receiver,
+    uint256 _amount
+  ) public {
+    vm.assume(_receiver != address(0));
+    _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
+
+    token = new ZkTokenV1();
+    token.initialize(admin);
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, _minter);
+
+    vm.prank(_minter);
+    token.mint(_receiver, _amount);
+
+    assertEq(token.balanceOf(_receiver), _amount);
+  }
+
   function testFuzz_AllowsAnAccountWithTheMinterRoleToMintTokens(address _minter, address _receiver, uint256 _amount)
     public
   {
@@ -231,6 +251,33 @@ contract ZkTokenV1BurnTest is ZkTokenV1Test {
 }
 
 contract Burn is ZkTokenV1BurnTest {
+  function testFuzz_AllowsAnAccountWithTheBurnerRoleToBurnTokensWithoutProxy(
+    address _burner,
+    address _receiver,
+    uint256 _mintAmount,
+    uint256 _burnAmount
+  ) public {
+    _mintAmount = _assumeSafeReceiverBoundAndMint(_receiver, _mintAmount);
+    _burnAmount = bound(_burnAmount, 0, _mintAmount);
+
+    token = new ZkTokenV1();
+    token.initialize(admin);
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, _burner);
+
+    vm.prank(_burner);
+    token.mint(_receiver, _mintAmount);
+
+    vm.prank(admin);
+    token.grantRole(BURNER_ROLE, _burner);
+
+    vm.prank(_burner);
+    token.burn(_receiver, _burnAmount);
+
+    assertEq(token.balanceOf(_receiver), _mintAmount - _burnAmount);
+  }
+
   function testFuzz_AllowsAnAccountWithTheBurnerRoleToBurnTokens(
     address _burner,
     address _receiver,
