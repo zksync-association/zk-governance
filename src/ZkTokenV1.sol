@@ -32,17 +32,17 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
 
   /// @notice A one-time configuration method meant to be called immediately upon the deployment of ZkTokenV1. It sets
   /// up the token's name and symbol, configures and assigns role admins, and mints the initial token supply.
-  /// @param _admin The address that will be be assigned all three role admins, as well as receive the initial
-  /// token supply.
-  /// @param _mintAmount The amount of tokens, in raw decimals, that will be minted to the admin's wallet.
-  function initialize(address _admin, uint256 _mintAmount) public initializer {
+  /// @param _admin The address that will be be assigned all three role admins
+  /// @param _mintReceiver The address that will receive the initial token supply.
+  /// @param _mintAmount The amount of tokens, in raw decimals, that will be minted to the mint receiver's wallet.
+  function initialize(address _admin, address _mintReceiver, uint256 _mintAmount) public initializer {
     __ERC20_init("zkSync", "ZK");
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(MINTER_ADMIN_ROLE, _admin);
     _grantRole(BURNER_ADMIN_ROLE, _admin);
     _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
     _setRoleAdmin(BURNER_ROLE, BURNER_ADMIN_ROLE);
-    _mint(_admin, _mintAmount);
+    _mint(_mintReceiver, _mintAmount);
   }
 
   /// @notice Creates a new quantity of tokens for a given address.

@@ -19,7 +19,9 @@ contract DeployZkTokenV1 is DeployZkTokenV1Input, Script {
   function run() public returns (ZkTokenV1) {
     vm.startBroadcast(deployerPrivateKey);
     address _proxy = Upgrades.deployTransparentProxy(
-      "ZkTokenV1.sol", ADMIN_ACCOUNT, abi.encodeCall(ZkTokenV1.initialize, (ADMIN_ACCOUNT, INITIAL_MINT_AMOUNT))
+      "ZkTokenV1.sol",
+      ADMIN_ACCOUNT,
+      abi.encodeCall(ZkTokenV1.initialize, (ADMIN_ACCOUNT, INITIAL_MINT_ACCOUNT, INITIAL_MINT_AMOUNT))
     );
     vm.stopBroadcast();
 

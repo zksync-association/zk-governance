@@ -28,7 +28,7 @@ contract ZkTokenV1DeployTest is DeployZkTokenV1Input, Test {
     assertEq(token.name(), "zkSync");
 
     // The association account has received the full minted distribution
-    assertEq(token.balanceOf(ADMIN_ACCOUNT), INITIAL_MINT_AMOUNT);
+    assertEq(token.balanceOf(INITIAL_MINT_ACCOUNT), INITIAL_MINT_AMOUNT);
     assertEq(token.totalSupply(), INITIAL_MINT_AMOUNT);
 
     // The association account has all three administrative roles after initialization

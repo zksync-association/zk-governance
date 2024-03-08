@@ -15,6 +15,7 @@ contract ZkTokenV1Test is Test {
 
   address proxyOwner = makeAddr("Proxy Owner");
   address admin = makeAddr("Admin");
+  address initMintReceiver = makeAddr("Init Mint Receiver");
 
   uint256 INITIAL_MINT_AMOUNT = 1_000_000_000e18;
 
@@ -30,7 +31,7 @@ contract ZkTokenV1Test is Test {
 
   function setUp() public virtual {
     proxy = Upgrades.deployTransparentProxy(
-      "ZkTokenV1.sol", proxyOwner, abi.encodeCall(ZkTokenV1.initialize, (admin, INITIAL_MINT_AMOUNT))
+      "ZkTokenV1.sol", proxyOwner, abi.encodeCall(ZkTokenV1.initialize, (admin, initMintReceiver, INITIAL_MINT_AMOUNT))
     );
     vm.label(proxy, "Proxy");
 
@@ -57,8 +58,8 @@ contract Initialize is ZkTokenV1Test {
     assertEq(token.symbol(), "ZK");
     assertEq(token.name(), "zkSync");
 
-    // The admin has received the full minted distribution
-    assertEq(token.balanceOf(admin), INITIAL_MINT_AMOUNT);
+    // The mint receiver has received the full minted distribution
+    assertEq(token.balanceOf(initMintReceiver), INITIAL_MINT_AMOUNT);
     assertEq(token.totalSupply(), INITIAL_MINT_AMOUNT);
 
     // The admin has all three administrative roles after initialization
@@ -78,15 +79,20 @@ contract Initialize is ZkTokenV1Test {
     assertEq(token.getRoleAdmin(DEFAULT_ADMIN_ROLE), DEFAULT_ADMIN_ROLE);
   }
 
-  function testFuzz_InitializesTheTokenWithTheCorrectConfigurationWhenCalledDirectly(address _admin) public {
-    vm.assume(_admin != address(0));
+  function testFuzz_InitializesTheTokenWithTheCorrectConfigurationWhenCalledDirectly(
+    address _admin,
+    address _initMintReceiver,
+    uint256 _mintAmount
+  ) public {
+    vm.assume(_admin != address(0) && _initMintReceiver != address(0) && _admin != _initMintReceiver);
+    _mintAmount = bound(_mintAmount, 0, MAX_MINT_SUPPLY);
 
     ZkTokenV1 _token = new ZkTokenV1();
-    _token.initialize(_admin, INITIAL_MINT_AMOUNT);
+    _token.initialize(_admin, _initMintReceiver, _mintAmount);
 
     // Same assertions as upgradeable deploy test
-    assertEq(_token.balanceOf(_admin), INITIAL_MINT_AMOUNT);
-    assertEq(_token.totalSupply(), INITIAL_MINT_AMOUNT);
+    assertEq(_token.balanceOf(_initMintReceiver), _mintAmount);
+    assertEq(_token.totalSupply(), _mintAmount);
     assertEq(_token.symbol(), "ZK");
     assertEq(_token.name(), "zkSync");
     assertTrue(_token.hasRole(DEFAULT_ADMIN_ROLE, _admin));
@@ -122,9 +128,9 @@ contract Initialize is ZkTokenV1Test {
     assertFalse(token.hasRole(DEFAULT_ADMIN_ROLE, admin));
   }
 
-  function testFuzz_RevertIf_TheInitializerIsCalledTwice(address _admin) public {
+  function testFuzz_RevertIf_TheInitializerIsCalledTwice(address _admin, address _receiver, uint256 _amount) public {
     vm.expectRevert(Initializable.InvalidInitialization.selector);
-    token.initialize(_admin, INITIAL_MINT_AMOUNT);
+    token.initialize(_admin, _receiver, _amount);
   }
 }
 
@@ -134,11 +140,11 @@ contract Mint is ZkTokenV1Test {
     address _receiver,
     uint256 _amount
   ) public {
-    vm.assume(_receiver != address(0) && _receiver != admin);
+    vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
     token = new ZkTokenV1();
-    token.initialize(admin, INITIAL_MINT_AMOUNT);
+    token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
     token.grantRole(MINTER_ROLE, _minter);
@@ -153,7 +159,7 @@ contract Mint is ZkTokenV1Test {
     public
   {
     _assumeNotProxyAdmin(_minter);
-    vm.assume(_receiver != address(0) && _receiver != admin);
+    vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
     vm.prank(admin);
@@ -176,8 +182,8 @@ contract Mint is ZkTokenV1Test {
     _assumeNotProxyAdmin(_minter1);
     _assumeNotProxyAdmin(_minter2);
     vm.assume(
-      _receiver1 != address(0) && _receiver1 != admin && _receiver2 != address(0) && _receiver2 != admin
-        && _receiver1 != _receiver2
+      _receiver1 != address(0) && _receiver1 != initMintReceiver && _receiver2 != address(0)
+        && _receiver2 != initMintReceiver && _receiver1 != _receiver2
     );
     _amount1 = bound(_amount1, 0, MAX_MINT_SUPPLY / 2);
     _amount2 = bound(_amount2, 0, MAX_MINT_SUPPLY / 2);
@@ -263,7 +269,7 @@ contract ZkTokenV1BurnTest is ZkTokenV1Test {
     public
     returns (uint256 _boundedAmount)
   {
-    vm.assume(_to != address(0) && _to != admin);
+    vm.assume(_to != address(0) && _to != initMintReceiver);
     _boundedAmount = bound(_amount, 0, _maxAmount);
 
     vm.prank(minter);
@@ -278,12 +284,12 @@ contract Burn is ZkTokenV1BurnTest {
     uint256 _mintAmount,
     uint256 _burnAmount
   ) public {
-    vm.assume(_receiver != admin);
+    vm.assume(_receiver != initMintReceiver);
     _mintAmount = _assumeSafeReceiverBoundAndMint(_receiver, _mintAmount);
     _burnAmount = bound(_burnAmount, 0, _mintAmount);
 
     token = new ZkTokenV1();
-    token.initialize(admin, INITIAL_MINT_AMOUNT);
+    token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
     token.grantRole(MINTER_ROLE, _burner);
@@ -485,7 +491,7 @@ contract Upgrade is ZkTokenV1Test {
 
     // Ensure initialization cannot be called again
     vm.expectRevert(Initializable.InvalidInitialization.selector);
-    _tokenV2.initialize(_minter, INITIAL_MINT_AMOUNT);
+    _tokenV2.initialize(_minter, initMintReceiver, INITIAL_MINT_AMOUNT);
     vm.expectRevert(Initializable.InvalidInitialization.selector);
     _tokenV2.initializeFakeV2(_nextValue);
   }
