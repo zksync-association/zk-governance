@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {Upgrades, Options} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {ZkTokenV1, Initializable} from "src/ZkTokenV1.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
@@ -388,10 +388,21 @@ contract Burn is ZkTokenV1BurnTest {
 }
 
 contract Upgrade is ZkTokenV1Test {
+  function _upgradeProxyOpts() public view returns (Options memory) {
+    return Options({
+      unsafeSkipAllChecks: vm.envOr("SKIP_SAFETY_CHECK_IN_UPGRADE_TEST", false),
+      referenceContract: "",
+      constructorData: "",
+      unsafeAllow: "",
+      unsafeAllowRenames: false,
+      unsafeSkipStorageCheck: false
+    });
+  }
+
   // We limit the fuzz runs of this test because it performs FFI actions to run the node script, which takes
   // significant time and resources
-  /// forge-config: default.fuzz.runs = 5
-  /// forge-config: ci.fuzz.runs = 1
+  /// forge-config: default.fuzz.runs = 3
+  /// forge-config: ci.fuzz.runs = 5
   /// forge-config: lite.fuzz.runs = 1
   function testFuzz_PerformsAndInitializesAnUpgradeThatAddsNewFunctionalityToTheToken(
     uint256 _initialValue,
@@ -415,7 +426,10 @@ contract Upgrade is ZkTokenV1Test {
     // Perform the upgrade
     vm.startPrank(proxyOwner);
     Upgrades.upgradeProxy(
-      address(token), "ZkTokenFakeV2.sol", abi.encodeCall(ZkTokenFakeV2.initializeFakeV2, (_initialValue))
+      address(token),
+      "ZkTokenFakeV2.sol",
+      abi.encodeCall(ZkTokenFakeV2.initializeFakeV2, (_initialValue)),
+      _upgradeProxyOpts()
     );
     vm.stopPrank();
 

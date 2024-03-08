@@ -37,6 +37,8 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
+    env:
+      SKIP_SAFETY_CHECK_IN_UPGRADE_TEST: true
     steps:
       - uses: actions/checkout@v3
 
