@@ -39,7 +39,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, ERC20PermitUpgradeab
   /// @param _admin The address that will be be assigned all three role admins
   /// @param _mintReceiver The address that will receive the initial token supply.
   /// @param _mintAmount The amount of tokens, in raw decimals, that will be minted to the mint receiver's wallet.
-  function initialize(address _admin, address _mintReceiver, uint256 _mintAmount) public initializer {
+  function initialize(address _admin, address _mintReceiver, uint256 _mintAmount) external initializer {
     __ERC20_init("zkSync", "ZK");
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(MINTER_ADMIN_ROLE, _admin);
@@ -54,7 +54,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, ERC20PermitUpgradeab
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   /// @dev This method may only be called by an address that has been assigned the minter role by the minter role
   /// admin.
-  function mint(address _to, uint256 _amount) public onlyRole(MINTER_ROLE) {
+  function mint(address _to, uint256 _amount) external onlyRole(MINTER_ROLE) {
     _mint(_to, _amount);
   }
 
@@ -63,7 +63,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, ERC20PermitUpgradeab
   /// @param _amount The quantity of tokens, in raw decimals, that will be destroyed.
   /// @dev This method may only be called by an address that has been assigned the burner role by the burner role
   /// admin.
-  function burn(address _from, uint256 _amount) public onlyRole(BURNER_ROLE) {
+  function burn(address _from, uint256 _amount) external onlyRole(BURNER_ROLE) {
     _burn(_from, _amount);
   }
 
