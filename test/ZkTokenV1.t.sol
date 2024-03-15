@@ -1,61 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test, console2} from "forge-std/Test.sol";
-import {Upgrades, Options} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {ZkTokenV1, Initializable} from "src/ZkTokenV1.sol";
+import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
+import {Upgrades, Options} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {ZkTokenFakeV2} from "test/harnesses/ZkTokenFakeV2.sol";
 import {ERC20PermitUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 
-contract ZkTokenV1Test is Test {
-  ZkTokenV1 token;
-  address proxyAdmin;
-  address proxy;
-
-  address proxyOwner = makeAddr("Proxy Owner");
-  address admin = makeAddr("Admin");
-  address initMintReceiver = makeAddr("Init Mint Receiver");
-
-  uint256 INITIAL_MINT_AMOUNT = 1_000_000_000e18;
-
-  // Placed here for convenience in tests. Must match the constants in the implementation.
-  bytes32 public DEFAULT_ADMIN_ROLE = 0x00;
-  bytes32 public MINTER_ROLE = keccak256("MINTER_ROLE");
-  bytes32 public BURNER_ROLE = keccak256("BURNER_ROLE");
-  bytes32 public MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
-  bytes32 public BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
-
-  // As defined internally in ERC20Votes
-  uint256 MAX_MINT_SUPPLY = type(uint208).max - INITIAL_MINT_AMOUNT;
-
-  function setUp() public virtual {
-    proxy = Upgrades.deployTransparentProxy(
-      "ZkTokenV1.sol", proxyOwner, abi.encodeCall(ZkTokenV1.initialize, (admin, initMintReceiver, INITIAL_MINT_AMOUNT))
-    );
-    vm.label(proxy, "Proxy");
-
-    // The ProxyAdmin is a contract deployed internally by the TransparentUpgradeableProxy contract, which is not
-    // exposed publicly, but can be accessed directly at a predictable slot position.
-    bytes32 _proxyAdminSlot = vm.load(proxy, ERC1967Utils.ADMIN_SLOT);
-    proxyAdmin = address(uint160(uint256(_proxyAdminSlot)));
-    vm.label(proxyAdmin, "ProxyAdmin");
-
-    token = ZkTokenV1(proxy);
-    vm.label(address(token), "Token");
-  }
-
-  // Helper to prevent the fuzzer from selecting the ProxyAdmin for a given address. By definition, the ProxyAdmin
-  // address is not allowed to call any "normal" (i.e. non-upgrade-related) methods on the token contract, so this
-  // helper should be called on any address selected by the fuzzer that will call a method on the token contract.
-  function _assumeNotProxyAdmin(address _account) public view {
-    vm.assume(_account != proxyAdmin);
-  }
-}
-
-contract Initialize is ZkTokenV1Test {
+contract Initialize is ZkTokenTest {
   function test_InitializesTheTokenWithTheCorrectConfigurationWhenDeployedViaUpgrades() public {
     assertEq(token.symbol(), "ZK");
     assertEq(token.name(), "zkSync");
@@ -136,7 +90,7 @@ contract Initialize is ZkTokenV1Test {
   }
 }
 
-contract Mint is ZkTokenV1Test {
+contract Mint is ZkTokenTest {
   function testFuzz_AllowsAnAccountWithTheMinterRoleToMintTokensWithoutProxy(
     address _minter,
     address _receiver,
@@ -145,7 +99,7 @@ contract Mint is ZkTokenV1Test {
     vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
-    token = new ZkTokenV1();
+    ZkTokenV1 token = new ZkTokenV1();
     token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
@@ -252,7 +206,7 @@ contract Mint is ZkTokenV1Test {
   }
 }
 
-contract ZkTokenV1BurnTest is ZkTokenV1Test {
+contract ZkTokenV1BurnTest is ZkTokenTest {
   address minter = makeAddr("Minter");
 
   function setUp() public virtual override {
@@ -290,7 +244,7 @@ contract Burn is ZkTokenV1BurnTest {
     _mintAmount = _assumeSafeReceiverBoundAndMint(_receiver, _mintAmount);
     _burnAmount = bound(_burnAmount, 0, _mintAmount);
 
-    token = new ZkTokenV1();
+    ZkTokenV1 token = new ZkTokenV1();
     token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
@@ -411,7 +365,7 @@ contract Burn is ZkTokenV1BurnTest {
   }
 }
 
-contract Upgrade is ZkTokenV1Test {
+contract Upgrade is ZkTokenTest {
   function _upgradeProxyOpts() public view returns (Options memory) {
     return Options({
       unsafeSkipAllChecks: vm.envOr("SKIP_SAFETY_CHECK_IN_UPGRADE_TEST", false),
@@ -499,7 +453,7 @@ contract Upgrade is ZkTokenV1Test {
   }
 }
 
-contract Permit is ZkTokenV1Test {
+contract Permit is ZkTokenTest {
   bytes32 constant PERMIT_TYPEHASH =
     keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
@@ -511,9 +465,11 @@ contract Permit is ZkTokenV1Test {
     uint256 _deadline
   ) public {
     vm.assume(_spender != address(0) && _receiver != address(0) && _receiver != initMintReceiver);
+    _assumeNotProxyAdmin(_spender);
     _deadline = bound(_deadline, block.timestamp + 1, type(uint256).max);
     _ownerPrivateKey = bound(_ownerPrivateKey, 1, 100e18);
     address _owner = vm.addr(_ownerPrivateKey);
+    _assumeNotProxyAdmin(_owner);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
     vm.prank(admin);
@@ -552,9 +508,12 @@ contract Permit is ZkTokenV1Test {
     uint256 _deadline
   ) public {
     vm.assume(_spender != address(0) && _receiver != address(0) && _notOwner != address(0));
+    _assumeNotProxyAdmin(_spender);
+
     _deadline = bound(_deadline, block.timestamp + 1, type(uint256).max);
     _ownerPrivateKey = bound(_ownerPrivateKey, 1, 100e18);
     address _owner = vm.addr(_ownerPrivateKey);
+    _assumeNotProxyAdmin(_owner);
     vm.assume(_notOwner != _owner);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
@@ -585,13 +544,15 @@ contract Permit is ZkTokenV1Test {
     address _receiver,
     uint256 _deadline
   ) public {
+    _assumeNotProxyAdmin(_spender);
     vm.assume(_spender != address(0) && _receiver != address(0) && _receiver != initMintReceiver);
     _deadline = bound(_deadline, block.timestamp + 1, type(uint256).max);
     _ownerPrivateKey = bound(_ownerPrivateKey, 1, 100e18);
     address _owner = vm.addr(_ownerPrivateKey);
+    _assumeNotProxyAdmin(_owner);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
-    token = new ZkTokenV1();
+    ZkTokenV1 token = new ZkTokenV1();
     token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
@@ -621,7 +582,7 @@ contract Permit is ZkTokenV1Test {
     assertEq(token.balanceOf(_owner), 0);
   }
 
-  function testFuzz_RevertIf_ThePermitSignatureIsInvalidWithouProxy(
+  function testFuzz_RevertIf_ThePermitSignatureIsInvalidWithoutProxy(
     address _notOwner,
     uint256 _ownerPrivateKey,
     uint256 _amount,
@@ -630,13 +591,15 @@ contract Permit is ZkTokenV1Test {
     uint256 _deadline
   ) public {
     vm.assume(_spender != address(0) && _receiver != address(0) && _notOwner != address(0));
+    _assumeNotProxyAdmin(_spender);
     _deadline = bound(_deadline, block.timestamp + 1, type(uint256).max);
     _ownerPrivateKey = bound(_ownerPrivateKey, 1, 100e18);
     address _owner = vm.addr(_ownerPrivateKey);
+    _assumeNotProxyAdmin(_owner);
     vm.assume(_notOwner != _owner);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
-    token = new ZkTokenV1();
+    ZkTokenV1 token = new ZkTokenV1();
     token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
@@ -647,10 +610,13 @@ contract Permit is ZkTokenV1Test {
     // verify the owner has the expected balance
     assertEq(token.balanceOf(_owner), _amount);
 
-    bytes32 _message =
-      keccak256(abi.encode(PERMIT_TYPEHASH, _notOwner, _spender, _amount, token.nonces(_notOwner), _deadline));
-
-    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
+    bytes32 _messageHash = keccak256(
+      abi.encodePacked(
+        "\x19\x01",
+        token.DOMAIN_SEPARATOR(),
+        keccak256(abi.encode(PERMIT_TYPEHASH, _notOwner, _spender, _amount, token.nonces(_notOwner), _deadline))
+      )
+    );
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_ownerPrivateKey, _messageHash);
 
     // verify the permit signature is invalid
@@ -662,10 +628,10 @@ contract Permit is ZkTokenV1Test {
 
 /// @dev Used to test the ERC20VotesUpgradeable nonces method for coverage purposes as it is inherited from
 /// ERC20VotesUpgradeable
-contract Nonces is ZkTokenV1Test {
+contract Nonces is ZkTokenTest {
   function testFuzz_NoncesWithoutProxy(address _owner) public {
     vm.assume(_owner != address(0));
-    token = new ZkTokenV1();
+    ZkTokenV1 token = new ZkTokenV1();
     token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
     uint256 _nonce = token.nonces(_owner);
     assertEq(token.nonces(_owner), _nonce);
