@@ -10,9 +10,24 @@ import {ERC20PermitUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 
 contract Initialize is ZkTokenTest {
+  function calculateDomainSeparator(ZkTokenV1 _token) public view returns (bytes32) {
+    return keccak256(
+      abi.encode(
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+        keccak256(bytes("zkSync")),
+        keccak256(bytes("1")),
+        block.chainid,
+        address(_token)
+      )
+    );
+  }
+
   function test_InitializesTheTokenWithTheCorrectConfigurationWhenDeployedViaUpgrades() public {
     assertEq(token.symbol(), "ZK");
     assertEq(token.name(), "zkSync");
+
+    // verify that the domain separator is setup correctly
+    assertEq(token.DOMAIN_SEPARATOR(), calculateDomainSeparator(token));
 
     // The mint receiver has received the full minted distribution
     assertEq(token.balanceOf(initMintReceiver), INITIAL_MINT_AMOUNT);

@@ -41,6 +41,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, ERC20PermitUpgradeab
   /// @param _mintAmount The amount of tokens, in raw decimals, that will be minted to the mint receiver's wallet.
   function initialize(address _admin, address _mintReceiver, uint256 _mintAmount) external initializer {
     __ERC20_init("zkSync", "ZK");
+    __ERC20Permit_init("zkSync");
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(MINTER_ADMIN_ROLE, _admin);
     _grantRole(BURNER_ADMIN_ROLE, _admin);
