@@ -30,7 +30,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     uint256 expiry;
   }
 
-  // Type hash of the data that makes up the claim.
+  /// @notice Type hash of the data that makes up the claim.
   bytes32 public constant ZK_CLAIM_TYPEHASH = keccak256(
     "Claim(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 expiry,uint256 nonce)"
   );
@@ -284,12 +284,11 @@ contract ZkMerkleDistributor is EIP712, Nonces {
       revert ZkMerkleDistributor__SweepAlreadyDone();
     }
   }
+
   /// @notice Reverts if the signature is not valid
-  /// is invalid.
   /// @param _signer Address of the signer.
   /// @param _hash Hash of the message.
   /// @param _signature Signature to validate.
-
   function _revertIfSignatureIsNotValidNow(address _signer, bytes32 _hash, bytes memory _signature) internal view {
     bool _isValid = SignatureChecker.isValidSignatureNow(_signer, _hash, _signature);
     if (!_isValid) {
