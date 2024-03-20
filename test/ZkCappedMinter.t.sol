@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
-import {IMintable} from "src/interfaces/IMintable.sol";
+import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 import {ZkCappedMinter} from "src/ZkCappedMinter.sol";
 import {console2} from "forge-std/Test.sol";
 
@@ -12,7 +12,7 @@ contract ZkCappedMinterTest is ZkTokenTest {
   }
 
   function createCappedMinter(address _admin, uint256 _cap) internal returns (ZkCappedMinter) {
-    ZkCappedMinter cappedMinter = new ZkCappedMinter(IMintable(address(token)), _admin, _cap);
+    ZkCappedMinter cappedMinter = new ZkCappedMinter(IMintableAndDelegatable(address(token)), _admin, _cap);
     vm.prank(admin);
     token.grantRole(MINTER_ROLE, address(cappedMinter));
     return cappedMinter;

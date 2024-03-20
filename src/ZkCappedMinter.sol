@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {IMintable} from "src/interfaces/IMintable.sol";
+import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 
 /// @title ZkCappedMinter
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A contract to allow a permissioned entity to mint ZK tokens up to a given amount (the cap).
 contract ZkCappedMinter {
   /// @notice The contract where the tokens will be minted by an authorized minter.
-  IMintable public immutable TOKEN;
+  IMintableAndDelegatable public immutable TOKEN;
 
   /// @notice The address that is allowed to mint tokens.
   address public immutable ADMIN;
@@ -29,7 +29,7 @@ contract ZkCappedMinter {
   /// @param _token The token contract where tokens will be minted.
   /// @param _admin The address that is allowed to mint tokens.
   /// @param _cap The maximum number of tokens that may be minted by the ZkCappedMinter.
-  constructor(IMintable _token, address _admin, uint256 _cap) {
+  constructor(IMintableAndDelegatable _token, address _admin, uint256 _cap) {
     TOKEN = _token;
     ADMIN = _admin;
     CAP = _cap;

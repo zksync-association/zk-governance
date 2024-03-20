@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {Test, console2} from "forge-std/Test.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {ZkTokenV1} from "src/ZkTokenV1.sol";
-import {IMintable} from "src/interfaces/IMintable.sol";
+import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 
 contract ZkTokenTest is Test {

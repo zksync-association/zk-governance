@@ -6,7 +6,7 @@ pragma solidity 0.8.24;
 import {Script} from "forge-std/Script.sol";
 import {DeployZkCappedMintersInput} from "script/DeployZkCappedMintersInput.sol";
 import {ZkCappedMinter} from "src/ZkCappedMinter.sol";
-import {IMintable} from "src/interfaces/IMintable.sol";
+import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 
 contract DeployZkCappedMinters is DeployZkCappedMintersInput, Script {
   uint256 deployerPrivateKey;
@@ -19,9 +19,9 @@ contract DeployZkCappedMinters is DeployZkCappedMintersInput, Script {
   function run(address tokenAddress) public returns (ZkCappedMinter, ZkCappedMinter) {
     vm.startBroadcast(deployerPrivateKey);
     ZkCappedMinter _associationMinter =
-      new ZkCappedMinter(IMintable(tokenAddress), ASSOCIATION_ADMIN_ACCOUNT, ASSOCIATION_CAP_AMOUNT);
+      new ZkCappedMinter(IMintableAndDelegatable(tokenAddress), ASSOCIATION_ADMIN_ACCOUNT, ASSOCIATION_CAP_AMOUNT);
     ZkCappedMinter _foundationMinter =
-      new ZkCappedMinter(IMintable(tokenAddress), FOUNDATION_ADMIN_ACCOUNT, FOUNDATION_CAP_AMOUNT);
+      new ZkCappedMinter(IMintableAndDelegatable(tokenAddress), FOUNDATION_ADMIN_ACCOUNT, FOUNDATION_CAP_AMOUNT);
     vm.stopBroadcast();
 
     return (_associationMinter, _foundationMinter);
