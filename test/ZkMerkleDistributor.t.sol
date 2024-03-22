@@ -138,7 +138,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
         _params.claimIndex,
         _params.claimant,
         _params.amount,
-        _params.proof,
+        keccak256(abi.encodePacked(_params.proof)),
         _params.delegatee,
         _params.expiry,
         _nonce

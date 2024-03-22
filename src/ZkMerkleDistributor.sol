@@ -162,7 +162,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
               _index,
               _claimSignatureInfo.signingClaimant,
               _amount,
-              _merkleProof,
+              keccak256(abi.encodePacked(_merkleProof)),
               _delegateInfo.delegatee,
               _claimSignatureInfo.expiry,
               _useNonce(_claimSignatureInfo.signingClaimant)
