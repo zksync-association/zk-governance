@@ -13,14 +13,27 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
   error ZkMerkleDistributor__InvalidProof();
 
   // Type hash of the data that makes up the claim.
-  bytes32 public constant ZK_CLAIM_TYPEHASH = keccak256(
-    "Claim(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 expiry,uint256 nonce)"
+  bytes32 public constant ZK_CLAIM_TYPEHASH =
+    keccak256("Claim(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,uint256 expiry,uint256 nonce)");
+
+  // Type hash of the data that makes up the claim.
+  bytes32 public constant ZK_CLAIM_AND_DELEGATE_TYPEHASH = keccak256(
+    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 expiry,uint256 nonce)"
   );
 
   // type hash for the delegation struct used in delegation by signature upon receiving a claim
   bytes32 constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
   struct MakeClaimSignatureParams {
+    uint256 claimantPrivateKey;
+    uint256 claimIndex;
+    address claimant;
+    uint256 amount;
+    uint256 expiry;
+    bytes32[] proof;
+  }
+
+  struct MakeClaimAndDelegateSignatureParams {
     uint256 claimantPrivateKey;
     uint256 claimIndex;
     address claimant;
@@ -52,7 +65,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
   // Builds an array of nodes for a Merkle tree, given a requested size, and a seed for randomness.
   // The function is also given a sample claim index, which will be used to leave an empty spot in the tree for a sample
   // claim.
-  // Bot the tree and the total claimable amount in the tree are returned.
+  // Both the tree and the total claimable amount in the tree are returned.
   function makeTreeArray(uint256 _treeSize, uint256 _seed, uint256 sampleClaimIndex)
     public
     view
@@ -139,6 +152,29 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
         _params.claimant,
         _params.amount,
         keccak256(abi.encodePacked(_params.proof)),
+        _params.expiry,
+        _nonce
+      )
+    );
+    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", _distributor.DOMAIN_SEPARATOR(), _message));
+    (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_params.claimantPrivateKey, _messageHash);
+    _signature = abi.encodePacked(_r, _s, _v);
+  }
+
+  // Creates a claim signature with the provided parameters (including delegation parameters).
+  function makeClaimAndDelegateSignature(
+    MakeClaimAndDelegateSignatureParams memory _params,
+    ZkMerkleDistributor _distributor
+  ) internal view returns (bytes memory _signature) {
+    // Get nonce, using distributor
+    uint256 _nonce = _distributor.nonces(_params.claimant);
+    bytes32 _message = keccak256(
+      abi.encode(
+        ZK_CLAIM_AND_DELEGATE_TYPEHASH,
+        _params.claimIndex,
+        _params.claimant,
+        _params.amount,
+        keccak256(abi.encodePacked(_params.proof)),
         _params.delegatee,
         _params.expiry,
         _nonce
@@ -196,6 +232,387 @@ contract Claim is ZkMerkleDistributorTest {
     address _admin,
     uint256 _claimantPrivateKey,
     uint256 _amount,
+    uint256 _seed
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 6 hours);
+    vm.prank(_claimant);
+    _distributor.claim(_claimIndex, _amount, _proof);
+    assertEq(token.balanceOf(_claimant), _amount);
+  }
+
+  /// forge-config: default.fuzz.runs = 5
+  /// forge-config: ci.fuzz.runs = 5
+  /// forge-config: lite.fuzz.runs = 1
+  function testFuzz_RevertIf_TheClaimantProvidesAnInvalidMerkleProof(
+    address _admin,
+    uint256 _badClaimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed,
+    address _someOtherClaimant
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _badClaimantPrivateKey = bound(_badClaimantPrivateKey, 1, 100e18);
+    address _badClaimant = vm.addr(_badClaimantPrivateKey);
+    vm.assume(_badClaimant != _someOtherClaimant);
+
+    // create a tree with that doesn't contain the bad claimant
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(0, _someOtherClaimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 6 hours);
+    vm.prank(_badClaimant);
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidProof.selector));
+    _distributor.claim(_claimIndex, _amount, _proof);
+  }
+
+  /// forge-config: default.fuzz.runs = 5
+  /// forge-config: ci.fuzz.runs = 5
+  /// forge-config: lite.fuzz.runs = 1
+  function testFuzz_RevertIf_TheSameClaimantMakesARepeatClaim(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 6 hours);
+    vm.prank(_claimant);
+    _distributor.claim(_claimIndex, _amount, _proof);
+    assertEq(token.balanceOf(_claimant), _amount);
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__AlreadyClaimed.selector));
+    _distributor.claim(_claimIndex, _amount, _proof);
+  }
+
+  function testFuzz_RevertIf_TheClaimAmountExceedsTheClaimableCap(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed
+  ) public {
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
+
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp, // window open
+      block.timestamp + 1 days // window close
+    );
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+
+    // The user will request some amount above what they're entitled to, that would exceed the
+    // cap if the proof were valid.
+    uint256 _requestAmount = bound(_amount, _totalClaimable + 1, type(uint208).max);
+
+    vm.prank(_claimant);
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimAmountExceedsMaximum.selector));
+    _distributor.claim(_claimIndex, _requestAmount, _proof);
+  }
+
+  function testFuzz_RevertIf_AClaimIsMadeBeforeTheWindowIsOpen(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
+
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp + 1 days, // window open
+      block.timestamp + 2 days // window close
+    );
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+
+    vm.warp(block.timestamp + 2 days);
+
+    vm.prank(_claimant);
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimWindowNotOpen.selector));
+    _distributor.claim(_claimIndex, _amount, _proof);
+  }
+
+  function testFuzz_RevertIf_AClaimIsMadeAfterTheWindowHasClosed(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 2 days);
+    vm.prank(_claimant);
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimWindowNotOpen.selector));
+    _distributor.claim(_claimIndex, _amount, _proof);
+  }
+}
+
+contract ClaimOnBehalf is ZkMerkleDistributorTest {
+  /// forge-config: default.fuzz.runs = 5
+  /// forge-config: ci.fuzz.runs = 5
+  /// forge-config: lite.fuzz.runs = 1
+  function testFuzz_CanMakeClaimOnBehalfWithBigTree(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed,
+    uint256 _expiry
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 6 hours);
+    _expiry = bound(_expiry, block.timestamp + 6 hours + 1, type(uint256).max);
+    bytes memory _claimSignature = makeClaimSignature(
+      MakeClaimSignatureParams({
+        claimantPrivateKey: _claimantPrivateKey,
+        claimIndex: _claimIndex,
+        claimant: _claimant,
+        amount: _amount,
+        expiry: _expiry,
+        proof: _proof
+      }),
+      _distributor
+    );
+
+    ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo);
+    assertEq(token.balanceOf(_claimant), _amount);
+  }
+
+  function testFuzz_RevertIf_ClaimOnBehalfAttemptedWithBadSignature(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _nonClaimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed,
+    uint256 _expiry
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    _nonClaimantPrivateKey = bound(_nonClaimantPrivateKey, 1, 100e18);
+    vm.assume(_claimantPrivateKey != _nonClaimantPrivateKey);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 6 hours);
+    _expiry = bound(_expiry, block.timestamp + 6 hours + 1, type(uint256).max);
+    bytes memory _claimSignature = makeClaimSignature(
+      MakeClaimSignatureParams({
+        claimantPrivateKey: _nonClaimantPrivateKey,
+        claimIndex: _claimIndex,
+        claimant: _claimant,
+        amount: _amount,
+        expiry: _expiry,
+        proof: _proof
+      }),
+      _distributor
+    );
+    ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidSignature.selector));
+    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo);
+  }
+
+  function testFuzz_RevertIf_ClaimOnBehalfAttemptedWithInvalidNonce(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed,
+    uint256 _expiry
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 6 hours);
+    _expiry = bound(_expiry, block.timestamp + 6 hours + 1, type(uint256).max);
+    bytes memory _claimSignature = makeClaimSignature(
+      MakeClaimSignatureParams({
+        claimantPrivateKey: _claimantPrivateKey,
+        claimIndex: _claimIndex,
+        claimant: _claimant,
+        amount: _amount,
+        expiry: _expiry,
+        proof: _proof
+      }),
+      _distributor
+    );
+    ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+
+    vm.prank(_claimant);
+    _distributor.invalidateNonce();
+
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidSignature.selector));
+    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo);
+  }
+
+  function testFuzz_RevertIf_ClaimOnBehalfAttemptedWithExpiredSignature(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
+    uint256 _seed,
+    uint256 _expiry
+  ) public {
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    _assumeNotProxyAdmin(_claimant);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+
+    _expiry = bound(_expiry, 0, block.timestamp + 6 hours);
+    vm.warp(block.timestamp + 6 hours);
+    bytes memory _claimSignature = makeClaimSignature(
+      MakeClaimSignatureParams({
+        claimantPrivateKey: _claimantPrivateKey,
+        claimIndex: _claimIndex,
+        claimant: _claimant,
+        amount: _amount,
+        expiry: _expiry,
+        proof: _proof
+      }),
+      _distributor
+    );
+    ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ExpiredSignature.selector));
+    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo);
+  }
+}
+
+contract ClaimAndDelegate is ZkMerkleDistributorTest {
+  /// forge-config: default.fuzz.runs = 5
+  /// forge-config: ci.fuzz.runs = 5
+  /// forge-config: lite.fuzz.runs = 1
+  function testFuzz_MintsTokensAndDelegatesForAClaimantWithAValidMerkleProof(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
     uint256 _seed,
     address _delegatee
   ) public {
@@ -219,7 +636,7 @@ contract Claim is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
     vm.warp(block.timestamp + 6 hours);
     vm.prank(_claimant);
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), _amount);
     assertEq(token.delegates(_claimant), _delegatee);
   }
@@ -257,7 +674,7 @@ contract Claim is ZkMerkleDistributorTest {
     vm.warp(block.timestamp + 6 hours);
     vm.prank(_badClaimant);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidProof.selector));
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
   }
 
   /// forge-config: default.fuzz.runs = 5
@@ -290,11 +707,11 @@ contract Claim is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
     vm.warp(block.timestamp + 6 hours);
     vm.prank(_claimant);
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), _amount);
     assertEq(token.delegates(_claimant), _delegatee);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__AlreadyClaimed.selector));
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
   }
 
   function testFuzz_RevertIf_TheClaimAmountExceedsTheClaimableCap(
@@ -333,7 +750,7 @@ contract Claim is ZkMerkleDistributorTest {
 
     vm.prank(_claimant);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimAmountExceedsMaximum.selector));
-    _distributor.claim(_claimIndex, _requestAmount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _requestAmount, _proof, _delegateeInfo);
   }
 
   function testFuzz_RevertIf_AClaimIsMadeBeforeTheWindowIsOpen(
@@ -370,7 +787,7 @@ contract Claim is ZkMerkleDistributorTest {
 
     vm.prank(_claimant);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimWindowNotOpen.selector));
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
   }
 
   function testFuzz_RevertIf_AClaimIsMadeAfterTheWindowHasClosed(
@@ -401,15 +818,15 @@ contract Claim is ZkMerkleDistributorTest {
     vm.warp(block.timestamp + 2 days);
     vm.prank(_claimant);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimWindowNotOpen.selector));
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
   }
 }
 
-contract ClaimOnBehalf is ZkMerkleDistributorTest {
+contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
   /// forge-config: default.fuzz.runs = 5
   /// forge-config: ci.fuzz.runs = 5
   /// forge-config: lite.fuzz.runs = 1
-  function testFuzz_CanMakeClaimOnBehalfWithBigTree(
+  function testFuzz_CanMakeClaimAndDelegateOnBehalfWithBigTree(
     address _admin,
     uint256 _claimantPrivateKey,
     uint256 _amount,
@@ -437,8 +854,8 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
     vm.warp(block.timestamp + 6 hours);
     _expiry = bound(_expiry, block.timestamp + 6 hours + 1, type(uint256).max);
-    bytes memory _claimSignature = makeClaimSignature(
-      MakeClaimSignatureParams({
+    bytes memory _claimSignature = makeClaimAndDelegateSignature(
+      MakeClaimAndDelegateSignatureParams({
         claimantPrivateKey: _claimantPrivateKey,
         claimIndex: _claimIndex,
         claimant: _claimant,
@@ -452,12 +869,12 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
 
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
       ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
-    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
+    _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), _amount);
     assertEq(token.delegates(_claimant), _delegatee);
   }
 
-  function testFuzz_RevertIf_ClaimOnBehalfAttemptedWithBadSignature(
+  function testFuzz_RevertIf_ClaimAndDelegateOnBehalfAttemptedWithBadSignature(
     address _admin,
     uint256 _claimantPrivateKey,
     uint256 _nonClaimantPrivateKey,
@@ -488,8 +905,8 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
     vm.warp(block.timestamp + 6 hours);
     _expiry = bound(_expiry, block.timestamp + 6 hours + 1, type(uint256).max);
-    bytes memory _claimSignature = makeClaimSignature(
-      MakeClaimSignatureParams({
+    bytes memory _claimSignature = makeClaimAndDelegateSignature(
+      MakeClaimAndDelegateSignatureParams({
         claimantPrivateKey: _nonClaimantPrivateKey,
         claimIndex: _claimIndex,
         claimant: _claimant,
@@ -504,10 +921,10 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
 
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidSignature.selector));
-    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
+    _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
   }
 
-  function testFuzz_RevertIf_ClaimOnBehalfAttemptedWithInvalidNonce(
+  function testFuzz_RevertIf_ClaimAndDelegateOnBehalfAttemptedWithInvalidNonce(
     address _admin,
     uint256 _claimantPrivateKey,
     uint256 _amount,
@@ -535,8 +952,8 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
     vm.warp(block.timestamp + 6 hours);
     _expiry = bound(_expiry, block.timestamp + 6 hours + 1, type(uint256).max);
-    bytes memory _claimSignature = makeClaimSignature(
-      MakeClaimSignatureParams({
+    bytes memory _claimSignature = makeClaimAndDelegateSignature(
+      MakeClaimAndDelegateSignatureParams({
         claimantPrivateKey: _claimantPrivateKey,
         claimIndex: _claimIndex,
         claimant: _claimant,
@@ -554,10 +971,10 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
     _distributor.invalidateNonce();
 
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidSignature.selector));
-    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
+    _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
   }
 
-  function testFuzz_RevertIf_ClaimOnBehalfAttemptedWithExpiredSignature(
+  function testFuzz_RevertIf_ClaimAndDelegateOnBehalfAttemptedWithExpiredSignature(
     address _admin,
     uint256 _claimantPrivateKey,
     uint256 _amount,
@@ -586,8 +1003,8 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
 
     _expiry = bound(_expiry, 0, block.timestamp + 6 hours);
     vm.warp(block.timestamp + 6 hours);
-    bytes memory _claimSignature = makeClaimSignature(
-      MakeClaimSignatureParams({
+    bytes memory _claimSignature = makeClaimAndDelegateSignature(
+      MakeClaimAndDelegateSignatureParams({
         claimantPrivateKey: _claimantPrivateKey,
         claimIndex: _claimIndex,
         claimant: _claimant,
@@ -602,7 +1019,7 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
 
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ExpiredSignature.selector));
-    _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
+    _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
   }
 }
 
@@ -643,7 +1060,7 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
 
     vm.warp(block.timestamp + 6 hours);
     vm.prank(_claimant);
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
 
     assertEq(token.balanceOf(_claimant), _amount);
     assertEq(token.delegates(_claimant), _delegatee);
@@ -685,7 +1102,7 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
     vm.warp(block.timestamp + 6 hours);
     vm.prank(_claimant);
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), _amount);
     assertEq(token.delegates(_claimant), _delegatee);
     vm.warp(block.timestamp + 2 days);
@@ -761,7 +1178,7 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
     vm.warp(block.timestamp + 6 hours);
     vm.prank(_claimant);
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), _amount);
     assertEq(token.delegates(_claimant), _delegatee);
     vm.warp(block.timestamp + 6 hours);
@@ -835,7 +1252,7 @@ contract IsClaimed is ZkMerkleDistributorTest {
       createDelegateeInfo(makeAddr("delegatee"), _claimant, _claimantPrivateKey);
 
     vm.prank(_claimant);
-    _distributor.claim(_claimIndex, _amount, _proof, _delegateeInfo);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
 
     assertTrue(_distributor.isClaimed(_claimIndex));
   }
@@ -880,10 +1297,10 @@ contract IsClaimed is ZkMerkleDistributorTest {
     vm.warp(block.timestamp + 6 hours);
     bytes32[] memory _theProof = merkle.getProof(_tree, 3);
     vm.prank(_claimant1);
-    _distributor.claim(3, _amount1, _theProof, _delegateeInfo1);
+    _distributor.claimAndDelegate(3, _amount1, _theProof, _delegateeInfo1);
     _theProof = merkle.getProof(_tree, 7);
     vm.prank(_claimant2);
-    _distributor.claim(7, _amount2, _theProof, _delegateeInfo2);
+    _distributor.claimAndDelegate(7, _amount2, _theProof, _delegateeInfo2);
     assert(_distributor.isClaimed(3));
     assert(!_distributor.isClaimed(5));
     assert(_distributor.isClaimed(7));

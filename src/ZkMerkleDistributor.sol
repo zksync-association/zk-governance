@@ -30,9 +30,13 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     uint256 expiry;
   }
 
-  /// @notice Type hash of the data that makes up the claim.
-  bytes32 public constant ZK_CLAIM_TYPEHASH = keccak256(
-    "Claim(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 expiry,uint256 nonce)"
+  /// @notice Type hash of the data that makes up the claim request.
+  bytes32 public constant ZK_CLAIM_TYPEHASH =
+    keccak256("Claim(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,uint256 expiry,uint256 nonce)");
+
+  /// @notice Type hash of the data that makes up the claim and delegate request.
+  bytes32 public constant ZK_CLAIM_AND_DELEGATE_TYPEHASH = keccak256(
+    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 expiry,uint256 nonce)"
   );
 
   /// @notice The address of the admin of the MerkleDistributor.
@@ -118,33 +122,25 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     return BitMaps.get(claimedBitMap, _index);
   }
 
-  /// @notice Claims the tokens for a claimant, given a claimant address, an index, an amount, and a merkle proof.
-  /// @dev This method makes use of signature parameters to delegate the claimant's voting power to another address.
+  /// @notice Claims the tokens for a caller, given the index, amount, and merkle proof.
   /// @param _index The index of the claim.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   /// @param _merkleProof The Merkle proof for the claim.
-  /// @param _delegateInfo The address where the voting power of the new tokens will be delegated.
-  function claim(uint256 _index, uint256 _amount, bytes32[] calldata _merkleProof, DelegateInfo memory _delegateInfo)
-    external
-    virtual
-  {
-    _claim(_index, msg.sender, _amount, _merkleProof, _delegateInfo);
+  function claim(uint256 _index, uint256 _amount, bytes32[] calldata _merkleProof) external {
+    _claim(_index, msg.sender, _amount, _merkleProof);
   }
 
   /// @notice Claims on behalf of another account, using the ERC-712 or ERC-1271 signature standard.
-  /// @dev This method makes use of the _signature parameter to verify the claim on behalf of the claimer, and
-  /// separate signature parameters to delegate the claimer's voting power to another address.
+  /// @dev This method makes use of the _signature parameter to verify the claim on behalf of the claimer.
   /// @param _index The index of the claim.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   /// @param _merkleProof The Merkle proof for the claim.
   /// @param _claimSignatureInfo Signature information provided by the claimer.
-  /// @param _delegateInfo Delegate information for the claimer.
   function claimOnBehalf(
     uint256 _index,
     uint256 _amount,
     bytes32[] calldata _merkleProof,
-    ClaimSignatureInfo calldata _claimSignatureInfo,
-    DelegateInfo memory _delegateInfo
+    ClaimSignatureInfo calldata _claimSignatureInfo
   ) external {
     bytes32 _dataHash;
 
@@ -163,6 +159,75 @@ contract ZkMerkleDistributor is EIP712, Nonces {
               _claimSignatureInfo.signingClaimant,
               _amount,
               keccak256(abi.encodePacked(_merkleProof)),
+              _claimSignatureInfo.expiry,
+              _useNonce(_claimSignatureInfo.signingClaimant)
+            )
+          )
+        )
+      );
+    }
+    _revertIfSignatureIsNotValidNow(_claimSignatureInfo.signingClaimant, _dataHash, _claimSignatureInfo.signature);
+    _claim(_index, _claimSignatureInfo.signingClaimant, _amount, _merkleProof);
+  }
+
+  /// @notice Claims the tokens for a claimant, given a claimant address, an index, an amount, and a merkle proof.
+  /// @dev This method makes use of signature parameters to delegate the claimant's voting power to another address,
+  /// and therefore cannot be called by smart contract accounts.
+  /// @param _index The index of the claim.
+  /// @param _amount The quantity of tokens, in raw decimals, that will be created.
+  /// @param _merkleProof The Merkle proof for the claim.
+  /// @param _delegateInfo The address (and signature info) for where the claimer's voting power will be delegated.
+  function claimAndDelegate(
+    uint256 _index,
+    uint256 _amount,
+    bytes32[] calldata _merkleProof,
+    DelegateInfo memory _delegateInfo
+  ) external virtual {
+    _claim(_index, msg.sender, _amount, _merkleProof);
+
+    // Use delegateBySig to delegate on behalf of the claimer
+    TOKEN.delegateBySig(
+      _delegateInfo.delegatee,
+      _delegateInfo.nonce,
+      _delegateInfo.expiry,
+      _delegateInfo.v,
+      _delegateInfo.r,
+      _delegateInfo.s
+    );
+  }
+
+  /// @notice Claims on behalf of another account, using the ERC-712 or ERC-1271 signature standard.
+  /// @dev This method makes use of the _signature parameter to verify the claim on behalf of the claimer, and
+  /// separate signature parameters to delegate the claimer's voting power to another address.
+  /// @param _index The index of the claim.
+  /// @param _amount The quantity of tokens, in raw decimals, that will be created.
+  /// @param _merkleProof The Merkle proof for the claim.
+  /// @param _claimSignatureInfo Signature information provided by the claimer.
+  /// @param _delegateInfo The address (and signature info) for where claimer's voting power will be delegated.
+  function claimAndDelegateOnBehalf(
+    uint256 _index,
+    uint256 _amount,
+    bytes32[] calldata _merkleProof,
+    ClaimSignatureInfo calldata _claimSignatureInfo,
+    DelegateInfo memory _delegateInfo
+  ) external {
+    bytes32 _dataHash;
+
+    if (_claimSignatureInfo.expiry <= block.timestamp) {
+      revert ZkMerkleDistributor__ExpiredSignature();
+    }
+    unchecked {
+      _dataHash = keccak256(
+        abi.encodePacked(
+          "\x19\x01",
+          _domainSeparatorV4(),
+          keccak256(
+            abi.encode(
+              ZK_CLAIM_AND_DELEGATE_TYPEHASH,
+              _index,
+              _claimSignatureInfo.signingClaimant,
+              _amount,
+              keccak256(abi.encodePacked(_merkleProof)),
               _delegateInfo.delegatee,
               _claimSignatureInfo.expiry,
               _useNonce(_claimSignatureInfo.signingClaimant)
@@ -172,7 +237,17 @@ contract ZkMerkleDistributor is EIP712, Nonces {
       );
     }
     _revertIfSignatureIsNotValidNow(_claimSignatureInfo.signingClaimant, _dataHash, _claimSignatureInfo.signature);
-    _claim(_index, _claimSignatureInfo.signingClaimant, _amount, _merkleProof, _delegateInfo);
+    _claim(_index, _claimSignatureInfo.signingClaimant, _amount, _merkleProof);
+
+    // Use delegateBySig to delegate on behalf of the claimer
+    TOKEN.delegateBySig(
+      _delegateInfo.delegatee,
+      _delegateInfo.nonce,
+      _delegateInfo.expiry,
+      _delegateInfo.v,
+      _delegateInfo.r,
+      _delegateInfo.s
+    );
   }
 
   /// @notice Allows the admin to sweep unclaimed tokens to a given address.
@@ -191,13 +266,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   /// @param _merkleProof The Merkle proof for the claim.
   /// @dev Internal method for claiming tokens, called by 'claim' and 'claimOnBehalf'.
-  function _claim(
-    uint256 _index,
-    address _claimant,
-    uint256 _amount,
-    bytes32[] calldata _merkleProof,
-    DelegateInfo memory _delegateInfo
-  ) internal {
+  function _claim(uint256 _index, address _claimant, uint256 _amount, bytes32[] calldata _merkleProof) internal {
     _revertIfClaimWindowNotOpen();
     _revertIfClaimAmountExceedsMaximum(_amount);
     _revertIfAlreadyClaimed(_index);
@@ -213,16 +282,6 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     _setClaimed(_index);
     TOKEN.mint(_claimant, _amount);
     emit Claimed(_index, _claimant, _amount);
-
-    // Use delegateBySig to delegate on behalf of the claimer
-    TOKEN.delegateBySig(
-      _delegateInfo.delegatee,
-      _delegateInfo.nonce,
-      _delegateInfo.expiry,
-      _delegateInfo.v,
-      _delegateInfo.r,
-      _delegateInfo.s
-    );
   }
 
   /// @notice Allows a msg.sender to increment their nonce and invalidate any of their pending signatures.
