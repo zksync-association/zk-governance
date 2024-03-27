@@ -303,6 +303,7 @@ contract Claim is ZkMerkleDistributorTest {
     address _claimant = vm.addr(_claimantPrivateKey);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
+    vm.assume(_totalClaimable > _amount * 2);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
       _admin,
       IMintableAndDelegatable(address(token)),
@@ -413,6 +414,48 @@ contract Claim is ZkMerkleDistributorTest {
     vm.prank(_claimant);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimWindowNotOpen.selector));
     _distributor.claim(_claimIndex, _amount, _proof);
+  }
+
+  function testFuzz_RevertIf_ClaimAmountIncrementallyExceedsClaimableCap(
+    address _admin,
+    uint256 _claimantPrivateKey1,
+    uint256 _claimantPrivateKey2,
+    uint256 _amount1,
+    uint256 _amount2,
+    uint256 _seed
+  ) public {
+    _amount1 = bound(_amount1, 0, MAX_AMOUNT);
+    _amount2 = bound(_amount2, 1, MAX_AMOUNT);
+    _claimantPrivateKey1 = bound(_claimantPrivateKey1, 1, 100e18);
+    _claimantPrivateKey2 = bound(_claimantPrivateKey2, 1, 100e18);
+    address _claimant1 = vm.addr(_claimantPrivateKey1);
+    address _claimant2 = vm.addr(_claimantPrivateKey2);
+    vm.assume(_claimant1 != _claimant2);
+
+    // create a small tree with two claims (set claimant index on call such that no claim spot is left open)
+    (bytes32[] memory _tree, uint256 _totalClaimable) = makeTreeArray(10, _seed, 11);
+    _tree[3] = makeNode(3, _claimant1, _amount1);
+    _tree[7] = makeNode(7, _claimant2, _amount2);
+    bytes32 _merkleRoot = merkle.getRoot(_tree);
+    _totalClaimable = _amount1;
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    vm.warp(block.timestamp + 6 hours);
+    bytes32[] memory _theProof = merkle.getProof(_tree, 3);
+    vm.prank(_claimant1);
+    _distributor.claim(3, _amount1, _theProof);
+    _theProof = merkle.getProof(_tree, 7);
+    vm.prank(_claimant2);
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimAmountExceedsMaximum.selector));
+    _distributor.claim(7, _amount2, _theProof);
   }
 }
 
@@ -682,6 +725,7 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     address _claimant = vm.addr(_claimantPrivateKey);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
+    vm.assume(_totalClaimable > _amount * 2);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
       _admin,
       IMintableAndDelegatable(address(token)),
@@ -805,6 +849,53 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     vm.prank(_claimant);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimWindowNotOpen.selector));
     _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
+  }
+
+  function testFuzz_RevertIf_ClaimAndDelegateAmountIncrementallyExceedsClaimableCap(
+    address _admin,
+    uint256 _claimantPrivateKey1,
+    uint256 _claimantPrivateKey2,
+    uint256 _amount1,
+    uint256 _amount2,
+    uint256 _seed,
+    address _delegatee
+  ) public {
+    _amount1 = bound(_amount1, 0, MAX_AMOUNT);
+    _amount2 = bound(_amount2, 1, MAX_AMOUNT);
+    _claimantPrivateKey1 = bound(_claimantPrivateKey1, 1, 100e18);
+    _claimantPrivateKey2 = bound(_claimantPrivateKey2, 1, 100e18);
+    address _claimant1 = vm.addr(_claimantPrivateKey1);
+    address _claimant2 = vm.addr(_claimantPrivateKey2);
+    vm.assume(_claimant1 != _claimant2);
+
+    // create a small tree with two claims (set claimant index on call such that no claim spot is left open)
+    (bytes32[] memory _tree, uint256 _totalClaimable) = makeTreeArray(10, _seed, 11);
+    _tree[3] = makeNode(3, _claimant1, _amount1);
+    _tree[7] = makeNode(7, _claimant2, _amount2);
+    bytes32 _merkleRoot = merkle.getRoot(_tree);
+    _totalClaimable = _amount1;
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo1 =
+      createDelegateeInfo(_delegatee, _claimant1, _claimantPrivateKey1);
+    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo2 =
+      createDelegateeInfo(_delegatee, _claimant2, _claimantPrivateKey2);
+    vm.warp(block.timestamp + 6 hours);
+    bytes32[] memory _theProof = merkle.getProof(_tree, 3);
+    vm.prank(_claimant1);
+    _distributor.claimAndDelegate(3, _amount1, _theProof, _delegateeInfo1);
+    _theProof = merkle.getProof(_tree, 7);
+    vm.prank(_claimant2);
+    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimAmountExceedsMaximum.selector));
+    _distributor.claimAndDelegate(7, _amount2, _theProof, _delegateeInfo2);
   }
 }
 

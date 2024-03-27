@@ -332,7 +332,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   /// @notice Reverts if the claim amount exceeds the maximum.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   function _revertIfClaimAmountExceedsMaximum(uint256 _amount) internal view {
-    if (_amount > MAXIMUM_TOTAL_CLAIMABLE) {
+    if (_amount + totalClaimed > MAXIMUM_TOTAL_CLAIMABLE) {
       revert ZkMerkleDistributor__ClaimAmountExceedsMaximum();
     }
   }
