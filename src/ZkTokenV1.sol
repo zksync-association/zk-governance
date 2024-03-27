@@ -8,12 +8,11 @@ import {ERC20VotesUpgradeable} from
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC20PermitUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import {NoncesUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
 
 /// @title ZkTokenV1
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A proxy-upgradeable governance token with minting and burning capability gated by access controls.
-contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, ERC20PermitUpgradeable, AccessControlUpgradeable {
+contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgradeable {
   /// @notice The unique identifier constant used to represent the administrator of the minter role. An address that
   /// has this role may grant or revoke the minter role from other addresses. This role itself may be granted or
   /// revoked by the DEFAULT_ADMIN_ROLE.
@@ -66,17 +65,5 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, ERC20PermitUpgradeab
   /// admin.
   function burn(address _from, uint256 _amount) external onlyRole(BURNER_ROLE) {
     _burn(_from, _amount);
-  }
-
-  /// @inheritdoc ERC20PermitUpgradeable
-  /// @dev Overriding this function to resolve ambiguity in the inheritance hierarchy.
-  function nonces(address owner) public view override(ERC20PermitUpgradeable, NoncesUpgradeable) returns (uint256) {
-    return ERC20PermitUpgradeable.nonces(owner);
-  }
-
-  /// @inheritdoc ERC20VotesUpgradeable
-  /// @dev Overriding this function to resolve ambiguity in the inheritance hierarchy.
-  function _update(address from, address to, uint256 value) internal override(ERC20VotesUpgradeable, ERC20Upgradeable) {
-    ERC20VotesUpgradeable._update(from, to, value);
   }
 }

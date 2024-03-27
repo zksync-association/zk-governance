@@ -237,7 +237,6 @@ contract Claim is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -302,7 +301,6 @@ contract Claim is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -331,7 +329,6 @@ contract Claim is ZkMerkleDistributorTest {
   ) public {
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     _amount = bound(_amount, 0, MAX_AMOUNT);
 
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
@@ -368,7 +365,6 @@ contract Claim is ZkMerkleDistributorTest {
 
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
 
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
@@ -401,7 +397,6 @@ contract Claim is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -435,7 +430,6 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -481,7 +475,6 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
     _nonClaimantPrivateKey = bound(_nonClaimantPrivateKey, 1, 100e18);
     vm.assume(_claimantPrivateKey != _nonClaimantPrivateKey);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -524,7 +517,6 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -570,7 +562,6 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -619,7 +610,6 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -690,7 +680,6 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -723,7 +712,6 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
   ) public {
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     _amount = bound(_amount, 0, MAX_AMOUNT);
 
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
@@ -764,7 +752,6 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
 
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
 
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
@@ -800,7 +787,6 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -837,7 +823,6 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -888,7 +873,6 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     _nonClaimantPrivateKey = bound(_nonClaimantPrivateKey, 1, 100e18);
     vm.assume(_claimantPrivateKey != _nonClaimantPrivateKey);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -935,7 +919,6 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -985,7 +968,6 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     _amount = bound(_amount, 0, MAX_AMOUNT);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -1037,7 +1019,6 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
 
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
 
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
@@ -1085,7 +1066,6 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
     vm.assume(_delegatee != _unclaimedReceiver);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(10, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
@@ -1126,7 +1106,6 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
     vm.assume(_unclaimedReceiver != address(0) && _delegatee != address(0) && _delegatee != _unclaimedReceiver);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
 
     (bytes32 _merkleRoot, uint256 _totalClaimable,,,) = makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
 
@@ -1161,7 +1140,6 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
     vm.assume(_delegatee != _unclaimedReceiver);
     _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
     address _claimant = vm.addr(_claimantPrivateKey);
-    _assumeNotProxyAdmin(_claimant);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
