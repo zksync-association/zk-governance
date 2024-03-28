@@ -303,7 +303,8 @@ contract Claim is ZkMerkleDistributorTest {
     address _claimant = vm.addr(_claimantPrivateKey);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
-    vm.assume(_totalClaimable > _amount * 2);
+    // make room for a second claim of the same amount
+    _totalClaimable += _amount;
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
       _admin,
       IMintableAndDelegatable(address(token)),
@@ -416,7 +417,7 @@ contract Claim is ZkMerkleDistributorTest {
     _distributor.claim(_claimIndex, _amount, _proof);
   }
 
-  function testFuzz_RevertIf_ClaimAmountIncrementallyExceedsClaimableCap(
+  function testFuzz_RevertIf_ClaimAmountIncrementallyExceedsTheClaimableCap(
     address _admin,
     uint256 _claimantPrivateKey1,
     uint256 _claimantPrivateKey2,
@@ -725,7 +726,8 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     address _claimant = vm.addr(_claimantPrivateKey);
     (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
       makeMerkleTreeWithSampleClaim(0, _claimant, _amount, _seed);
-    vm.assume(_totalClaimable > _amount * 2);
+    // make room for a second claim of the same amount
+    _totalClaimable += _amount;
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
       _admin,
       IMintableAndDelegatable(address(token)),
@@ -851,7 +853,7 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
   }
 
-  function testFuzz_RevertIf_ClaimAndDelegateAmountIncrementallyExceedsClaimableCap(
+  function testFuzz_RevertIf_ClaimAndDelegateAmountIncrementallyExceedsTheTheClaimableCap(
     address _admin,
     uint256 _claimantPrivateKey1,
     uint256 _claimantPrivateKey2,
