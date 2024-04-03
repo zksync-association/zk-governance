@@ -13,6 +13,9 @@ import {ERC20PermitUpgradeable} from
 /// @title ZkTokenV1
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A proxy-upgradeable governance token with minting and burning capability gated by access controls.
+/// @dev The same incrementing nonce is used in both the `delegateBySig` and `permit` function. If a client is
+/// calling these functions one after the other then they should use an incremented nonce for the subsequent call.
+/// @custom:security-contact security@zksync.io
 contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgradeable {
   /// @notice The unique identifier constant used to represent the administrator of the minter role. An address that
   /// has this role may grant or revoke the minter role from other addresses. This role itself may be granted or
@@ -53,10 +56,14 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
     _mint(_mintReceiver, _mintAmount);
   }
 
+  /// @inheritdoc ERC20VotesUpgradeable
+  /// @dev Overriding the clock to be timestamp based rather than clock based.
   function clock() public view virtual override returns (uint48) {
     return SafeCastUpgradeable.toUint48(block.timestamp);
   }
 
+  /// @inheritdoc ERC20VotesUpgradeable
+  /// @dev Overriding the clock mode to be timestamp based rather than clock based.
   function CLOCK_MODE() public view virtual override returns (string memory) {
     if (clock() != SafeCastUpgradeable.toUint48(block.timestamp)) {
       revert ERC6372InconsistentClock();

@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {Nonces} from "src/lib/Nonces.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -11,6 +12,7 @@ import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/Signa
 /// @title ZkMerkleDistributor
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A contract that allows a user to claim a token distribution against a Merkle tree root.
+/// @custom:security-contact security@zksync.io
 contract ZkMerkleDistributor is EIP712, Nonces {
   using BitMaps for BitMaps.BitMap;
 
@@ -24,6 +26,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     bytes32 s;
   }
 
+  /// @dev A struct of claim information used for signature based claiming.
   struct ClaimSignatureInfo {
     address signingClaimant;
     bytes signature;
@@ -118,8 +121,9 @@ contract ZkMerkleDistributor is EIP712, Nonces {
 
   /// @notice Returns true if the index has been claimed.
   /// @param _index The index of the claim.
+  /// @return Whether a claim has been claimed.
   function isClaimed(uint256 _index) public view returns (bool) {
-    return BitMaps.get(claimedBitMap, _index);
+    return claimedBitMap.get(_index);
   }
 
   /// @notice Claims the tokens for a caller, given the index, amount, and merkle proof.
@@ -148,20 +152,17 @@ contract ZkMerkleDistributor is EIP712, Nonces {
       revert ZkMerkleDistributor__ExpiredSignature();
     }
     unchecked {
-      _dataHash = keccak256(
-        abi.encodePacked(
-          "\x19\x01",
-          _domainSeparatorV4(),
-          keccak256(
-            abi.encode(
-              ZK_CLAIM_TYPEHASH,
-              _index,
-              _claimSignatureInfo.signingClaimant,
-              _amount,
-              keccak256(abi.encodePacked(_merkleProof)),
-              _claimSignatureInfo.expiry,
-              _useNonce(_claimSignatureInfo.signingClaimant)
-            )
+      _dataHash = ECDSA.toTypedDataHash(
+        _domainSeparatorV4(),
+        keccak256(
+          abi.encode(
+            ZK_CLAIM_TYPEHASH,
+            _index,
+            _claimSignatureInfo.signingClaimant,
+            _amount,
+            keccak256(abi.encodePacked(_merkleProof)),
+            _claimSignatureInfo.expiry,
+            _useNonce(_claimSignatureInfo.signingClaimant)
           )
         )
       );
@@ -217,6 +218,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     if (_claimSignatureInfo.expiry <= block.timestamp) {
       revert ZkMerkleDistributor__ExpiredSignature();
     }
+
     unchecked {
       _dataHash = keccak256(
         abi.encodePacked(
@@ -279,7 +281,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
 
     // Verify the merkle proof.
     bytes32 node = keccak256(abi.encodePacked(_index, _claimant, _amount));
-    if (!MerkleProof.verify(_merkleProof, MERKLE_ROOT, node)) {
+    if (!MerkleProof.verifyCalldata(_merkleProof, MERKLE_ROOT, node)) {
       revert ZkMerkleDistributor__InvalidProof();
     }
 
@@ -295,7 +297,8 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     _useNonce(msg.sender);
   }
 
-  // @dev Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
+  /// @dev Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
+  /// @return The domain seperator.
   function DOMAIN_SEPARATOR() external view returns (bytes32) {
     return _domainSeparatorV4();
   }
@@ -310,7 +313,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   /// @notice Updates the tracking data to mark the claim has been done.
   /// @param _index The index of the claim.
   function _setClaimed(uint256 _index) private {
-    BitMaps.set(claimedBitMap, _index);
+    claimedBitMap.set(_index);
   }
 
   /// @notice Reverts if already claimed.

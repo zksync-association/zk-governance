@@ -6,6 +6,7 @@ import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.so
 /// @title ZkCappedMinter
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A contract to allow a permissioned entity to mint ZK tokens up to a given amount (the cap).
+/// @custom:security-contact security@zksync.io
 contract ZkCappedMinter {
   /// @notice The contract where the tokens will be minted by an authorized minter.
   IMintableAndDelegatable public immutable TOKEN;
