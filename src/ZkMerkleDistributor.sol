@@ -36,7 +36,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
 
   /// @notice Type hash of the data that makes up the claim and delegate request.
   bytes32 public constant ZK_CLAIM_AND_DELEGATE_TYPEHASH = keccak256(
-    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 expiry,uint256 nonce)"
+    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 delegationNonce,uint8 delegationV,bytes32 delegationR,bytes32 delegationS,uint256 expiry,uint256 nonce)"
   );
 
   /// @notice The address of the admin of the MerkleDistributor.
@@ -229,7 +229,11 @@ contract ZkMerkleDistributor is EIP712, Nonces {
               _amount,
               keccak256(abi.encodePacked(_merkleProof)),
               _delegateInfo.delegatee,
-              _claimSignatureInfo.expiry,
+              _delegateInfo.nonce,
+              _delegateInfo.v,
+              _delegateInfo.r,
+              _delegateInfo.s,
+              _delegateInfo.expiry,
               _useNonce(_claimSignatureInfo.signingClaimant)
             )
           )

@@ -18,7 +18,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
 
   // Type hash of the data that makes up the claim.
   bytes32 public constant ZK_CLAIM_AND_DELEGATE_TYPEHASH = keccak256(
-    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 expiry,uint256 nonce)"
+    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 delegationNonce,uint8 delegationV,bytes32 delegationR,bytes32 delegationS,uint256 expiry,uint256 nonce)"
   );
 
   // type hash for the delegation struct used in delegation by signature upon receiving a claim
@@ -40,7 +40,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     uint256 amount;
     uint256 expiry;
     bytes32[] proof;
-    address delegatee;
+    ZkMerkleDistributor.DelegateInfo delegateInfo;
   }
 
   function setUp() public virtual override {
@@ -175,8 +175,12 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
         _params.claimant,
         _params.amount,
         keccak256(abi.encodePacked(_params.proof)),
-        _params.delegatee,
-        _params.expiry,
+        _params.delegateInfo.delegatee,
+        _params.delegateInfo.nonce,
+        _params.delegateInfo.v,
+        _params.delegateInfo.r,
+        _params.delegateInfo.s,
+        _params.delegateInfo.expiry,
         _nonce
       )
     );
@@ -940,7 +944,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
         amount: _amount,
         expiry: _expiry,
         proof: _proof,
-        delegatee: _delegateeInfo.delegatee
+        delegateInfo: _delegateeInfo
       }),
       _distributor
     );
@@ -990,7 +994,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
         amount: _amount,
         expiry: _expiry,
         proof: _proof,
-        delegatee: _delegateeInfo.delegatee
+        delegateInfo: _delegateeInfo
       }),
       _distributor
     );
@@ -1036,7 +1040,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
         amount: _amount,
         expiry: _expiry,
         proof: _proof,
-        delegatee: _delegateeInfo.delegatee
+        delegateInfo: _delegateeInfo
       }),
       _distributor
     );
@@ -1086,7 +1090,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
         amount: _amount,
         expiry: _expiry,
         proof: _proof,
-        delegatee: _delegateeInfo.delegatee
+        delegateInfo: _delegateeInfo
       }),
       _distributor
     );
