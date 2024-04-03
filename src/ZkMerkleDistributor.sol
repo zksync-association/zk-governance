@@ -185,15 +185,16 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   ) external virtual {
     _claim(_index, msg.sender, _amount, _merkleProof);
 
-    // Use delegateBySig to delegate on behalf of the claimer
-    TOKEN.delegateBySig(
+    // Use delegateBySig to delegate on behalf of the claimer.
+    // Catch delegateBySig reverts caused by a front-run delegateBySig so entire claim doesn't revert.
+    try TOKEN.delegateBySig(
       _delegateInfo.delegatee,
       _delegateInfo.nonce,
       _delegateInfo.expiry,
       _delegateInfo.v,
       _delegateInfo.r,
       _delegateInfo.s
-    );
+    ) {} catch (bytes memory) {}
   }
 
   /// @notice Claims on behalf of another account, using the ERC-712 or ERC-1271 signature standard.
@@ -243,15 +244,16 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     _revertIfSignatureIsNotValidNow(_claimSignatureInfo.signingClaimant, _dataHash, _claimSignatureInfo.signature);
     _claim(_index, _claimSignatureInfo.signingClaimant, _amount, _merkleProof);
 
-    // Use delegateBySig to delegate on behalf of the claimer
-    TOKEN.delegateBySig(
+    // Use delegateBySig to delegate on behalf of the claimer.
+    // Catch delegateBySig reverts caused by a front-run delegateBySig so entire claim doesn't revert.
+    try TOKEN.delegateBySig(
       _delegateInfo.delegatee,
       _delegateInfo.nonce,
       _delegateInfo.expiry,
       _delegateInfo.v,
       _delegateInfo.r,
       _delegateInfo.s
-    );
+    ) {} catch (bytes memory) {}
   }
 
   /// @notice Allows the admin to sweep unclaimed tokens to a given address.

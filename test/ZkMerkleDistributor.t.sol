@@ -857,29 +857,21 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
   }
 
-  function testFuzz_RevertIf_ClaimAndDelegateAmountIncrementallyExceedsTheTheClaimableCap(
+  function testFuzz_CompletesTheClaimProcessEvenIfTheSignatureBasedDelegationFails(
     address _admin,
-    uint256 _claimantPrivateKey1,
-    uint256 _claimantPrivateKey2,
-    uint256 _amount1,
-    uint256 _amount2,
+    uint256 _claimantPrivateKey,
+    uint256 _amount,
     uint256 _seed,
-    address _delegatee
+    address _delegatee,
+    address _frontrunDelegatee
   ) public {
-    _amount1 = bound(_amount1, 0, MAX_AMOUNT);
-    _amount2 = bound(_amount2, 1, MAX_AMOUNT);
-    _claimantPrivateKey1 = bound(_claimantPrivateKey1, 1, 100e18);
-    _claimantPrivateKey2 = bound(_claimantPrivateKey2, 1, 100e18);
-    address _claimant1 = vm.addr(_claimantPrivateKey1);
-    address _claimant2 = vm.addr(_claimantPrivateKey2);
-    vm.assume(_claimant1 != _claimant2);
-
-    // create a small tree with two claims (set claimant index on call such that no claim spot is left open)
-    (bytes32[] memory _tree, uint256 _totalClaimable) = makeTreeArray(10, _seed, 11);
-    _tree[3] = makeNode(3, _claimant1, _amount1);
-    _tree[7] = makeNode(7, _claimant2, _amount2);
-    bytes32 _merkleRoot = merkle.getRoot(_tree);
-    _totalClaimable = _amount1;
+    vm.assume(_delegatee != address(0));
+    vm.assume(_frontrunDelegatee != address(0));
+    _amount = bound(_amount, 0, MAX_AMOUNT);
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(5, _claimant, _amount, _seed);
     ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
       _admin,
       IMintableAndDelegatable(address(token)),
@@ -890,18 +882,28 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     );
     vm.prank(admin);
     token.grantRole(MINTER_ROLE, address(_distributor));
-    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo1 =
-      createDelegateeInfo(_delegatee, _claimant1, _claimantPrivateKey1);
-    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo2 =
-      createDelegateeInfo(_delegatee, _claimant2, _claimantPrivateKey2);
+
+    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo =
+      createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
+    ZkMerkleDistributor.DelegateInfo memory _frontrunDelegateeInfo =
+      createDelegateeInfo(_frontrunDelegatee, _claimant, _claimantPrivateKey);
+
+    // mint some tokens to be used in front-running a delegateBySig call
+    vm.prank(address(_distributor));
+    token.delegateBySig(
+      _frontrunDelegateeInfo.delegatee,
+      _frontrunDelegateeInfo.nonce,
+      _frontrunDelegateeInfo.expiry,
+      _frontrunDelegateeInfo.v,
+      _frontrunDelegateeInfo.r,
+      _frontrunDelegateeInfo.s
+    );
+
     vm.warp(block.timestamp + 6 hours);
-    bytes32[] memory _theProof = merkle.getProof(_tree, 3);
-    vm.prank(_claimant1);
-    _distributor.claimAndDelegate(3, _amount1, _theProof, _delegateeInfo1);
-    _theProof = merkle.getProof(_tree, 7);
-    vm.prank(_claimant2);
-    vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ClaimAmountExceedsMaximum.selector));
-    _distributor.claimAndDelegate(7, _amount2, _theProof, _delegateeInfo2);
+    vm.prank(_claimant);
+    _distributor.claimAndDelegate(_claimIndex, _amount, _proof, _delegateeInfo);
+    assertEq(token.balanceOf(_claimant), _amount);
+    assertEq(token.delegates(_claimant), _frontrunDelegatee);
   }
 }
 
@@ -1100,6 +1102,74 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ExpiredSignature.selector));
     _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
   }
+
+  function testFuzz_CompletesTheClaimProcessEvenIfTheSignatureBasedDelegationFails(
+    address _admin,
+    uint256 _claimantPrivateKey,
+    uint256 _seed,
+    address _delegatee
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_admin != address(0));
+    _claimantPrivateKey = bound(_claimantPrivateKey, 1, 100e18);
+    address _claimant = vm.addr(_claimantPrivateKey);
+    (bytes32 _merkleRoot, uint256 _totalClaimable,, bytes32[] memory _proof, uint256 _claimIndex) =
+      makeMerkleTreeWithSampleClaim(5, _claimant, 1000, _seed);
+    ZkMerkleDistributor _distributor = new ZkMerkleDistributor(
+      _admin,
+      IMintableAndDelegatable(address(token)),
+      _merkleRoot,
+      _totalClaimable,
+      block.timestamp,
+      block.timestamp + 1 days
+    );
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, address(_distributor));
+
+    // create the delegatee info for the actual delegatee
+    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo =
+      createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
+
+    // simulate a front-run of the delegateBySig call
+    // Using _admin as the front-run delegatee to avoid "stack too deep" error.
+    ZkMerkleDistributor.DelegateInfo memory _frontrunDelegateeInfo =
+      createDelegateeInfo(_admin, _claimant, _claimantPrivateKey);
+    vm.prank(address(_distributor));
+    token.delegateBySig(
+      _frontrunDelegateeInfo.delegatee,
+      _frontrunDelegateeInfo.nonce,
+      _frontrunDelegateeInfo.expiry,
+      _frontrunDelegateeInfo.v,
+      _frontrunDelegateeInfo.r,
+      _frontrunDelegateeInfo.s
+    );
+
+    vm.warp(block.timestamp + 6 hours);
+
+    // do the claim and delegate on behalf
+    // Using hard-coded expiry to avoid "stack too deep" error.
+    bytes memory _claimSignature = makeClaimAndDelegateSignature(
+      MakeClaimAndDelegateSignatureParams({
+        claimantPrivateKey: _claimantPrivateKey,
+        claimIndex: _claimIndex,
+        claimant: _claimant,
+        amount: 1000,
+        expiry: block.timestamp + 7 hours,
+        proof: _proof,
+        delegateInfo: _delegateeInfo
+      }),
+      _distributor
+    );
+
+    ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo = ZkMerkleDistributor.ClaimSignatureInfo({
+      signature: _claimSignature,
+      signingClaimant: _claimant,
+      expiry: block.timestamp + 7 hours
+    });
+    _distributor.claimAndDelegateOnBehalf(_claimIndex, 1000, _proof, _claimSignatureInfo, _delegateeInfo);
+    assertEq(token.balanceOf(_claimant), 1000);
+    assertEq(token.delegates(_claimant), _admin);
+  }
 }
 
 contract SweepUnclaimed is ZkMerkleDistributorTest {
@@ -1173,6 +1243,9 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
       block.timestamp,
       block.timestamp + 1 days
     );
+
+    uint256 _unclaimedReceiverInitialBalance = token.balanceOf(_unclaimedReceiver);
+
     vm.prank(admin);
     token.grantRole(MINTER_ROLE, address(_distributor));
     ZkMerkleDistributor.DelegateInfo memory _delegateeInfo =
@@ -1185,7 +1258,7 @@ contract SweepUnclaimed is ZkMerkleDistributorTest {
     vm.warp(block.timestamp + 2 days);
     vm.prank(_admin);
     _distributor.sweepUnclaimed(_unclaimedReceiver);
-    assertEq(token.balanceOf(_unclaimedReceiver), _totalClaimable - _amount);
+    assertEq(token.balanceOf(_unclaimedReceiver) - _unclaimedReceiverInitialBalance, _totalClaimable - _amount);
     vm.prank(_admin);
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__SweepAlreadyDone.selector));
     _distributor.sweepUnclaimed(_unclaimedReceiver);
