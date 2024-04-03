@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20VotesUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
@@ -33,6 +34,9 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   // be granted or revoked by and address holding the BURNER_ADMIN_ROLE.
   bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
+  /// @dev The clock was incorrectly modified.
+  error ERC6372InconsistentClock();
+
   /// @notice A one-time configuration method meant to be called immediately upon the deployment of ZkTokenV1. It sets
   /// up the token's name and symbol, configures and assigns role admins, and mints the initial token supply.
   /// @param _admin The address that will be be assigned all three role admins
@@ -47,6 +51,17 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
     _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
     _setRoleAdmin(BURNER_ROLE, BURNER_ADMIN_ROLE);
     _mint(_mintReceiver, _mintAmount);
+  }
+
+  function clock() public view virtual override returns (uint48) {
+    return SafeCastUpgradeable.toUint48(block.timestamp);
+  }
+
+  function CLOCK_MODE() public view virtual override returns (string memory) {
+    if (clock() != SafeCastUpgradeable.toUint48(block.timestamp)) {
+      revert ERC6372InconsistentClock();
+    }
+    return "mode=timestamp";
   }
 
   /// @notice Creates a new quantity of tokens for a given address.

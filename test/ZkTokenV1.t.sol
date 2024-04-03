@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 
 import {ZkTokenV1, Initializable} from "src/ZkTokenV1.sol";
 import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
+import {ZkTokenFakeV2ClockChange} from "test/harnesses/ZkTokenFakeV2ClockChange.sol";
 
 contract Initialize is ZkTokenTest {
   function calculateDomainSeparator(ZkTokenV1 _token) public view returns (bytes32) {
@@ -96,6 +97,28 @@ contract Initialize is ZkTokenTest {
   function testFuzz_RevertIf_TheInitializerIsCalledTwice(address _admin, address _receiver, uint256 _amount) public {
     vm.expectRevert("Initializable: contract is already initialized");
     token.initialize(_admin, _receiver, _amount);
+  }
+}
+
+contract Clock is ZkTokenTest {
+  function testFuzz_ClockMatchesBlockTimestamp(uint48 _timestamp) public {
+    vm.warp(_timestamp);
+    assertEq(token.clock(), block.timestamp);
+  }
+}
+
+contract CLOCK_MODE is ZkTokenTest {
+  function test_ClockModeMachineReadableStringIsTimestamp() public {
+    assertEq(token.CLOCK_MODE(), "mode=timestamp");
+  }
+
+  function testFuzz_RevertIf_TokenUpgradedWithNewClock(uint256 _initialValue, uint24 _warpAhead) public {
+    vm.assume(_warpAhead != 0);
+    ZkTokenFakeV2ClockChange token = new ZkTokenFakeV2ClockChange();
+    token.initializeFakeV2(_initialValue);
+    vm.expectRevert(ZkTokenV1.ERC6372InconsistentClock.selector);
+    vm.warp(block.timestamp + _warpAhead);
+    token.CLOCK_MODE();
   }
 }
 
