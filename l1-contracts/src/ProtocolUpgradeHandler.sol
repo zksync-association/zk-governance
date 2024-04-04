@@ -8,7 +8,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 /// @title Protocol Upgrade Handler
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
-/// @dev The contract that holds ownership of all zkSync contracts (L1 and L2). It responsible
+/// @dev The contract that holds ownership of all zkSync contracts (L1 and L2). It is responsible
 /// for handling zkSync protocol upgrades proposed by L2 Token Assembly and executing it.
 ///
 /// The upgrade process follows these key stages:
@@ -127,11 +127,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         bytes32 id = keccak256(upgradeMessage);
         UpgradeStatus memory upgStatus = upgradeStatus[id];
         require(upgStatus.state == UpgradeState.None, "Upgrade with this id already exists");
-        UpgradeStatus memory newUpgStatus = UpgradeStatus({
-            state: UpgradeState.Waiting,
-            timestamp: uint48(block.timestamp),
-            guardiansApproval: upgStatus.guardiansApproval
-        });
+        UpgradeStatus memory newUpgStatus =
+            UpgradeStatus({state: UpgradeState.Waiting, timestamp: uint48(block.timestamp), guardiansApproval: false});
 
         upgradeStatus[id] = newUpgStatus;
         emit UpgradeStarted(id, _proposal);
