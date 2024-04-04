@@ -223,14 +223,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
             _proposal.executor == address(0) || _proposal.executor == msg.sender,
             "msg.sender is not authorised to perform the upgrade"
         );
-        _execute(_proposal.calls);
-
+        // Effect
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.Done,
             timestamp: uint48(block.timestamp),
             guardiansApproval: upgStatus.guardiansApproval
         });
         upgradeStatus[id] = newUpgStatus;
+        // Interaction
+        _execute(_proposal.calls);
 
         emit UpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
