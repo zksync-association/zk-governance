@@ -45,6 +45,7 @@ abstract contract Multisig {
             while (members[currentMember] != signer) {
                 currentMember++;
             }
+            currentMember++;
             totalValidSignatures++;
         }
 

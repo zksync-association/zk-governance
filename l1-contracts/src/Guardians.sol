@@ -26,7 +26,8 @@ contract Guardians is IGuardians, Multisig, EIP712 {
 
     /// @dev Initializes the Guardians contract with predefined members and setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
-    /// @param _members Array of addresses representing the members of the security council. Expected to be sorted without duplicates.
+    /// @param _members Array of addresses representing the members of the guardians. 
+    /// Expected to be sorted in ascending order without duplicates.
     constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, address[] memory _members)
         Multisig(_members)
         EIP712("Guardians", "1")
@@ -46,7 +47,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
 
     /// @notice Vetoes a protocol upgrade proposal.
     /// @param _id The unique identifier of the upgrade proposal.
-    /// @param _signatures An array of signatures from the guardians approving the upgrade.
+    /// @param _signatures An array of signatures from the guardians vetoing the upgrade.
     function veto(bytes32 _id, bytes[] calldata _signatures) external {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(VETO_TYPEHASH, _id)));
         _checkSignatures(digest, _signatures, 5);
@@ -55,7 +56,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
 
     /// @notice Records the guardians' decision to refrain from vetoing a protocol upgrade proposal.
     /// @param _id The unique identifier of the upgrade proposal.
-    /// @param _signatures An array of signatures from the guardians approving the upgrade.
+    /// @param _signatures An array of signatures from the guardians refraining from the veto.
     function refrainFromVeto(bytes32 _id, bytes[] calldata _signatures) external {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(REFRAIN_FROM_VETO_TYPEHASH, _id)));
         _checkSignatures(digest, _signatures, 5);
