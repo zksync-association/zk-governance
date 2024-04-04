@@ -252,7 +252,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         newUpgStatus = _getUpgradeStatusOneTimeUpdate(upgStatus);
 
         // Upgrade status can be changed at most twice in a row by the timing reason,
-        // so if status changed once we need to check it second time.
+        // so if the status changes once we need to check it a second time.
         if (upgStatus.state != newUpgStatus.state) {
             newUpgStatus = _getUpgradeStatusOneTimeUpdate(newUpgStatus);
         }
