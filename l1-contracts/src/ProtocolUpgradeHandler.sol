@@ -218,19 +218,20 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function execute(UpgradeProposal calldata _proposal) external payable {
         bytes32 id = keccak256(abi.encode(_proposal));
         UpgradeStatus memory upgStatus = updateUpgradeStatus(id);
+        // 1. Checks
         require(upgStatus.state == UpgradeState.Ready, "Upgrade is not yet ready");
         require(
             _proposal.executor == address(0) || _proposal.executor == msg.sender,
             "msg.sender is not authorised to perform the upgrade"
         );
-        // Effect
+        // 2. Effects
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.Done,
             timestamp: uint48(block.timestamp),
             guardiansApproval: upgStatus.guardiansApproval
         });
         upgradeStatus[id] = newUpgStatus;
-        // Interaction
+        // 3. Interactions
         _execute(_proposal.calls);
 
         emit UpgradeExecuted(id);
