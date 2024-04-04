@@ -37,19 +37,16 @@ abstract contract Multisig {
     /// @param _signatures An array of signatures to be validated.
     /// @param _threshold The minimum number of valid signatures required to pass the check.
     function _checkSignatures(bytes32 _digest, bytes[] calldata _signatures, uint256 _threshold) internal view {
-        uint256 currentMember;
-        uint256 totalValidSignatures;
+        // Ensure the total number of signatures meets or exceeds the threshold.
+        require(_signatures.length >= _threshold, "Insufficient valid signatures");
 
+        uint256 currentMember;
         for (uint256 i = 0; i < _signatures.length; ++i) {
             address signer = ECDSA.recover(_digest, _signatures[i]);
             while (members[currentMember] != signer) {
                 currentMember++;
             }
             currentMember++;
-            totalValidSignatures++;
         }
-
-        // Ensure the total number of valid signatures meets or exceeds the threshold.
-        require(totalValidSignatures >= _threshold, "Insufficient valid signatures");
     }
 }

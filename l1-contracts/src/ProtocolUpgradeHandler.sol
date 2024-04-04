@@ -17,16 +17,17 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 /// 2. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
 ///    immediately move the proposal to the next stage, while guardian approval will move the proposal to the
 ///    next stage only after 90 days delay. If no approval is received within the specified period, the proposal
-///    is automatically moved to the canceled stage.
-/// 3. Veto Period: During this period, the guardians can veto the upgrade. If the veto period expires
-///    without intervention, the proposal moves to execution pending. Guardians can also explicitly refrain
-///    from the veto.
+///    is canceled.
+/// 3. Veto Period: During this period, the guardians can veto the upgrade. If the veto period (3 days) expires
+///    without intervention, the proposal moves to pending. Guardians can also explicitly refrain
+///    from the veto and then the proposal instantly moves to the next stage (pending).
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
 ///    preparations and reviews.
-/// 5. Execution: The proposed changes are executed, completing the upgrade process.
+/// 5. Execution: The proposed changes are executed by the authorized in the proposal address,
+///    completing the upgrade process.
 ///
 /// The contract implements the state machine that represents the logic of moving upgrade from each
-/// stage by Guardians/Security Council actions and time.
+/// stage by time changes and Guardians/Security Council actions.
 contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Specifies the duration of the veto period for guardians.
     /// During this time, guardians have the opportunity to veto proposed upgrades,
@@ -244,39 +245,56 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// the defined periods for transitions between states (Waiting, VetoPeriod, ExecutionPending).
     /// It returns the updated status without modifying the state.
     /// @param _id The unique identifier of the upgrade proposal whose status is being queried.
-    /// @return UpgradeStatus The current or imminent status of the upgrade proposal, considering the passage of time
+    /// @return newUpgStatus The current or imminent status of the upgrade proposal, considering the passage of time
     /// and predefined conditions. This may differ from the stored status if conditions for a state transition are met.
-    function getUpgradeStatusNow(bytes32 _id) public view returns (UpgradeStatus memory) {
+    function getUpgradeStatusNow(bytes32 _id) public view returns (UpgradeStatus memory newUpgStatus) {
         UpgradeStatus memory upgStatus = upgradeStatus[_id];
+        newUpgStatus = _getUpgradeStatusOneTimeUpdate(upgStatus);
 
-        if (upgStatus.state == UpgradeState.Waiting) {
-            if (block.timestamp > upgStatus.timestamp + UPGRADE_WAIT_OR_EXPIRE_PERIOD) {
+        // Upgrade status can be changed at most twice in a row by the timing reason,
+        // so if status changed once we need to check it second time.
+        if (upgStatus.state != newUpgStatus.state) {
+            newUpgStatus = _getUpgradeStatusOneTimeUpdate(newUpgStatus);
+        }
+    }
+
+    /// @dev Calculates and returns the upgrade status after one stage changes based on timing.
+    /// Please note, that there may be multiple (2 at most) stage changes based on timing in a row,
+    /// so this function should be called multiple times to know the latest upgrade status.
+    /// @param _upgStatus The upgrade status that may change.
+    function _getUpgradeStatusOneTimeUpdate(UpgradeStatus memory _upgStatus)
+        internal
+        view
+        returns (UpgradeStatus memory)
+    {
+        if (_upgStatus.state == UpgradeState.Waiting) {
+            if (block.timestamp > _upgStatus.timestamp + UPGRADE_WAIT_OR_EXPIRE_PERIOD) {
                 return UpgradeStatus({
-                    state: upgStatus.guardiansApproval ? UpgradeState.ExecutionPending : UpgradeState.Canceled,
-                    timestamp: uint48(upgStatus.timestamp + UPGRADE_WAIT_OR_EXPIRE_PERIOD),
-                    guardiansApproval: upgStatus.guardiansApproval
+                    state: _upgStatus.guardiansApproval ? UpgradeState.ExecutionPending : UpgradeState.Canceled,
+                    timestamp: uint48(_upgStatus.timestamp + UPGRADE_WAIT_OR_EXPIRE_PERIOD),
+                    guardiansApproval: _upgStatus.guardiansApproval
                 });
             }
-        } else if (upgStatus.state == UpgradeState.VetoPeriod) {
-            if (block.timestamp > upgStatus.timestamp + GUARDIANS_VETO_PERIOD) {
+        } else if (_upgStatus.state == UpgradeState.VetoPeriod) {
+            if (block.timestamp > _upgStatus.timestamp + GUARDIANS_VETO_PERIOD) {
                 return UpgradeStatus({
                     state: UpgradeState.ExecutionPending,
-                    timestamp: uint48(upgStatus.timestamp + GUARDIANS_VETO_PERIOD),
-                    guardiansApproval: upgStatus.guardiansApproval
+                    timestamp: uint48(_upgStatus.timestamp + GUARDIANS_VETO_PERIOD),
+                    guardiansApproval: _upgStatus.guardiansApproval
                 });
             }
-        } else if (upgStatus.state == UpgradeState.ExecutionPending) {
-            if (block.timestamp > upgStatus.timestamp + UPGRADE_DELAY_PERIOD) {
+        } else if (_upgStatus.state == UpgradeState.ExecutionPending) {
+            if (block.timestamp > _upgStatus.timestamp + UPGRADE_DELAY_PERIOD) {
                 return UpgradeStatus({
                     state: UpgradeState.Ready,
-                    timestamp: uint48(upgStatus.timestamp + UPGRADE_DELAY_PERIOD),
-                    guardiansApproval: upgStatus.guardiansApproval
+                    timestamp: uint48(_upgStatus.timestamp + UPGRADE_DELAY_PERIOD),
+                    guardiansApproval: _upgStatus.guardiansApproval
                 });
             }
         }
 
         // All other upgrade state changes triggered on an action basis (e.g. `startUpgrade`, `approveUpgradeSecurityCouncil`, etc).
-        return upgStatus;
+        return _upgStatus;
     }
 
     /// @notice Updates the stored status of a specified upgrade proposal to reflect the time-based state changes.

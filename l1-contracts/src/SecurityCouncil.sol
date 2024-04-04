@@ -21,7 +21,8 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
 
     /// @dev Initializes the Security Council contract with predefined members and setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
-    /// @param _members Array of addresses representing the members of the security council. Expected to be sorted without duplicates.
+    /// @param _members Array of addresses representing the members of the security council.
+    /// Expected to be sorted in ascending order without duplicates.
     constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, address[] memory _members)
         Multisig(_members)
         EIP712("SecurityCouncil", "1")
