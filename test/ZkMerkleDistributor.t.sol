@@ -137,6 +137,25 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     });
   }
 
+  function createDelegateeInfo(address _delegatee, address _claimant, uint256 _claimantPrivateKey, uint256 _expiry)
+    internal
+    view
+    returns (ZkMerkleDistributor.DelegateInfo memory)
+  {
+    bytes32 _message = keccak256(abi.encode(DELEGATION_TYPEHASH, _delegatee, token.nonces(_claimant), _expiry));
+    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
+    (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_claimantPrivateKey, _messageHash);
+
+    return ZkMerkleDistributor.DelegateInfo({
+      delegatee: _delegatee,
+      nonce: token.nonces(_claimant),
+      expiry: _expiry,
+      v: _v,
+      r: _r,
+      s: _s
+    });
+  }
+
   // Creates a claim signature with the provided parameters.
   function makeClaimSignature(MakeClaimSignatureParams memory _params, ZkMerkleDistributor _distributor)
     internal
@@ -180,7 +199,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
         _params.delegateInfo.v,
         _params.delegateInfo.r,
         _params.delegateInfo.s,
-        _params.delegateInfo.expiry,
+        _params.expiry,
         _nonce
       )
     );
@@ -934,10 +953,10 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     );
     vm.prank(admin);
     token.grantRole(MINTER_ROLE, address(_distributor));
-    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo =
-      createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
-    vm.warp(block.timestamp + 6 hours);
     _expiry = bound(_expiry, block.timestamp + 6 hours + 1, type(uint256).max);
+    ZkMerkleDistributor.DelegateInfo memory _delegateeInfo =
+      createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey, _expiry);
+    vm.warp(block.timestamp + 6 hours);
     bytes memory _claimSignature = makeClaimAndDelegateSignature(
       MakeClaimAndDelegateSignatureParams({
         claimantPrivateKey: _claimantPrivateKey,

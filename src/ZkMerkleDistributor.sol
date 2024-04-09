@@ -206,6 +206,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   /// @param _merkleProof The Merkle proof for the claim.
   /// @param _claimSignatureInfo Signature information provided by the claimer.
   /// @param _delegateInfo The address (and signature info) for where claimer's voting power will be delegated.
+  /// In this function the delegateInfo expiry will be ignored.
   function claimAndDelegateOnBehalf(
     uint256 _index,
     uint256 _amount,
@@ -236,7 +237,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
               _delegateInfo.v,
               _delegateInfo.r,
               _delegateInfo.s,
-              _delegateInfo.expiry,
+              _claimSignatureInfo.expiry,
               _useNonce(_claimSignatureInfo.signingClaimant)
             )
           )
@@ -251,7 +252,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     try TOKEN.delegateBySig(
       _delegateInfo.delegatee,
       _delegateInfo.nonce,
-      _delegateInfo.expiry,
+      _claimSignatureInfo.expiry,
       _delegateInfo.v,
       _delegateInfo.r,
       _delegateInfo.s
