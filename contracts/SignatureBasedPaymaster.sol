@@ -79,13 +79,13 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
 
         // Decode the real paymaster input parameters from the raw bytes.
         try this.decodePaymasterInput(innerInputs) returns (uint256 validUntil, bytes memory signature) {
-            // Verify that the signature didn't expired.
+            // Verify that the signature is not expired.
             require(block.timestamp <= validUntil, "Paymaster: Signature expired");
             // Generate the EIP-712 digest.
             bytes32 structHash =
                 keccak256(abi.encode(APPROVED_TRANSACTION_SENDER_TYPEHASH, sender, validUntil, nonces[sender]++));
             bytes32 digest = _hashTypedDataV4(structHash);
-            // Revert if signer not matched with recovered address. Reverts on address(0) as well.
+            // Revert if signer doesn't match recovered address. Reverts on address(0) as well.
             require(signer == digest.recover(signature), "Paymaster: Invalid signer");
             appprovedSenders[sender] = validUntil;
         } catch {
