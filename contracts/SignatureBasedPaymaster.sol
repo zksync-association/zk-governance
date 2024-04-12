@@ -159,7 +159,7 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
     /// @param _sender The address of the sender to be approved.
     /// @param _validUntil The timestamp until which the sender can use paymaster.
     function approveSender(address _sender, uint256 _validUntil) external onlyOwner {
-        appprovedSenders[_sender] = _validUntil;
+        approvedSenders[_sender] = _validUntil;
     }
 
     /// @notice Returns the EIP-712 domain separator for this contract.
