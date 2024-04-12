@@ -55,6 +55,12 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
         _;
     }
 
+    /// @notice Checks that the message sender is an active owner or an active signer.
+    modifier onlyOwnerOrSigner() {
+        require(msg.sender == signer || msg.sender == owner(), "Only signer or owner can call this method");
+        _;
+    }
+
     /// @param _signer The initial signer address that is authorized to approve transactions for this paymaster.
     constructor(address _signer) EIP712("SignatureBasedPaymaster", "1") {
         require(_signer != address(0), "Signer cannot be address(0)");
@@ -144,21 +150,21 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
 
     /// @notice Change the active signer address.
     /// @param _signer The new signer address.
-    function changeSigner(address _signer) external onlyOwner {
+    function changeSigner(address _signer) external onlyOwnerOrSigner {
         emit SignerChanged(signer, _signer);
         signer = _signer;
     }
 
     /// @notice Increments the nonce for a given sender address, effectively canceling the current nonce.
     /// @param _sender The address of the sender whose nonce is to be incremented.
-    function cancelNonce(address _sender) external onlyOwner {
+    function cancelNonce(address _sender) external onlyOwnerOrSigner {
         nonces[_sender]++;
     }
 
     /// @notice Approves a sender address to use the paymaster for paying transaction fees until a specified timestamp.
     /// @param _sender The address of the sender to be approved.
     /// @param _validUntil The timestamp until which the sender can use paymaster.
-    function approveSender(address _sender, uint256 _validUntil) external onlyOwner {
+    function approveSender(address _sender, uint256 _validUntil) external onlyOwnerOrSigner {
         approvedSenders[_sender] = _validUntil;
     }
 

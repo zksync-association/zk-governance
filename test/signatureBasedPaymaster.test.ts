@@ -8,7 +8,6 @@ import { deployContract, fundAccount, setupDeployer } from "./utils";
 
 import dotenv from "dotenv";
 import { _TypedDataEncoder } from "ethers/lib/utils";
-dotenv.config();
 
 const PRIVATE_KEY = "0x7726827caac94a7f9e1b160f7ea819f172f7b6f9d2a97f992c38edeab82d4110";
 const abiCoder = new ethers.utils.AbiCoder();
@@ -78,6 +77,7 @@ describe("SignatureBasedPaymaster", function () {
     async function executeGreetingTransaction(
         user: Wallet,
         _innerInput: Uint8Array,
+        greetingText: string
     ) {
         const gasPrice = await provider.getGasPrice();
 
@@ -88,7 +88,7 @@ describe("SignatureBasedPaymaster", function () {
 
         const setGreetingTx = await greeter
             .connect(user)
-            .setGreeting("Hola, mundo!", {
+            .setGreeting(greetingText, {
                 maxPriorityFeePerGas: ethers.BigNumber.from(0),
                 maxFeePerGas: gasPrice,
                 gasLimit: 6000000,
@@ -112,18 +112,18 @@ describe("SignatureBasedPaymaster", function () {
         const innerInput = ethers.utils.arrayify(
             abiCoder.encode(["uint256", "bytes"], [lastTimestamp, sig]),
         );
-        await executeGreetingTransaction(userWallet, innerInput);
+        await executeGreetingTransaction(userWallet, innerInput, "Text 1");
         const afterNonce = await paymaster.nonces(userWallet.address);
         expect(afterNonce - beforeNonce).to.be.eq(1);
-        expect(await greeter.greet()).to.equal("Hola, mundo!");
+        expect(await greeter.greet()).to.equal("Text 1");
     });
 
     it("should allow user to use paymaster if sender was already approved", async function () {
         const beforeNonce = await paymaster.nonces(userWallet.address);
-        await executeGreetingTransaction(userWallet, new Uint8Array());
+        await executeGreetingTransaction(userWallet, new Uint8Array(), "Text 2");
         const afterNonce = await paymaster.nonces(userWallet.address);
         expect(afterNonce - beforeNonce).to.be.eq(0);
-        expect(await greeter.greet()).to.equal("Hola, mundo!");
+        expect(await greeter.greet()).to.equal("Text 2");
     });
 
     it("should fail to use paymaster if signature signed with invalid signer", async function () {
@@ -143,7 +143,7 @@ describe("SignatureBasedPaymaster", function () {
         );
         // Act
         try {
-            await executeGreetingTransaction(userWallet, innerInput);
+            await executeGreetingTransaction(userWallet, innerInput, "Text 3");
         } catch (error) {
             errorOccurred = true;
             expect(error.message).to.include("Paymaster: Invalid signer");
@@ -173,7 +173,7 @@ describe("SignatureBasedPaymaster", function () {
         // Act
 
         try {
-            await executeGreetingTransaction(userWallet, innerInput);
+            await executeGreetingTransaction(userWallet, innerInput, "Text 3");
         } catch (error) {
             errorOccurred = true;
             expect(error.message).to.include("Paymaster: Signature expired");
@@ -200,7 +200,7 @@ describe("SignatureBasedPaymaster", function () {
         await paymaster.cancelNonce(userWallet.address);
 
         try {
-            await executeGreetingTransaction(userWallet, innerInput);
+            await executeGreetingTransaction(userWallet, innerInput, "Text 4");
         } catch (error) {
             errorOccurred = true;
             expect(error.message).to.include("Paymaster: Invalid signer");
@@ -226,7 +226,7 @@ describe("SignatureBasedPaymaster", function () {
         );
 
         try {
-            await executeGreetingTransaction(userWallet, innerInput);
+            await executeGreetingTransaction(userWallet, innerInput, "Text 5");
         } catch (error) {
             errorOccurred = true;
             expect(error.message).to.include("Paymaster: Invalid signer");
@@ -250,7 +250,7 @@ describe("SignatureBasedPaymaster", function () {
         );
         // Act
         try {
-            await executeGreetingTransaction(wallet, innerInput);
+            await executeGreetingTransaction(wallet, innerInput, "Text 6");
         } catch (error) {
             errorOccurred = true;
             expect(error.message).to.include("Paymaster: Invalid signer");
@@ -276,7 +276,7 @@ describe("SignatureBasedPaymaster", function () {
         );
         // Act
         try {
-            await executeGreetingTransaction(userWallet, innerInput);
+            await executeGreetingTransaction(userWallet, innerInput, "Text 7");
         } catch (error) {
             errorOccurred = true;
         }
