@@ -22,7 +22,7 @@ import {BOOTLOADER_FORMAL_ADDRESS} from "./Constants.sol";
 /// @notice This paymaster contract is designed to pay fees for claiming ZK tokens by Account Abstraction wallets.
 /// @dev In the general case, a smart wallet can arbitrarily handle the transaction input. That means, the paymaster
 /// can't trust the received transaction structure. To provide a good UX for all eligible smart wallets, this paymaster
-/// sponsors transactions from all eligible smart wallets, but have a couple of security protections in place:
+/// sponsors transactions initiated from all eligible smart wallets, but have a couple of security protections in place:
 /// 1) Each account can use the paymaster at most `maxPaidTransactionsPerAccount` times.
 /// 2) Each transaction can't use more than `maxSponsoredEth` ether for fees.
 ///
@@ -36,9 +36,6 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
 
     /// @notice Cached Merkle Root used in the ZK Merkle Distributor for verification.
     bytes32 public CACHED_MERKLE_ROOT;
-
-    /// @notice ZK token contract.
-    IERC20 zkToken;
 
     /// @notice Tracks the number of paid transactions made by each account.
     mapping(address account => uint256 count) public paidTransactionCount;
@@ -57,23 +54,21 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
     }
 
     /// @param _zkMerkleDistributor The contract that is responsible for ZK token distribution.
-    /// @param _zkToken ZK token contract.
     /// @param _maxPaidTransactionsPerAccount The maximum number of transactions each account is allowed to have paid by the paymaster.
     /// @param _maxSponsoredEth The maximum amount of ETH that the paymaster will sponsor for any single transaction.
     constructor(
         IZkMerkleDistributor _zkMerkleDistributor,
-        IERC20 _zkToken,
         uint256 _maxPaidTransactionsPerAccount,
         uint256 _maxSponsoredEth
     ) {
         require(address(_zkMerkleDistributor) != address(0), "Merkle distributor cannot be address(0)");
-        require(address(zkToken) != address(0), "Token cannot be address(0)");
         zkMerkleDistributor = _zkMerkleDistributor;
         CACHED_MERKLE_ROOT = zkMerkleDistributor.MERKLE_ROOT();
-        zkToken = _zkToken;
 
         maxPaidTransactionsPerAccount = _maxPaidTransactionsPerAccount;
+        emit MaxPaidTransactionsPerAccountUpdated(0, _maxPaidTransactionsPerAccount);
         maxSponsoredEth = _maxSponsoredEth;
+        emit MaxSponsoredEthUpdated(0, _maxSponsoredEth);
     }
 
     /// @inheritdoc IPaymaster
