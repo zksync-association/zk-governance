@@ -83,7 +83,7 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
         onlyBootloader
         returns (bytes4, bytes memory)
     {
-        address from = address(uint160(uint256(_transaction.to)));
+        address from = address(uint160(uint256(_transaction.from)));
         // Prevent spamming by limiting the number of paid transactions per account.
         uint256 newTransactionCount = paidTransactionCount[from] + 1;
         require(newTransactionCount <= maxPaidTransactionsPerAccount, "Account transaction limit exceeded");
