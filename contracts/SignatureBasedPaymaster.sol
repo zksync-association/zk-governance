@@ -42,7 +42,7 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
 
     /// @notice Stores the validity period for approved senders.
     /// @dev Maps each sender to the timestamp until which their transactions are approved for fee coverage.
-    mapping(address sender => uint256 validUntil) public appprovedSenders;
+    mapping(address sender => uint256 validUntil) public approvedSenders;
 
     /// @notice Tracks nonces for each sender to prevent replay attacks.
     /// @dev Each sender has a unique nonce that must match and increment with each transaction.
@@ -87,11 +87,11 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
             bytes32 digest = _hashTypedDataV4(structHash);
             // Revert if signer doesn't match recovered address. Reverts on address(0) as well.
             require(signer == digest.recover(signature), "Paymaster: Invalid signer");
-            appprovedSenders[sender] = validUntil;
+            approvedSenders[sender] = validUntil;
         } catch {
             // If the decoding failed just check that sender was pre-approved.
             require(
-                block.timestamp <= appprovedSenders[sender],
+                block.timestamp <= approvedSenders[sender],
                 "Paymaster: Sender has no permission for sending transaction with this paymaster"
             );
         }
