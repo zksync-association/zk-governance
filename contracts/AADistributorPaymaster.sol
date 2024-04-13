@@ -155,13 +155,17 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
     /// @param _to The address where to send funds.
     /// @param _token Address of the token to be withdrawn.
     function withdraw(address _to, address _token) public onlyOwner {
+        uint256 amount;
         if (_token == address(0)) {
-            (bool success,) = _to.call{value: address(this).balance}("");
+            amount = address(this).balance;
+            (bool success,) = _to.call{value: amount}("");
             require(success, "Failed to withdraw ether");
         } else {
+            amount = IERC20(_token).balanceOf(address(this));
             // We use safeTransfer to escape any tokens even if they implemented ERC-20 standard wrongly (e.g. don't return bool value)
-            IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
+            IERC20(_token).safeTransfer(_to, amount);
         }
+        emit Withdrawn(_token, amount);
     }
 
     /// @dev Contract should receive/hold ETH to pay fees as a paymaster.
