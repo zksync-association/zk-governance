@@ -6,7 +6,7 @@ import * as hre from "hardhat";
 // Before executing a real deployment, be sure to set these values as appropriate for the environment being deploying
 // to. The values used in the script at the time of deployment can be checked in along with the deployment artifacts
 // produced by running the scripts.
-const TOKEN_ADDRESS = "0xCAFEcaFE00000000000000000000000000000000";
+const TOKEN_ADDRESS = "0x99E12239CBf8112fBB3f7Fd473d0558031abcbb5";
 const ADMIN_ACCOUNT = "0xdEADBEeF00000000000000000000000000000000";
 const CAP_AMOUNT = "1000000000000000000000000000"; // raw decimals, bigint fails to encode with deploy :shrug:
 

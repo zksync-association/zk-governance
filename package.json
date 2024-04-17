@@ -5,7 +5,7 @@
     "clean": "forge clean && npx hardhat clean",
     "compile": "forge build && npx hardhat compile",
     "local-node": "npx hardhat node-zksync",
-    "deploy": "npx hardhat clean && npx hardhat compile && npx hardhat run",
+    "script": "node script/RunScript.js",
     "test": "forge test",
     "lint": "scopelint check",
     "lint:fix": "scopelint fmt"
