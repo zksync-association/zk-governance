@@ -19,6 +19,35 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     bytes32 private constant APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
         keccak256("ApproveUpgradeSecurityCouncil(bytes32 id)");
 
+    /// @dev EIP-712 TypeHash for soft emergency freeze approval by the security council.
+    bytes32 private constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
+        keccak256("SoftFreeze(uint256 nonce,uint256 validUntil)");
+
+    /// @dev EIP-712 TypeHash for hard emergency freeze approval by the security council.
+    bytes32 private constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
+        keccak256("HardFreeze(uint256 nonce,uint256 validUntil)");
+
+    /// @dev EIP-712 TypeHash for setting threshold for soft freeze approval by the security council.
+    bytes32 private constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
+        keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
+
+    /// @dev Tracks the unique identifier used in the last successful soft emergency freeze,
+    /// to ensure each request is unique.
+    uint256 softFreezeNonce;
+
+    /// @dev Tracks the unique identifier used in the last successful hard emergency freeze,
+    /// to ensure each request is unique.
+    uint256 hardFreezeNonce;
+
+    /// @dev Tracks the unique identifier used in the last successful setting of the soft freeze threshold,
+    /// to ensure each request is unique.
+    uint256 softFreezeThresholdSettingNonce;
+
+    /// @dev Represents the number of signatures needed to trigger soft freeze.
+    /// This value is automaically reset to 9 after each freeze, but it can be
+    /// set by the 9 SC members and requires to be not bigger than 9.
+    uint256 softFreezeThreshold;
+
     /// @dev Initializes the Security Council contract with predefined members and setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
     /// @param _members Array of addresses representing the members of the security council.
@@ -29,6 +58,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     {
         protocolUpgradeHandler = _protocolUpgradeHandler;
         require(_members.length == 12, "SecurityCouncil requires exactly 12 members");
+        softFreezeThreshold = 3;
     }
 
     /// @notice Approves zkSync protocol upgrade, by the 6 out of 12 Security Council approvals.
@@ -38,5 +68,49 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH, _id)));
         _checkSignatures(digest, _signatures, 6);
         protocolUpgradeHandler.approveUpgradeSecurityCouncil(_id);
+    }
+
+    /// @notice Initiates the protocol soft freeze by small threshold of the Security Council members.
+    /// @param _validUntil The timestamp until which the signature should remain valid.
+    /// @param _signatures An array of signatures from council members approving the freeze.
+    function softFreeze(uint256 _validUntil, bytes[] calldata _signatures) external {
+        require(block.timestamp < _validUntil, "Signature expired");
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(abi.encode(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, softFreezeNonce++, _validUntil))
+        );
+        _checkSignatures(digest, _signatures, softFreezeThreshold);
+        // Reset threshold
+        softFreezeThreshold = 9;
+        protocolUpgradeHandler.softFreeze();
+    }
+
+    /// @notice Initiates the protocol hard freeze by small threshold of the Security Council members.
+    /// @param _validUntil The timestamp until which the signature should remain valid.
+    /// @param _signatures An array of signatures from council members approving the freeze.
+    function hardFreeze(uint256 _validUntil, bytes[] calldata _signatures) external {
+        require(block.timestamp < _validUntil, "Signature expired");
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(abi.encode(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, hardFreezeNonce++, _validUntil))
+        );
+        _checkSignatures(digest, _signatures, 9);
+        protocolUpgradeHandler.hardFreeze();
+    }
+
+    /// @notice Sets the threshold for triggering a soft freeze.
+    /// @param _threshold New threshold for the Security Council members for approving the soft freeze.
+    /// @param _validUntil The timestamp until which the signature should remain valid.
+    /// @param _signatures An array of signatures from council members approving the threshold setting.
+    function setSoftFreezeThreshold(uint256 _threshold, uint256 _validUntil, bytes[] calldata _signatures) external {
+        require(_threshold <= 9, "Threshold is too big");
+        require(block.timestamp < _validUntil, "Signature expired");
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    SET_SOFT_FREEZE_THRESHOLD_TYPEHASH, _threshold, softFreezeThresholdSettingNonce++, _validUntil
+                )
+            )
+        );
+        _checkSignatures(digest, _signatures, 9);
+        softFreezeThreshold = _threshold;
     }
 }

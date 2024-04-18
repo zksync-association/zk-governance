@@ -3,6 +3,8 @@
 pragma solidity 0.8.24;
 
 import {IZkSyncEra} from "./interfaces/IZkSyncEra.sol";
+import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
+import {IPausable} from "./interfaces/IPausable.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
 
 /// @title Protocol Upgrade Handler
@@ -44,6 +46,21 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// the proposal will expire after this period if not approved, or wait this period after guardian approval.
     uint256 constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 90 days;
 
+    /// @dev Duration of a soft freeze which temporarily pause protocol contract funcationality.
+    /// This freeze window is needed for the Security Council to decide whether they want to
+    /// do hard freeze and protocol upgrade.
+    uint256 constant SOFT_FREEZE_PERIOD = 12 hours;
+
+    /// @dev Duration of a hard freeze which temporarily pause protocol contract funcationality.
+    /// This freeze window is needed for the Security Council to perform emergency protocol upgrade.
+    uint256 constant HARD_FREEZE_PERIOD = 7 days;
+
+    /// @dev TODO
+    uint256 constant SOFT_FREEZE_COOLDOWN_PERIOD = 3 days;
+
+    /// @dev TODO
+    uint256 constant HARD_FREEZE_COOLDOWN_PERIOD = 14 days;
+
     /// @dev Address of the L2 Protocol Governor contract.
     /// This address is used to interface with governance actions initiated on Layer 2,
     /// specifically for proposing and approving protocol upgrades.
@@ -51,6 +68,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev zkSync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
     IZkSyncEra immutable ZKSYNC_ERA;
+
+    /// @dev zkSync smart contract that is responsible for creating new hyperchains and changing parameters in existent.
+    IStateTransitionManager immutable STATE_TRANSITION_MANAGER;
+
+    /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
+    IPausable immutable BRIDGE_HUB;
+
+    /// @dev The shared bridge that is used for all bridging.
+    IPausable immutable SHARED_BRIDGE;
 
     /// @notice The address of the Security Council.
     address public securityCouncil;
@@ -61,11 +87,30 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @notice A mapping to store status of an upgrade process for each upgrade ID.
     mapping(bytes32 upgradeId => UpgradeStatus) public upgradeStatus;
 
+    FreezeStatus public freezeStatus;
+
+    /// @notice Stores the timestamp until which the protocol remains frozen.
+    uint256 protocolFrozenUntil;
+
+    /// @notice Stores the timestamp until which the protocol can't become frozen for short time.
+    uint256 softFreezeCooldownUntil;
+
+    /// @notice Stores the timestamp until which the protocol can't become frozen for long time.
+    uint256 hardFreezeCooldownUntil;
+
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _securityCouncil The address to be assigned as the Security Council of the contract.
     /// @param _guardians The address to be assigned as the guardians of the contract.
     /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
-    constructor(address _securityCouncil, address _guardians, address _l2ProtocolGovernor) {
+    constructor(
+        address _securityCouncil,
+        address _guardians,
+        address _l2ProtocolGovernor,
+        IZkSyncEra _zkSyncEra,
+        IStateTransitionManager _stateTransitionManager,
+        IPausable _bridgeHub,
+        IPausable _sharedBridge
+    ) {
         securityCouncil = _securityCouncil;
         emit ChangeSecurityCouncil(address(0), _securityCouncil);
 
@@ -73,6 +118,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit ChangeGuardians(address(0), _guardians);
 
         L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
+        ZKSYNC_ERA = _zkSyncEra;
+        STATE_TRANSITION_MANAGER = _stateTransitionManager;
+        BRIDGE_HUB = _bridgeHub;
+        SHARED_BRIDGE = _sharedBridge;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -94,6 +143,14 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @notice Checks that the message sender is an active guardians.
     modifier onlyGuardians() {
         require(msg.sender == guardians, "Only guardians is allowed to call this function");
+        _;
+    }
+
+    modifier onlySecurityCouncilOrProtocolUnfrozen() {
+        require(
+            msg.sender == securityCouncil || block.timestamp > protocolFrozenUntil,
+            "Only Security Council is allowed to call this function or the protocol should be frozen"
+        );
         _;
     }
 
@@ -321,6 +378,69 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
                 }
             }
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            FEEZABILITY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Initiates a soft protocol freeze.
+    function softFreeze() external onlySecurityCouncil {
+        require(freezeStatus == FreezeStatus.None, "Protocol already frozen");
+        require(block.timestamp > softFreezeCooldownUntil, "Can't freeze in the cooldown period");
+        softFreezeCooldownUntil = block.timestamp + SOFT_FREEZE_COOLDOWN_PERIOD;
+        freezeStatus = FreezeStatus.Soft;
+        protocolFrozenUntil = block.timestamp + SOFT_FREEZE_PERIOD;
+        _freeze();
+        emit SoftFreeze(protocolFrozenUntil);
+    }
+
+    /// @notice Initiates a hard protocol freeze.
+    function hardFreeze() external onlySecurityCouncil {
+        require(freezeStatus != FreezeStatus.Hard, "Protocol can't be hard frozen");
+        require(block.timestamp > hardFreezeCooldownUntil, "Can't freeze in the cooldown period");
+        hardFreezeCooldownUntil = block.timestamp + HARD_FREEZE_COOLDOWN_PERIOD;
+        freezeStatus = FreezeStatus.Hard;
+        protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
+        _freeze();
+        emit HardFreeze(protocolFrozenUntil);
+    }
+
+    /// @dev Reinforces the freezing state of the protocol if it is already within the frozen period. This function
+    /// can be called by anyone to ensure the protocol remains in a frozen state, particularly useful if there is a need
+    /// to confirm or re-apply the freeze due to partial or incomplete application during the initial freeze.
+    function reinforceFreeze() external {
+        require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
+        _freeze();
+        emit ReinforceFreeze();
+    }
+
+    /// @dev Freeze all zkSync contracts, including bridges, state transition managers and all hyperchains.
+    function _freeze() internal {
+        uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
+        uint256 len = hyperchainIds.length;
+        for (uint256 i = 0; i < len; i++) {
+            try STATE_TRANSITION_MANAGER.freezeChain(hyperchainIds[i]) {} catch {}
+        }
+
+        try BRIDGE_HUB.pause() {} catch {}
+        try SHARED_BRIDGE.pause() {} catch {}
+    }
+
+    /// @dev Unfreezes the protocol and resumes normal operations.
+    function unfreeze() external onlySecurityCouncilOrProtocolUnfrozen {
+        freezeStatus = FreezeStatus.None;
+        protocolFrozenUntil = 0;
+
+        uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
+        uint256 len = hyperchainIds.length;
+        for (uint256 i = 0; i < len; i++) {
+            try STATE_TRANSITION_MANAGER.unfreezeChain(hyperchainIds[i]) {} catch {}
+        }
+
+        try BRIDGE_HUB.unpause() {} catch {}
+        try SHARED_BRIDGE.unpause() {} catch {}
+        emit Unfreeze();
     }
 
     /*//////////////////////////////////////////////////////////////

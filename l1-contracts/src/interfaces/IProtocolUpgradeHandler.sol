@@ -53,6 +53,18 @@ interface IProtocolUpgradeHandler {
         bytes32 salt;
     }
 
+    /// @dev This enumeration includes the following states:
+    /// @param None Default state, indicating the freeze has not been happen.
+    /// @param Soft The protocol is frozen for the short time until the Security Council will approve hard freeze
+    /// or soft freeze period will pass.
+    /// @param Hard The protocol is frozen for the long time until the Security Council will perfrom the protocol
+    /// emergency upgrade or hard freeze period will pass.
+    enum FreezeStatus {
+        None,
+        Soft,
+        Hard
+    }
+
     function startUpgrade(
         uint256 _l2BatchNumber,
         uint256 _l2MessageIndex,
@@ -70,6 +82,14 @@ interface IProtocolUpgradeHandler {
     function refrainFromVeto(bytes32 _id) external;
 
     function execute(UpgradeProposal calldata _proposal) external payable;
+
+    function softFreeze() external;
+
+    function hardFreeze() external;
+
+    function reinforceFreeze() external;
+
+    function unfreeze() external;
 
     /// @notice Emitted when the security council address is changed.
     event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
@@ -97,4 +117,16 @@ interface IProtocolUpgradeHandler {
 
     /// @notice Emitted when the upgrade status is changed.
     event UpgradeStatusChanged(bytes32 indexed _id, UpgradeStatus _upgradeStatus);
+
+    /// @notice Emitted when the protocol became soft frozen.
+    event SoftFreeze(uint256 _protocolFrozenUntil);
+
+    /// @notice Emitted when the protocol became hard frozen.
+    event HardFreeze(uint256 _protocolFrozenUntil);
+
+    /// @notice Emitted when someone make an attempt to freeze the protocol when it is frozen already.
+    event ReinforceFreeze();
+
+    /// @notice Emitted when the protocol became active after the soft/hard freeze.
+    event Unfreeze();
 }
