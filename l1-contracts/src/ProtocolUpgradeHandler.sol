@@ -84,6 +84,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @notice The address of the guardians.
     address public guardians;
 
+    /// @notice The address of the smart contract that can execute protocol emergency upgrade.
+    address public emergencyUpgradeBoard;
+
     /// @notice A mapping to store status of an upgrade process for each upgrade ID.
     mapping(bytes32 upgradeId => UpgradeStatus) public upgradeStatus;
 
@@ -151,6 +154,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
             msg.sender == securityCouncil || block.timestamp > protocolFrozenUntil,
             "Only Security Council is allowed to call this function or the protocol should be frozen"
         );
+        _;
+    }
+
+    modifier onlyEmergencyUpgradeBoard() {
+        require(msg.sender == emergencyUpgradeBoard, "Only Emergency Upgrade Board is allowed to call this function");
         _;
     }
 
@@ -288,6 +296,32 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         // 3. Interactions
         _execute(_proposal.calls);
 
+        emit UpgradeExecuted(id);
+        emit UpgradeStatusChanged(id, newUpgStatus);
+    }
+
+    function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable onlyEmergencyUpgradeBoard {
+        bytes32 id = keccak256(abi.encode(_proposal));
+        UpgradeStatus memory upgStatus = updateUpgradeStatus(id);
+        // 1. Checks
+        require(upgStatus.state == UpgradeState.None, "Upgrade already exists");
+        require(_proposal.executor == msg.sender, "msg.sender is not authorised to perform the upgrade");
+        // 2. Effects
+        UpgradeStatus memory newUpgStatus = UpgradeStatus({
+            state: UpgradeState.Done,
+            timestamp: uint48(block.timestamp),
+            guardiansApproval: upgStatus.guardiansApproval
+        });
+        // Save the upgrade process
+        upgradeStatus[id] = newUpgStatus;
+        // Clear the freeze
+        freezeStatus = FreezeStatus.None;
+        protocolFrozenUntil = 0;
+        softFreezeCooldownUntil = 0;
+        hardFreezeCooldownUntil = 0;
+        _unfreeze();
+        // 3. Interactions
+        _execute(_proposal.calls);
         emit UpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
     }

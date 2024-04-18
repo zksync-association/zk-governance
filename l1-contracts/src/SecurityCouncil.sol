@@ -56,7 +56,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @param _members Array of addresses representing the members of the security council.
     /// Expected to be sorted in ascending order without duplicates.
     constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, address[] memory _members)
-        Multisig(_members)
+        Multisig(_members, 9)
         EIP712("SecurityCouncil", "1")
     {
         protocolUpgradeHandler = _protocolUpgradeHandler;
@@ -69,7 +69,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @param _signatures An array of signatures from council members approving the upgrade.
     function approveUpgradeSecurityCouncil(bytes32 _id, bytes[] calldata _signatures) external {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH, _id)));
-        _checkSignatures(digest, _signatures, 6);
+        checkSignatures(digest, _signatures, 6);
         protocolUpgradeHandler.approveUpgradeSecurityCouncil(_id);
     }
 
@@ -81,7 +81,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, softFreezeNonce++, _validUntil))
         );
-        _checkSignatures(digest, _signatures, softFreezeThreshold);
+        checkSignatures(digest, _signatures, softFreezeThreshold);
         // Reset threshold
         softFreezeThreshold = SOFT_FREEZE_CONSERATIVE_THRESHOLD;
         protocolUpgradeHandler.softFreeze();
@@ -95,7 +95,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, hardFreezeNonce++, _validUntil))
         );
-        _checkSignatures(digest, _signatures, 9);
+        checkSignatures(digest, _signatures, 9);
         protocolUpgradeHandler.hardFreeze();
     }
 
@@ -113,7 +113,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
                 )
             )
         );
-        _checkSignatures(digest, _signatures, SOFT_FREEZE_CONSERATIVE_THRESHOLD);
+        checkSignatures(digest, _signatures, SOFT_FREEZE_CONSERATIVE_THRESHOLD);
         softFreezeThreshold = _threshold;
     }
 }

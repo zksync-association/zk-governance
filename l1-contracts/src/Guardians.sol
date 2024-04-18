@@ -29,7 +29,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _members Array of addresses representing the members of the guardians.
     /// Expected to be sorted in ascending order without duplicates.
     constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, address[] memory _members)
-        Multisig(_members)
+        Multisig(_members, 5)
         EIP712("Guardians", "1")
     {
         protocolUpgradeHandler = _protocolUpgradeHandler;
@@ -41,7 +41,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
     function approveUpgradeGuardians(bytes32 _id, bytes[] calldata _signatures) external {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(APPROVE_UPGRADE_GUARDIANS_TYPEHASH, _id)));
-        _checkSignatures(digest, _signatures, 5);
+        checkSignatures(digest, _signatures, 5);
         protocolUpgradeHandler.approveUpgradeGuardians(_id);
     }
 
@@ -50,7 +50,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _signatures An array of signatures from the guardians vetoing the upgrade.
     function veto(bytes32 _id, bytes[] calldata _signatures) external {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(VETO_TYPEHASH, _id)));
-        _checkSignatures(digest, _signatures, 5);
+        checkSignatures(digest, _signatures, 5);
         protocolUpgradeHandler.veto(_id);
     }
 
@@ -59,7 +59,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _signatures An array of signatures from the guardians refraining from the veto.
     function refrainFromVeto(bytes32 _id, bytes[] calldata _signatures) external {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(REFRAIN_FROM_VETO_TYPEHASH, _id)));
-        _checkSignatures(digest, _signatures, 5);
+        checkSignatures(digest, _signatures, 5);
         protocolUpgradeHandler.refrainFromVeto(_id);
     }
 }
