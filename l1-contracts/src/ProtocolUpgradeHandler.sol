@@ -108,6 +108,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     constructor(
         address _securityCouncil,
         address _guardians,
+        address _emergencyUpgradeBoard,
         address _l2ProtocolGovernor,
         IZkSyncEra _zkSyncEra,
         IStateTransitionManager _stateTransitionManager,
@@ -119,6 +120,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
         guardians = _guardians;
         emit ChangeGuardians(address(0), _guardians);
+
+        emergencyUpgradeBoard = _emergencyUpgradeBoard;
+        emit ChangeEmergencyUpgradeBoard(address(0), _emergencyUpgradeBoard);
 
         L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
         ZKSYNC_ERA = _zkSyncEra;
@@ -506,6 +510,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function updateGuardians(address _newGuardians) external onlySelf {
         emit ChangeGuardians(guardians, _newGuardians);
         guardians = _newGuardians;
+    }
+
+    /// @dev Updates the address of the emergency upgrade board.
+    /// @param _newEmergencyUpgradeBoard The address of the guardians.
+    function updateEmergencyUpgradeBoard(address _newEmergencyUpgradeBoard) external onlySelf {
+        emit ChangeEmergencyUpgradeBoard(emergencyUpgradeBoard, _newEmergencyUpgradeBoard);
+        emergencyUpgradeBoard = _newEmergencyUpgradeBoard;
     }
 
     /*//////////////////////////////////////////////////////////////

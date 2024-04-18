@@ -99,6 +99,9 @@ interface IProtocolUpgradeHandler {
     /// @notice Emitted when the guardians address is changed.
     event ChangeGuardians(address _guardiansBefore, address _guardiansAfter);
 
+    /// @notice Emitted when the emergency upgrade board address is changed.
+    event ChangeEmergencyUpgradeBoard(address _emergencyUpgradeBoardBefore, address _emergencyUpgradeBoardAfter);
+
     /// @notice Emitted when upgrade process on L1 is started.
     event UpgradeStarted(bytes32 indexed _id, UpgradeProposal _proposal);
 
