@@ -55,10 +55,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// This freeze window is needed for the Security Council to perform emergency protocol upgrade.
     uint256 constant HARD_FREEZE_PERIOD = 7 days;
 
-    /// @dev TODO
+    /// @dev Duration of a cooldown period after the soft freeze happen.
     uint256 constant SOFT_FREEZE_COOLDOWN_PERIOD = 3 days;
 
-    /// @dev TODO
+    /// @dev Duration of a cooldown period after the hard freeze happen.
     uint256 constant HARD_FREEZE_COOLDOWN_PERIOD = 14 days;
 
     /// @dev Address of the L2 Protocol Governor contract.
@@ -431,7 +431,21 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function unfreeze() external onlySecurityCouncilOrProtocolUnfrozen {
         freezeStatus = FreezeStatus.None;
         protocolFrozenUntil = 0;
+        _unfreeze();
+        emit Unfreeze();
+    }
 
+    /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode. This function can be called
+    /// by anyone to ensure the protocol remains in a unfrozen state, particularly useful if there is a need
+    /// to confirm or re-apply the unfreeze due to partial or incomplete application during the initial unfreeze.
+    function reinforceUnfreeze() external {
+        require(block.timestamp > protocolFrozenUntil, "Protocol should be already unfrozen");
+        _unfreeze();
+        emit ReinforceUnfreeze();
+    }
+
+    /// @dev Unfreeze all zkSync contracts, including bridges, state transition managers and all hyperchains.
+    function _unfreeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
         for (uint256 i = 0; i < len; i++) {
@@ -440,7 +454,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
         try BRIDGE_HUB.unpause() {} catch {}
         try SHARED_BRIDGE.unpause() {} catch {}
-        emit Unfreeze();
     }
 
     /*//////////////////////////////////////////////////////////////

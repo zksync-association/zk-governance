@@ -129,4 +129,7 @@ interface IProtocolUpgradeHandler {
 
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
     event Unfreeze();
+
+    /// @notice Emitted when someone make an attempt to unfreeze the protocol when it is unfrozen already.
+    event ReinforceUnfreeze();
 }
