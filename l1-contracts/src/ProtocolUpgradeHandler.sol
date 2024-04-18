@@ -192,6 +192,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         });
         bool success = ZKSYNC_ERA.proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _proof);
         require(success, "Failed to check upgrade proposal initiation");
+        require(_proposal.executor != emergencyUpgradeBoard, "Emergency Upgrade Board can't execute usual upgrade");
 
         bytes32 id = keccak256(upgradeMessage);
         UpgradeStatus memory upgStatus = upgradeStatus[id];
