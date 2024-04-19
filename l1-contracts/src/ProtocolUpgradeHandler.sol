@@ -46,12 +46,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// the proposal will expire after this period if not approved, or wait this period after guardian approval.
     uint256 constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 90 days;
 
-    /// @dev Duration of a soft freeze which temporarily pause protocol contract funcationality.
+    /// @dev Duration of a soft freeze which temporarily pause protocol contract functionality.
     /// This freeze window is needed for the Security Council to decide whether they want to
     /// do hard freeze and protocol upgrade.
     uint256 constant SOFT_FREEZE_PERIOD = 12 hours;
 
-    /// @dev Duration of a hard freeze which temporarily pause protocol contract funcationality.
+    /// @dev Duration of a hard freeze which temporarily pause protocol contract functionality.
     /// This freeze window is needed for the Security Council to perform emergency protocol upgrade.
     uint256 constant HARD_FREEZE_PERIOD = 7 days;
 
@@ -153,6 +153,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _;
     }
 
+    /// @notice Checks that the message sender is an active Security Council or the protocol is not in freeze.
     modifier onlySecurityCouncilOrProtocolUnfrozen() {
         require(
             msg.sender == securityCouncil || block.timestamp > protocolFrozenUntil,
@@ -161,6 +162,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _;
     }
 
+    /// @notice Checks that the message sender is an Emergency Upgrade Board.
     modifier onlyEmergencyUpgradeBoard() {
         require(msg.sender == emergencyUpgradeBoard, "Only Emergency Upgrade Board is allowed to call this function");
         _;
@@ -305,6 +307,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit UpgradeStatusChanged(id, newUpgStatus);
     }
 
+    /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
+    /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
     function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable onlyEmergencyUpgradeBoard {
         bytes32 id = keccak256(abi.encode(_proposal));
         UpgradeStatus memory upgStatus = updateUpgradeStatus(id);
@@ -327,7 +331,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
-        emit UpgradeExecuted(id);
+        emit EmergencyUpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
     }
 

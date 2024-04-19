@@ -120,6 +120,9 @@ interface IProtocolUpgradeHandler {
     /// @notice Emitted when the upgrade is executed.
     event UpgradeExecuted(bytes32 indexed _id);
 
+    /// @notice Emitted when the emergency upgrade is executed.
+    event EmergencyUpgradeExecuted(bytes32 indexed _id);
+
     /// @notice Emitted when the upgrade status is changed.
     event UpgradeStatusChanged(bytes32 indexed _id, UpgradeStatus _upgradeStatus);
 

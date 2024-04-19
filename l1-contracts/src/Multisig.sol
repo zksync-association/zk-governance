@@ -37,7 +37,7 @@ abstract contract Multisig is IERC1271 {
         EIP1271_THRESHOLD = _eip1271Threshold;
     }
 
-    /// @dev Internal function to check if the provided signatures meet the threshold requirement.
+    /// @dev The function to check if the provided signatures meet the threshold requirement.
     /// Signatures must be from unique members and are expected in the same order as the members list (sorted order).
     /// @param _digest The hash of the data being signed.
     /// @param _signatures An array of signatures to be validated.
@@ -56,6 +56,9 @@ abstract contract Multisig is IERC1271 {
         }
     }
 
+    /// @dev The function to check if the provided signatures are valid and meet predefined threshold.
+    /// @param _digest The hash of the data being signed.
+    /// @param _signature An array of signatures to be validated ABI encoded from `bytes[]` to `abi.decode(data,(bytes[]))`.
     function isValidSignature(bytes32 _digest, bytes calldata _signature) external view override returns (bytes4) {
         bytes[] memory signatures = abi.decode(_signature, (bytes[]));
         checkSignatures(_digest, signatures, EIP1271_THRESHOLD);
