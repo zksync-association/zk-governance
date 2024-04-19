@@ -31,6 +31,9 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     bytes32 private constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
+    /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the security council.
+    bytes32 private constant UNFREEZE_THRESHOLD_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
+
     /// @dev The default threshold for soft freeze initiated by the security council.
     uint256 private constant SOFT_FREEZE_CONSERATIVE_THRESHOLD = 9;
 
@@ -45,6 +48,9 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @dev Tracks the unique identifier used in the last successful setting of the soft freeze threshold,
     /// to ensure each request is unique.
     uint256 softFreezeThresholdSettingNonce;
+
+    /// @dev Tracks the unique identifier used in the last successful unfreeze.
+    uint256 unfreezeNonce;
 
     /// @dev Represents the number of signatures needed to trigger soft freeze.
     /// This value is automaically reset to 9 after each freeze, but it can be
@@ -97,6 +103,17 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         );
         checkSignatures(digest, _signatures, 9);
         protocolUpgradeHandler.hardFreeze();
+    }
+
+    /// @notice Initiates the protocol unfreeze by the Security Council members.
+    /// @param _validUntil The timestamp until which the signature should remain valid.
+    /// @param _signatures An array of signatures from council members approving the freeze.
+    function unfreeze(uint256 _validUntil, bytes[] calldata _signatures) external {
+        require(block.timestamp < _validUntil, "Signature expired");
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(UNFREEZE_THRESHOLD_TYPEHASH, unfreezeNonce++, _validUntil)));
+        checkSignatures(digest, _signatures, 9);
+        protocolUpgradeHandler.unfreeze();
     }
 
     /// @notice Sets the threshold for triggering a soft freeze.
