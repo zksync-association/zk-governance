@@ -188,6 +188,7 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
   }
 
   function testFuzz_RevertIf_CancelledByNonGuardian(address _caller) public {
+    vm.assume(_caller != initialGuardian);
     (ProposalBuilder builder,) = _buildProposal();
     uint256 _proposalId = _propose(builder.targets(), builder.values(), builder.calldatas(), DESCRIPTION);
     IGovernor.ProposalState proposalState = governor.state(_proposalId);
