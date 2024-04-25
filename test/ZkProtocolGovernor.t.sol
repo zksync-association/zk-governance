@@ -2,78 +2,42 @@
 pragma solidity 0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {ZkProtocolGovernorHarness} from "test/harnesses/ZkProtocolGovernorHarness.sol";
-import {ProposalTest} from "test/helpers/ProposalTest.sol";
-import {ProposalBuilder} from "test/helpers/ProposalBuilder.sol";
-import {ERC20VotesFake} from "test/fakes/ERC20VotesFake.sol";
-import {TimelockControllerFake} from "test/fakes/TimelockControllerFake.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {ZkProtocolGovernor} from "src/ZkProtocolGovernor.sol";
 
-contract ZkProtocolGovernorTest is Test {
-  uint48 constant INITIAL_VOTING_DELAY = 1 days;
-  uint32 constant INITIAL_VOTING_PERIOD = 7 days;
-  uint256 constant INITIAL_PROPOSAL_THRESHOLD = 500_000e18;
-  uint224 constant INITIAL_QUORUM = 1_000_000e18;
-  uint64 constant INITIAL_VOTE_EXTENSION = 1 days;
+contract ZkProtocolGovernorTest is Test {}
 
-  TimelockControllerFake timelock;
-  ERC20VotesFake token;
-  ZkProtocolGovernorHarness governor;
-
-  function setUp() public {
-    address initialOwner = makeAddr("Initial Owner");
-    timelock = new TimelockControllerFake(initialOwner);
-    token = new ERC20VotesFake();
-    governor = new ZkProtocolGovernorHarness(
-      "Example Gov",
-      token,
-      timelock,
-      INITIAL_VOTING_DELAY,
-      INITIAL_VOTING_PERIOD,
-      INITIAL_PROPOSAL_THRESHOLD,
-      INITIAL_QUORUM,
-      INITIAL_VOTE_EXTENSION
+contract Constructor is ZkProtocolGovernorTest {
+  function testFuzz_CorrectlySetContructor(
+    string memory _name,
+    address _token,
+    address payable _timelock,
+    uint48 _votingDelay,
+    uint32 _votingPeriod,
+    uint256 _proposalThreshold,
+    uint224 _initialQuorum,
+    uint64 _voteExtension
+  ) public {
+    vm.assume(_votingPeriod != 0);
+    ZkProtocolGovernor governor = new ZkProtocolGovernor(
+      _name,
+      IVotes(_token),
+      TimelockController(_timelock),
+      _votingDelay,
+      _votingPeriod,
+      _proposalThreshold,
+      _initialQuorum,
+      _voteExtension
     );
 
-    vm.prank(initialOwner);
-    timelock.grantRole(keccak256("PROPOSER_ROLE"), address(governor));
-
-    vm.prank(initialOwner);
-    timelock.grantRole(keccak256("EXECUTOR_ROLE"), address(governor));
-  }
-}
-
-contract Quorum is ZkProtocolGovernorTest {
-  function testFuzz_SuccessfullyGetLatestQuorumCheckpoint(uint208 _quorum) public {
-    governor.exposed_setQuorum(_quorum);
-    uint256 quorum = governor.quorum(block.timestamp);
-    assertEq(quorum, _quorum);
-  }
-}
-
-contract SetQuorum is ZkProtocolGovernorTest, ProposalTest {
-  function testFuzz_CorrectlySetQuorumCheckpoint(uint224 _quorum) public {
-    address delegate = makeAddr("delegate");
-    token.mint(delegate, governor.proposalThreshold());
-    token.mint(delegate, governor.quorum(block.timestamp));
-
-    vm.prank(delegate);
-    token.delegate(delegate);
-
-    vm.warp(block.timestamp + 1);
-    address[] memory delegates = new address[](1);
-    delegates[0] = delegate;
-    _setGovernor(governor);
-    _setDelegates(delegates);
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(address(governor), 0, abi.encodeWithSignature("setQuorum(uint224)", _quorum));
-    _queueAndVoteAndExecuteProposal(builder.targets(), builder.values(), builder.calldatas(), "Description", 1);
-    assertEq(governor.quorum(block.timestamp), _quorum);
-  }
-
-  function testFuzz_RevertIf_CallerIsNotAuthorized(uint208 _quorum, address _caller) public {
-    vm.assume(_caller != address(timelock));
-    vm.prank(_caller);
-    vm.expectRevert(bytes("Governor: onlyGovernance"));
-    governor.setQuorum(_quorum);
+    assertEq(governor.name(), _name);
+    assertEq(address(governor.token()), _token);
+    assertEq(address(governor.timelock()), _timelock);
+    assertEq(governor.votingDelay(), _votingDelay);
+    assertEq(governor.votingPeriod(), _votingPeriod);
+    assertEq(governor.proposalThreshold(), _proposalThreshold);
+    assertEq(governor.quorum(block.timestamp), _initialQuorum);
+    assertEq(governor.lateQuorumVoteExtension(), _voteExtension);
   }
 }

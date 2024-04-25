@@ -7,11 +7,11 @@ import {GovernorPreventLateQuorum} from "@openzeppelin/contracts/governance/exte
 import {GovernorSettings} from "@openzeppelin/contracts/governance/extensions/GovernorSettings.sol";
 import {GovernorTimelockControl} from "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 import {GovernorVotes} from "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
-import {Checkpoints} from "@openzeppelin/contracts/utils/Checkpoints.sol";
 import {GovernorCountingFractional} from "src/lib/GovernorCountingFractional.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+
+import {GovernorSettableFixedQuorum} from "src/lib/GovernorSettableFixedQuorum.sol";
 
 /// @title ZkProtocolGovernor
 /// @author [ScopeLift](https://scopelift.co)
@@ -21,13 +21,9 @@ contract ZkProtocolGovernor is
   GovernorSettings,
   GovernorVotes,
   GovernorTimelockControl,
-  GovernorPreventLateQuorum
+  GovernorPreventLateQuorum,
+  GovernorSettableFixedQuorum
 {
-  using Checkpoints for Checkpoints.Trace224;
-
-  /// @notice A history of quorum values for a given timestamp.
-  Checkpoints.Trace224 internal _quorumCheckpoints;
-
   /// @param _name The name used as the EIP712 signing domain.
   /// @param _token The token used for voting on proposals.
   /// @param _timelock The timelock used for managing proposals.
@@ -51,9 +47,8 @@ contract ZkProtocolGovernor is
     GovernorVotes(_token)
     GovernorTimelockControl(_timelock)
     GovernorPreventLateQuorum(_initialVoteExtension)
-  {
-    _setQuorum(_initialQuorum);
-  }
+    GovernorSettableFixedQuorum(_initialQuorum)
+  {}
 
   /// @inheritdoc GovernorCountingFractional
   /// @dev We override this function to resolve ambiguity between inherited contracts.
@@ -86,19 +81,6 @@ contract ZkProtocolGovernor is
   /// @dev We override this function to resolve ambiguity between inherited contracts.
   function proposalThreshold() public view virtual override(Governor, GovernorSettings) returns (uint256) {
     return GovernorSettings.proposalThreshold();
-  }
-
-  /// @notice A function to get the quorum threshold for a given timestamp.
-  /// @param _voteStart The timestamp of when voting starts for a given proposal.
-  function quorum(uint256 _voteStart) public view override returns (uint256) {
-    return _quorumCheckpoints.upperLookup(SafeCast.toUint32(_voteStart));
-  }
-  /// @notice A function to set quorum for the current block timestamp. Proposals created after this timestamp will be
-  /// subject to the new quorum.
-  /// @param _amount The new quorum threshold.
-
-  function setQuorum(uint224 _amount) external onlyGovernance {
-    _setQuorum(_amount);
   }
 
   /// @inheritdoc GovernorTimelockControl
@@ -163,11 +145,5 @@ contract ZkProtocolGovernor is
   /// @dev We override this function to resolve ambiguity between inherited contracts.
   function _executor() internal view virtual override(Governor, GovernorTimelockControl) returns (address) {
     return GovernorTimelockControl._executor();
-  }
-
-  /// @notice A function to set quorum for the current block timestamp.
-  /// @param _amount The quorum amount to checkpoint.
-  function _setQuorum(uint224 _amount) internal {
-    _quorumCheckpoints.push(SafeCast.toUint32(block.timestamp), _amount);
   }
 }

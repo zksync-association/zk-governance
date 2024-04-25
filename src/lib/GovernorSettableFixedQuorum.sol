@@ -6,7 +6,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/Checkpoints.sol";
 
 //
-abstract contract SettableFixedQuorum is Governor {
+abstract contract GovernorSettableFixedQuorum is Governor {
   using Checkpoints for Checkpoints.Trace224;
 
   /// @notice A history of quorum values for a given timestamp.

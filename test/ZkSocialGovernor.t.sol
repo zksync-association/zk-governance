@@ -204,33 +204,3 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     vm.stopPrank();
   }
 }
-
-contract SetGuardian is ZkSocialGovernorTest, ProposalTest {
-  function testFuzz_CorrectlySetGuardian(address _guardian) public {
-    address delegate = makeAddr("delegate");
-    token.mint(delegate, governor.proposalThreshold());
-    token.mint(delegate, governor.quorum(block.timestamp));
-
-    vm.prank(delegate);
-    token.delegate(delegate);
-
-    vm.warp(block.timestamp + 1);
-    address[] memory delegates = new address[](1);
-    delegates[0] = delegate;
-    _setGovernor(governor);
-    _setDelegates(delegates);
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(address(governor), 0, abi.encodeWithSignature("setGuardian(address)", _guardian));
-    _queueAndVoteAndExecuteProposal(
-      builder.targets(), builder.values(), builder.calldatas(), DESCRIPTION, uint8(VoteType.For)
-    );
-    assertEq(governor.guardian(), _guardian);
-  }
-
-  function testFuzz_RevertIf_CallerIsNotAuthorized(address _guardian, address _caller) public {
-    vm.assume(_caller != address(timelock));
-    vm.prank(_caller);
-    vm.expectRevert(bytes("Governor: onlyGovernance"));
-    governor.setGuardian(_guardian);
-  }
-}

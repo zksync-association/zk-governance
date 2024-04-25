@@ -11,7 +11,7 @@ import {GovernorCountingFractional} from "src/lib/GovernorCountingFractional.sol
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 
-import {SettableFixedQuorum} from "src/lib/SettableFixedQuorum.sol";
+import {GovernorSettableFixedQuorum} from "src/lib/GovernorSettableFixedQuorum.sol";
 
 /// @title ZkSocialGovernor
 /// @notice A Governance contract used to manage decisions that aren't covered by the token or protocol governors.
@@ -21,9 +21,9 @@ contract ZkSocialGovernor is
   GovernorVotes,
   GovernorTimelockControl,
   GovernorPreventLateQuorum,
-  SettableFixedQuorum
+  GovernorSettableFixedQuorum
 {
-  address public guardian;
+  address public immutable guardian;
 
   error UncancellableProposalState();
   error Unauthorized();
@@ -52,9 +52,9 @@ contract ZkSocialGovernor is
     GovernorVotes(_token)
     GovernorTimelockControl(_timelock)
     GovernorPreventLateQuorum(_initialVoteExtension)
-    SettableFixedQuorum(_initialQuorum)
+    GovernorSettableFixedQuorum(_initialQuorum)
   {
-    _setGuardian(_initialGuardian);
+    guardian = _initialGuardian;
   }
 
   /// @notice This function will cancel a proposal, and can only be called by the guardian while the proposal is either
@@ -111,13 +111,6 @@ contract ZkSocialGovernor is
   /// @dev We override this function to resolve ambiguity between inherited contracts.
   function proposalThreshold() public view virtual override(Governor, GovernorSettings) returns (uint256) {
     return GovernorSettings.proposalThreshold();
-  }
-
-  /// @notice A function to set th Governors guardian which will be allowed to cancel proposals. Only governance can
-  /// call this function.
-  /// @param _guardian The address of the new guardian.
-  function setGuardian(address _guardian) external onlyGovernance {
-    _setGuardian(_guardian);
   }
 
   /// @inheritdoc GovernorTimelockControl
@@ -182,11 +175,5 @@ contract ZkSocialGovernor is
   /// @dev We override this function to resolve ambiguity between inherited contracts.
   function _executor() internal view virtual override(Governor, GovernorTimelockControl) returns (address) {
     return GovernorTimelockControl._executor();
-  }
-
-  /// @notice A function to set th Governors guardian which will be allowed to cancel proposals.
-  /// @param _guardian The address of the new guardian.
-  function _setGuardian(address _guardian) internal {
-    guardian = _guardian;
   }
 }
