@@ -14,6 +14,7 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {GovernorSettableFixedQuorum} from "src/lib/GovernorSettableFixedQuorum.sol";
 
 /// @title ZkSocialGovernor
+/// @author [ScopeLift](https://scopelift.co)
 /// @notice A Governance contract used to manage decisions that aren't covered by the token or protocol governors.
 contract ZkSocialGovernor is
   GovernorCountingFractional,
@@ -23,7 +24,7 @@ contract ZkSocialGovernor is
   GovernorPreventLateQuorum,
   GovernorSettableFixedQuorum
 {
-  address public immutable guardian;
+  address public immutable GUARDIAN;
 
   error UncancellableProposalState();
   error Unauthorized();
@@ -36,6 +37,7 @@ contract ZkSocialGovernor is
   /// @param _initialProposalThreshold The number of tokens needed to create a proposal.
   /// @param _initialQuorum The number of total votes needed to pass a proposal.
   /// @param _initialVoteExtension The time to extend the voting period if quorum is met near the end of voting.
+  /// @param _initialGuardian An immutable address that can cancel proposals when it is in either a pending or active state.
   constructor(
     string memory _name,
     IVotes _token,
@@ -54,7 +56,7 @@ contract ZkSocialGovernor is
     GovernorPreventLateQuorum(_initialVoteExtension)
     GovernorSettableFixedQuorum(_initialQuorum)
   {
-    guardian = _initialGuardian;
+    GUARDIAN = _initialGuardian;
   }
 
   /// @notice This function will cancel a proposal, and can only be called by the guardian while the proposal is either
@@ -74,7 +76,7 @@ contract ZkSocialGovernor is
     if (uint8(proposalState) > 1) {
       revert UncancellableProposalState();
     }
-    if (msg.sender != guardian) {
+    if (msg.sender != GUARDIAN) {
       revert Unauthorized();
     }
     return _cancel(_targets, _values, _calldatas, _descriptionHash);
