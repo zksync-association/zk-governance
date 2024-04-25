@@ -37,7 +37,8 @@ contract ZkSocialGovernor is
   /// @param _initialProposalThreshold The number of tokens needed to create a proposal.
   /// @param _initialQuorum The number of total votes needed to pass a proposal.
   /// @param _initialVoteExtension The time to extend the voting period if quorum is met near the end of voting.
-  /// @param _initialGuardian An immutable address that can cancel proposals when it is in either a pending or active state.
+  /// @param _initialGuardian An immutable address that can cancel proposals when it is in either a pending or active
+  /// state.
   constructor(
     string memory _name,
     IVotes _token,

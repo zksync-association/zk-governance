@@ -8,7 +8,7 @@ import {ProposalBuilder} from "test/helpers/ProposalBuilder.sol";
 import {ERC20VotesFake} from "test/fakes/ERC20VotesFake.sol";
 import {TimelockControllerFake} from "test/fakes/TimelockControllerFake.sol";
 
-contract ZkProtocolGovernorTest is Test {
+contract GovernorSettableFixedQuorumTest is Test {
   uint48 constant INITIAL_VOTING_DELAY = 1 days;
   uint32 constant INITIAL_VOTING_PERIOD = 7 days;
   uint256 constant INITIAL_PROPOSAL_THRESHOLD = 500_000e18;
@@ -42,7 +42,7 @@ contract ZkProtocolGovernorTest is Test {
   }
 }
 
-contract Quorum is ZkProtocolGovernorTest {
+contract Quorum is GovernorSettableFixedQuorumTest {
   function testFuzz_SuccessfullyGetLatestQuorumCheckpoint(uint208 _quorum) public {
     governor.exposed_setQuorum(_quorum);
     uint256 quorum = governor.quorum(block.timestamp);
@@ -50,7 +50,7 @@ contract Quorum is ZkProtocolGovernorTest {
   }
 }
 
-contract SetQuorum is ZkProtocolGovernorTest, ProposalTest {
+contract SetQuorum is GovernorSettableFixedQuorumTest, ProposalTest {
   function testFuzz_CorrectlySetQuorumCheckpoint(uint224 _quorum) public {
     address delegate = makeAddr("delegate");
     token.mint(delegate, governor.proposalThreshold());

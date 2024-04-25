@@ -5,7 +5,9 @@ import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/Checkpoints.sol";
 
-//
+/// @title GovernorSettableFixedQuorum
+/// @author [ScopeLift](https://scopelift.co)
+/// @notice An abstract contract which implements a fixed quorum which can be updated by governance.
 abstract contract GovernorSettableFixedQuorum is Governor {
   using Checkpoints for Checkpoints.Trace224;
 
