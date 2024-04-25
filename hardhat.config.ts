@@ -5,6 +5,9 @@ import "@matterlabs/hardhat-zksync-solc";
 import "@matterlabs/hardhat-zksync-node";
 import "@matterlabs/hardhat-zksync-upgradable";
 
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 const config: HardhatUserConfig = {
   solidity: "0.8.24",
   zksolc: {
@@ -29,7 +32,7 @@ const config: HardhatUserConfig = {
     zkSyncLocal: {
       zksync: true,
       ethNetwork: "ethNetwork",
-      url: "http://0.0.0.0:8011",
+      url: process.env.ZK_LOCAL_NETWORK_URL ? process.env.ZK_LOCAL_NETWORK_URL : "http://0.0.0.0:8011",
     },
   },
   defaultNetwork: "zkSyncLocal",
