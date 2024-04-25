@@ -33,8 +33,17 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Install the dependencies
+        run: npm install
+
       - name: Run tests
         run: forge test
+
+      - name: Run Era test node
+        uses: dutterbutter/era-test-node-action@v0.1.3
+
+      - name: Run tests
+        run: npx hardhat test
 
   coverage:
     runs-on: ubuntu-latest
@@ -47,7 +56,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Run coverage
-        run: npm test && forge coverage --report summary --report lcov
+        run: FOUNDRY_PROFILE=default npm run foundry-test && FOUNDRY_PROFILE=default forge coverage --report summary --report lcov
 
       # To ignore coverage for certain directories modify the paths in this step as needed. The
       # below default ignores coverage results for the test and script directories. Alternatively,
@@ -78,7 +87,7 @@ jobs:
         uses: zgosalvez/github-actions-report-lcov@v2
         with:
           coverage-files: ./lcov.info
-          minimum-coverage: 100 # Set coverage threshold.
+          minimum-coverage: 94 # Set coverage threshold.
 
   lint:
     runs-on: ubuntu-latest

@@ -29,6 +29,9 @@ out/
 # zksync local node logs
 era_test_node.log
 
+# zksync local deploy logs
+deployments-zk/zkSyncLocal
+
 # Coverage
 lcov.info
 

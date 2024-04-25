@@ -29,7 +29,7 @@ const config: HardhatUserConfig = {
     zkSyncLocal: {
       zksync: true,
       ethNetwork: "ethNetwork",
-      url: "http://localhost:8011",
+      url: "http://0.0.0.0:8011",
     },
   },
   defaultNetwork: "zkSyncLocal",
