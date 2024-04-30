@@ -186,7 +186,7 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
         emit SenderApproved(_sender, _validUntil);
     }
 
-    /// @notice Returns the EIP-712 domain separator for this contract.
+    /// @return the EIP-712 domain separator for this contract.
     function domainSeparator() external view returns (bytes32) {
         return _domainSeparatorV4();
     }
