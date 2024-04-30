@@ -7,10 +7,10 @@ import {IGuardians} from "./interfaces/IGuardians.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
 import {Multisig} from "./Multisig.sol";
 
-/// @title Security Council
+/// @title Guadians
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
-/// @dev Temporary protector of the values of zkSync. Approves the changes to the changes proposed by the Token Assembly.
+/// @dev Temporary protector of the values of zkSync. Approves or vetoes the changes to the changes proposed by the Token Assembly.
 contract Guardians is IGuardians, Multisig, EIP712 {
     /// @notice Address of the contract, which manages protocol upgrades.
     IProtocolUpgradeHandler public immutable protocolUpgradeHandler;
