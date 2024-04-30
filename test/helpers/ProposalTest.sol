@@ -10,6 +10,12 @@ abstract contract ProposalTest is Test {
 
   address[] public delegates;
 
+  enum VoteType {
+    Against,
+    For,
+    Abstain
+  }
+
   function _setGovernor(IGovernorTimelock _governor) internal {
     governor = _governor;
   }
@@ -61,6 +67,20 @@ abstract contract ProposalTest is Test {
     _jumpPastVoteComplete(_proposalId);
   }
 
+  function _propose(
+    address[] memory _targets,
+    uint256[] memory _values,
+    bytes[] memory _calldatas,
+    string memory _description
+  ) internal returns (uint256) {
+    vm.prank(delegates[0]);
+    uint256 _proposalId = governor.propose(_targets, _values, _calldatas, _description);
+
+    IGovernorTimelock.ProposalState _state = governor.state(_proposalId);
+    assertEq(uint8(_state), uint8(IGovernor.ProposalState.Pending));
+    return _proposalId;
+  }
+
   function _queueAndVoteAndExecuteProposal(
     address[] memory _targets,
     uint256[] memory _values,
@@ -68,12 +88,7 @@ abstract contract ProposalTest is Test {
     string memory _description,
     uint8 _voteType
   ) internal {
-    vm.prank(delegates[0]);
-    uint256 _proposalId = governor.propose(_targets, _values, _calldatas, _description);
-
-    IGovernorTimelock.ProposalState _state = governor.state(_proposalId);
-    assertEq(uint8(_state), uint8(IGovernor.ProposalState.Pending));
-
+    uint256 _proposalId = _propose(_targets, _values, _calldatas, _description);
     _jumpToActiveProposal(_proposalId);
 
     _delegatesVote(_proposalId, _voteType);
