@@ -84,14 +84,15 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
         // Get the sender address.
         address sender = address(uint160(_transaction.from));
 
-        // Decode the real paymaster input parameters from the raw bytes.
-        try this.decodePaymasterInput(innerInputs) returns (uint256 validUntil, bytes memory signature) {
+        if (innerInputs.length != 0) {
+            // Decode the real paymaster input parameters from the raw bytes.
+            (uint256 validUntil, bytes memory signature) = abi.decode(innerInputs, (uint256, bytes));
             // Verify that the timestamp for which transactions from the sender should be
             // paid by the paymaster is not expired.
             require(block.timestamp <= validUntil, "Paymaster: Signature expired");
             approveSenderBySignature(sender, validUntil, signature);
-        } catch {
-            // If the decoding failed just check that sender was pre-approved.
+        } else {
+            // If the the data is empty just check that sender was pre-approved.
             require(
                 block.timestamp <= approvedSenders[sender],
                 "Paymaster: Sender has no permission for sending transaction with this paymaster"
@@ -107,18 +108,6 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
         require(success, "Paymaster: Failed to transfer tx fee to the bootloader");
 
         return (PAYMASTER_VALIDATION_SUCCESS_MAGIC, new bytes(0));
-    }
-
-    /// @notice Decodes the paymaster input data into its constituent components.
-    /// @param _data The raw bytes input to the paymaster.
-    /// @return validUntil The timestamp until which the transaction from the sender is considered valid.
-    /// @return signature The ECDSA signature from the paymaster signer that approves the account for fee coverage.
-    function decodePaymasterInput(bytes memory _data)
-        external
-        pure
-        returns (uint256 validUntil, bytes memory signature)
-    {
-        (validUntil, signature) = abi.decode(_data, (uint256, bytes));
     }
 
     /// @inheritdoc IPaymaster
