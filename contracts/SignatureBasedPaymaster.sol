@@ -149,7 +149,7 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
     /// @notice Withdraw funds from the contract to the specified address.
     /// @param _to The address where to send funds.
     /// @param _token Address of the token to be withdrawn.
-    function withdraw(address _to, address _token) public onlyOwner {
+    function withdraw(address _to, address _token) external onlyOwner {
         uint256 amount;
         if (_token == address(0)) {
             amount = address(this).balance;

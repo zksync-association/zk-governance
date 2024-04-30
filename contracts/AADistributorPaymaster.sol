@@ -139,14 +139,14 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
 
     /// @notice Sets a new maximum number of transactions that can be paid for by the paymaster per account.
     /// @param _maxPaidTransactionsPerAccount The new maximum number of transactions per account.
-    function setMaxPaidTransactionsPerAccount(uint256 _maxPaidTransactionsPerAccount) public onlyOwner {
+    function setMaxPaidTransactionsPerAccount(uint256 _maxPaidTransactionsPerAccount) external onlyOwner {
         emit MaxPaidTransactionsPerAccountUpdated(maxPaidTransactionsPerAccount, _maxPaidTransactionsPerAccount);
         maxPaidTransactionsPerAccount = _maxPaidTransactionsPerAccount;
     }
 
     /// @notice Sets a new maximum amount of ETH that can be sponsored for a single transaction.
     /// @param _maxSponsoredEth The new maximum amount of ETH sponsorship per transaction.
-    function setMaxSponsoredEth(uint256 _maxSponsoredEth) public onlyOwner {
+    function setMaxSponsoredEth(uint256 _maxSponsoredEth) external onlyOwner {
         emit MaxSponsoredEthUpdated(maxSponsoredEth, _maxSponsoredEth);
         maxSponsoredEth = _maxSponsoredEth;
     }
@@ -154,7 +154,7 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
     /// @notice Withdraw funds from the contract to the specified address.
     /// @param _to The address where to send funds.
     /// @param _token Address of the token to be withdrawn.
-    function withdraw(address _to, address _token) public onlyOwner {
+    function withdraw(address _to, address _token) external onlyOwner {
         uint256 amount;
         if (_token == address(0)) {
             amount = address(this).balance;
