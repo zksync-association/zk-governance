@@ -331,6 +331,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
+        emit Unfreeze();
         emit EmergencyUpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
     }
