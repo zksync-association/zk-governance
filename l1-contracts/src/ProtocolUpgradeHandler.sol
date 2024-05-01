@@ -413,6 +413,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @param _calls The array of calls to be executed.
     function _execute(Call[] calldata _calls) internal {
         for (uint256 i = 0; i < _calls.length; ++i) {
+            if (_calls[i].data.length > 0) {
+                require(
+                    _calls[i].target.code.length > 0, "Target must be a smart contract if the calldata is not empty"
+                );
+            }
             (bool success, bytes memory returnData) = _calls[i].target.call{value: _calls[i].value}(_calls[i].data);
             if (!success) {
                 // Propagate an error if the call fails.
