@@ -121,6 +121,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signatures An array of signatures from council members approving the threshold setting.
     function setSoftFreezeThreshold(uint256 _threshold, uint256 _validUntil, bytes[] calldata _signatures) external {
+        require(_threshold > 0, "Threshold is too small");
         require(_threshold <= SOFT_FREEZE_CONSERATIVE_THRESHOLD, "Threshold is too big");
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
