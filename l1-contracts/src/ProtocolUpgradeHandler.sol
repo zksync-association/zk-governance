@@ -25,7 +25,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 ///    from the veto and then the proposal instantly moves to the next stage (pending).
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
 ///    preparations and reviews.
-/// 5. Execution: The proposed changes are executed by the authorized in the proposal address,
+/// 5. Execution: The proposed changes are executed by the authorized address in the proposal,
 ///    completing the upgrade process.
 ///
 /// The contract implements the state machine that represents the logic of moving upgrade from each
@@ -246,13 +246,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit UpgradeStatusChanged(_id, newUpgStatus);
     }
 
-    /// @notice Vetoes an upgrade proposal during its veto period by guardians.
+    /// @notice Vetos an upgrade proposal during its veto period by guardians.
     /// @dev Sets the state of an upgrade proposal identified by `_id` to `Canceled` if it is currently
     /// in the `VetoPeriod`.
     /// @param _id The unique identifier of the upgrade proposal to be vetoed.
     function veto(bytes32 _id) external onlyGuardians {
         UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(upgStatus.state == UpgradeState.VetoPeriod, "Upgrade can't be vetoed in not the veto period");
+        require(upgStatus.state == UpgradeState.VetoPeriod, "Upgrade can't be vetoed outside of the veto period");
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.Canceled,
             timestamp: uint48(block.timestamp),
@@ -270,7 +270,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @param _id The unique identifier of the upgrade proposal for which guardians are refraining from vetoing.
     function refrainFromVeto(bytes32 _id) external onlyGuardians {
         UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(upgStatus.state == UpgradeState.VetoPeriod, "Guardians can't refrain from veto in not the veto period");
+        require(upgStatus.state == UpgradeState.VetoPeriod, "Guardians can't refrain from veto outside of the veto period");
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.ExecutionPending,
             timestamp: uint48(block.timestamp),
@@ -291,7 +291,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         require(upgStatus.state == UpgradeState.Ready, "Upgrade is not yet ready");
         require(
             _proposal.executor == address(0) || _proposal.executor == msg.sender,
-            "msg.sender is not authorised to perform the upgrade"
+            "msg.sender is not authorized to perform the upgrade"
         );
         // 2. Effects
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
@@ -314,7 +314,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         UpgradeStatus memory upgStatus = updateUpgradeStatus(id);
         // 1. Checks
         require(upgStatus.state == UpgradeState.None, "Upgrade already exists");
-        require(_proposal.executor == msg.sender, "msg.sender is not authorised to perform the upgrade");
+        require(_proposal.executor == msg.sender, "msg.sender is not authorized to perform the upgrade");
         // 2. Effects
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.Done,

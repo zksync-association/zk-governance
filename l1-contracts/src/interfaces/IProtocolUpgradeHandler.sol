@@ -44,7 +44,7 @@ interface IProtocolUpgradeHandler {
     }
 
     /// @dev Defines the structure of an upgrade that executes by Protocol Upgrade Handler.
-    /// @param executor The L1 address that is authorised to perform the upgrade execution (if address(0) then anyone).
+    /// @param executor The L1 address that is authorized to perform the upgrade execution (if address(0) then anyone).
     /// @param calls An array of `Call` structs, each representing a call to be made during the upgrade execution.
     /// @param salt A bytes32 value used for creating unique upgrade proposal hashes.
     struct UpgradeProposal {
