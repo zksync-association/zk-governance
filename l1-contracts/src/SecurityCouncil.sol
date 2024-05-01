@@ -35,7 +35,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     bytes32 private constant UNFREEZE_THRESHOLD_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev The default threshold for soft freeze initiated by the security council.
-    uint256 private constant SOFT_FREEZE_CONSERATIVE_THRESHOLD = 9;
+    uint256 private constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 9;
 
     /// @dev Tracks the unique identifier used in the last successful soft emergency freeze,
     /// to ensure each request is unique.
@@ -53,7 +53,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     uint256 unfreezeNonce;
 
     /// @dev Represents the number of signatures needed to trigger soft freeze.
-    /// This value is automaically reset to 9 after each freeze, but it can be
+    /// This value is automatically reset to 9 after each freeze, but it can be
     /// set by the 9 SC members and requires to be not bigger than 9.
     uint256 softFreezeThreshold;
 
@@ -67,7 +67,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     {
         protocolUpgradeHandler = _protocolUpgradeHandler;
         require(_members.length == 12, "SecurityCouncil requires exactly 12 members");
-        softFreezeThreshold = SOFT_FREEZE_CONSERATIVE_THRESHOLD;
+        softFreezeThreshold = SOFT_FREEZE_CONSERVATIVE_THRESHOLD;
     }
 
     /// @notice Approves zkSync protocol upgrade, by the 6 out of 12 Security Council approvals.
@@ -89,7 +89,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         );
         checkSignatures(digest, _signatures, softFreezeThreshold);
         // Reset threshold
-        softFreezeThreshold = SOFT_FREEZE_CONSERATIVE_THRESHOLD;
+        softFreezeThreshold = SOFT_FREEZE_CONSERVATIVE_THRESHOLD;
         protocolUpgradeHandler.softFreeze();
     }
 
@@ -121,7 +121,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signatures An array of signatures from council members approving the threshold setting.
     function setSoftFreezeThreshold(uint256 _threshold, uint256 _validUntil, bytes[] calldata _signatures) external {
-        require(_threshold <= SOFT_FREEZE_CONSERATIVE_THRESHOLD, "Threshold is too big");
+        require(_threshold <= SOFT_FREEZE_CONSERVATIVE_THRESHOLD, "Threshold is too big");
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
             keccak256(
@@ -130,7 +130,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
                 )
             )
         );
-        checkSignatures(digest, _signatures, SOFT_FREEZE_CONSERATIVE_THRESHOLD);
+        checkSignatures(digest, _signatures, SOFT_FREEZE_CONSERVATIVE_THRESHOLD);
         softFreezeThreshold = _threshold;
     }
 }

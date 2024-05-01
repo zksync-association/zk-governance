@@ -479,7 +479,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     }
 
     /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode. This function can be called
-    /// by anyone to ensure the protocol remains in a unfrozen state, particularly useful if there is a need
+    /// by anyone to ensure the protocol remains in an unfrozen state, particularly useful if there is a need
     /// to confirm or re-apply the unfreeze due to partial or incomplete application during the initial unfreeze.
     function reinforceUnfreeze() external {
         require(block.timestamp > protocolFrozenUntil, "Protocol should be already unfrozen");
