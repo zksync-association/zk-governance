@@ -462,7 +462,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function _freeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < len; ++i) {
             try STATE_TRANSITION_MANAGER.freezeChain(hyperchainIds[i]) {} catch {}
         }
 
@@ -491,7 +491,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function _unfreeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < len; ++i) {
             try STATE_TRANSITION_MANAGER.unfreezeChain(hyperchainIds[i]) {} catch {}
         }
 
