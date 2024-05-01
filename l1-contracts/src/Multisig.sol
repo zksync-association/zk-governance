@@ -25,6 +25,10 @@ abstract contract Multisig is IERC1271 {
     /// Expected to be sorted without duplicates.
     /// @param _eip1271Threshold The threshold for EIP-1271 signature verification.
     constructor(address[] memory _members, uint256 _eip1271Threshold) {
+        require(_eip1271Threshold > 0, "EIP-1271 threshold is too small");
+        require(_eip1271Threshold <= _members.length, "EIP-1271 threshold is too big");
+        EIP1271_THRESHOLD = _eip1271Threshold;
+
         address lastAddress;
         for (uint256 i = 0; i < _members.length; ++i) {
             address currentMember = _members[i];
@@ -34,7 +38,6 @@ abstract contract Multisig is IERC1271 {
             members.push(currentMember);
             lastAddress = currentMember;
         }
-        EIP1271_THRESHOLD = _eip1271Threshold;
     }
 
     /// @dev The function to check if the provided signatures meet the threshold requirement.
