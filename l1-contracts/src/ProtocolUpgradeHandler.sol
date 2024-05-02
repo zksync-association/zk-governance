@@ -84,7 +84,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @notice A mapping to store status of an upgrade process for each upgrade ID.
     mapping(bytes32 upgradeId => UpgradeStatus) public upgradeStatus;
 
-    FreezeStatus public freezeStatus;
+    /// @notice Tracks the last freeze type within an upgrade cycle.
+    FreezeStatus public lastFreezeStatusInUpgradeCycle;
 
     /// @notice Stores the timestamp until which the protocol remains frozen.
     uint256 internal protocolFrozenUntil;
@@ -141,10 +142,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _;
     }
 
-    /// @notice Checks that the message sender is an active Security Council or the protocol is not in freeze.
-    modifier onlySecurityCouncilOrProtocolUnfrozen() {
+    /// @notice Checks that the message sender is an active Security Council or the protocol is frozen but freeze period expired.
+    modifier onlySecurityCouncilOrProtocolFreezeExpired() {
         require(
-            msg.sender == securityCouncil || block.timestamp > protocolFrozenUntil,
+            msg.sender == securityCouncil || (protocolFrozenUntil != 0 && block.timestamp > protocolFrozenUntil),
             "Only Security Council is allowed to call this function or the protocol should be frozen"
         );
         _;
@@ -292,7 +293,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         // Save the upgrade process
         upgradeStatus[id] = newUpgStatus;
         // Clear the freeze
-        freezeStatus = FreezeStatus.None;
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();
         // 3. Interactions
@@ -319,7 +320,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         // Save the upgrade process
         upgradeStatus[id] = newUpgStatus;
         // Clear the freeze
-        freezeStatus = FreezeStatus.None;
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();
         // 3. Interactions
@@ -428,8 +429,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @notice Initiates a soft protocol freeze.
     function softFreeze() external onlySecurityCouncil {
-        require(freezeStatus == FreezeStatus.None, "Protocol already frozen");
-        freezeStatus = FreezeStatus.Soft;
+        require(lastFreezeStatusInUpgradeCycle == FreezeStatus.None, "Protocol already frozen");
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.Soft;
         protocolFrozenUntil = block.timestamp + SOFT_FREEZE_PERIOD;
         _freeze();
         emit SoftFreeze(protocolFrozenUntil);
@@ -437,8 +438,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @notice Initiates a hard protocol freeze.
     function hardFreeze() external onlySecurityCouncil {
-        require(freezeStatus != FreezeStatus.Hard, "Protocol can't be hard frozen");
-        freezeStatus = FreezeStatus.Hard;
+        require(lastFreezeStatusInUpgradeCycle != FreezeStatus.Hard, "Protocol can't be hard frozen");
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
         _freeze();
         emit HardFreeze(protocolFrozenUntil);
@@ -466,7 +467,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
-    function unfreeze() external onlySecurityCouncilOrProtocolUnfrozen {
+    function unfreeze() external onlySecurityCouncilOrProtocolFreezeExpired {
         protocolFrozenUntil = 0;
         _unfreeze();
         emit Unfreeze();
