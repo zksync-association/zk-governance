@@ -94,6 +94,12 @@ interface IProtocolUpgradeHandler {
 
     function unfreeze() external;
 
+    function reinforceUnfreeze() external;
+
+    function updateUpgradeStatus(bytes32 _id) external returns (UpgradeStatus memory updatedStatus);
+
+    function getUpgradeStatusNow(bytes32 _id) external view returns (UpgradeStatus memory newUpgStatus);
+
     /// @notice Emitted when the security council address is changed.
     event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
 
