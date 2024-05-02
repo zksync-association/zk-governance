@@ -270,7 +270,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @param _id The unique identifier of the upgrade proposal for which guardians are refraining from vetoing.
     function refrainFromVeto(bytes32 _id) external onlyGuardians {
         UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(upgStatus.state == UpgradeState.VetoPeriod, "Guardians can't refrain from veto outside of the veto period");
+        require(
+            upgStatus.state == UpgradeState.VetoPeriod, "Guardians can't refrain from veto outside of the veto period"
+        );
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.ExecutionPending,
             timestamp: uint48(block.timestamp),

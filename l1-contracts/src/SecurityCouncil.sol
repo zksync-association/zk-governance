@@ -134,7 +134,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         bytes[] calldata _signatures
     ) external {
         require(_threshold > 0, "Threshold is too small");
-        require(_threshold <= SOFT_FREEZE_CONSERATIVE_THRESHOLD, "Threshold is too big");
+        require(_threshold <= SOFT_FREEZE_CONSERVATIVE_THRESHOLD, "Threshold is too big");
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
             keccak256(
