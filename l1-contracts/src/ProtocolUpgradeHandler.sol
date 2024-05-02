@@ -477,6 +477,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev Unfreezes the protocol and resumes normal operations.
     function unfreeze() external onlySecurityCouncilOrProtocolUnfrozen {
+        require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen to unfreeze it");
         freezeStatus = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();
