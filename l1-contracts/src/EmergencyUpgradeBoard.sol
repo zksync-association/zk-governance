@@ -25,15 +25,15 @@ contract EmergencyUpgradeBoard is EIP712 {
     address public immutable ZK_ASSOCIATION_SAFE;
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the guardians.
-    bytes32 private constant EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH =
+    bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH =
         keccak256("ExecuteEmergencyUpgradeGuardians(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the Security Council.
-    bytes32 private constant EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
+    bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
         keccak256("ExecuteEmergencyUpgradeSecurityCouncil(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the ZK Association.
-    bytes32 private constant EXECUTE_EMERGENCY_UPGRADE_ZK_ASSOCIATION_TYPEHASH =
+    bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_ZK_ASSOCIATION_TYPEHASH =
         keccak256("ExecuteEmergencyUpgradeZKAssociation(bytes32 id)");
 
     /// @dev Initializes the Emergency Upgrade Board contract with setup for EIP-712.

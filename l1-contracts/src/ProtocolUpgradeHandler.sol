@@ -34,49 +34,49 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Specifies the duration of the veto period for guardians.
     /// During this time, guardians have the opportunity to veto proposed upgrades,
     /// providing a safeguard against potentially harmful changes.
-    uint256 constant GUARDIANS_VETO_PERIOD = 3 days;
+    uint256 internal constant GUARDIANS_VETO_PERIOD = 3 days;
 
     /// @dev The mandatory delay period before an upgrade can be executed.
     /// This period is intended to provide a buffer after an upgrade's final approval and before its execution,
     /// allowing for final reviews and preparations for devs and users.
-    uint256 constant UPGRADE_DELAY_PERIOD = 1 days;
+    uint256 internal constant UPGRADE_DELAY_PERIOD = 1 days;
 
     /// @dev Time limit for an upgrade proposal to be approved or expire, and the waiting period for execution post-guardian approval.
     /// If the Security Council approves, the upgrade can proceed immediately; otherwise,
     /// the proposal will expire after this period if not approved, or wait this period after guardian approval.
-    uint256 constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 90 days;
+    uint256 internal constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 90 days;
 
     /// @dev Duration of a soft freeze which temporarily pause protocol contract functionality.
     /// This freeze window is needed for the Security Council to decide whether they want to
     /// do hard freeze and protocol upgrade.
-    uint256 constant SOFT_FREEZE_PERIOD = 12 hours;
+    uint256 internal constant SOFT_FREEZE_PERIOD = 12 hours;
 
     /// @dev Duration of a hard freeze which temporarily pause protocol contract functionality.
     /// This freeze window is needed for the Security Council to perform emergency protocol upgrade.
-    uint256 constant HARD_FREEZE_PERIOD = 7 days;
+    uint256 internal constant HARD_FREEZE_PERIOD = 7 days;
 
     /// @dev Duration of a cooldown period after the soft freeze happen.
-    uint256 constant SOFT_FREEZE_COOLDOWN_PERIOD = 3 days;
+    uint256 internal constant SOFT_FREEZE_COOLDOWN_PERIOD = 3 days;
 
     /// @dev Duration of a cooldown period after the hard freeze happen.
-    uint256 constant HARD_FREEZE_COOLDOWN_PERIOD = 14 days;
+    uint256 internal constant HARD_FREEZE_COOLDOWN_PERIOD = 14 days;
 
     /// @dev Address of the L2 Protocol Governor contract.
     /// This address is used to interface with governance actions initiated on Layer 2,
     /// specifically for proposing and approving protocol upgrades.
-    address immutable L2_PROTOCOL_GOVERNOR;
+    address internal immutable L2_PROTOCOL_GOVERNOR;
 
     /// @dev zkSync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IZkSyncEra immutable ZKSYNC_ERA;
+    IZkSyncEra internal immutable ZKSYNC_ERA;
 
     /// @dev zkSync smart contract that is responsible for creating new hyperchains and changing parameters in existent.
-    IStateTransitionManager immutable STATE_TRANSITION_MANAGER;
+    IStateTransitionManager internal immutable STATE_TRANSITION_MANAGER;
 
     /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IPausable immutable BRIDGE_HUB;
+    IPausable internal immutable BRIDGE_HUB;
 
     /// @dev The shared bridge that is used for all bridging.
-    IPausable immutable SHARED_BRIDGE;
+    IPausable internal immutable SHARED_BRIDGE;
 
     /// @notice The address of the Security Council.
     address public securityCouncil;
@@ -93,13 +93,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     FreezeStatus public freezeStatus;
 
     /// @notice Stores the timestamp until which the protocol remains frozen.
-    uint256 protocolFrozenUntil;
+    uint256 internal protocolFrozenUntil;
 
     /// @notice Stores the timestamp until which the protocol can't become frozen for short time.
-    uint256 softFreezeCooldownUntil;
+    uint256 internal softFreezeCooldownUntil;
 
     /// @notice Stores the timestamp until which the protocol can't become frozen for long time.
-    uint256 hardFreezeCooldownUntil;
+    uint256 internal hardFreezeCooldownUntil;
 
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _securityCouncil The address to be assigned as the Security Council of the contract.
@@ -331,6 +331,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
+        emit Unfreeze();
         emit EmergencyUpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
     }
@@ -413,6 +414,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @param _calls The array of calls to be executed.
     function _execute(Call[] calldata _calls) internal {
         for (uint256 i = 0; i < _calls.length; ++i) {
+            if (_calls[i].data.length > 0) {
+                require(
+                    _calls[i].target.code.length > 0, "Target must be a smart contract if the calldata is not empty"
+                );
+            }
             (bool success, bytes memory returnData) = _calls[i].target.call{value: _calls[i].value}(_calls[i].data);
             if (!success) {
                 // Propagate an error if the call fails.
@@ -472,6 +478,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev Unfreezes the protocol and resumes normal operations.
     function unfreeze() external onlySecurityCouncilOrProtocolUnfrozen {
+        require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen to unfreeze it");
         freezeStatus = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();

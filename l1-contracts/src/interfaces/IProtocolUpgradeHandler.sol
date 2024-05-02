@@ -27,6 +27,7 @@ interface IProtocolUpgradeHandler {
     /// @dev Represents the status of an upgrade process, including its current state and the last update time.
     /// @param state The current state of the upgrade, indicating its phase in the lifecycle.
     /// @param timestamp The last time (in seconds) the upgrade state was updated.
+    /// @param guardiansApproval Indicates whether the upgrade has been approved by the guardians.
     struct UpgradeStatus {
         UpgradeState state;
         uint48 timestamp;
