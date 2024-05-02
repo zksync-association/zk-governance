@@ -16,13 +16,13 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     IProtocolUpgradeHandler public immutable protocolUpgradeHandler;
 
     /// @dev EIP-712 TypeHash for protocol upgrades approval by the guardians.
-    bytes32 private constant APPROVE_UPGRADE_GUARDIANS_TYPEHASH = keccak256("ApproveUpgradeGuardians(bytes32 id)");
+    bytes32 internal constant APPROVE_UPGRADE_GUARDIANS_TYPEHASH = keccak256("ApproveUpgradeGuardians(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for veto by the guardians.
-    bytes32 private constant VETO_TYPEHASH = keccak256("Veto(bytes32 id)");
+    bytes32 internal constant VETO_TYPEHASH = keccak256("Veto(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for refraining from the veto by the guardians.
-    bytes32 private constant REFRAIN_FROM_VETO_TYPEHASH = keccak256("RefrainFromVeto(bytes32 id)");
+    bytes32 internal constant REFRAIN_FROM_VETO_TYPEHASH = keccak256("RefrainFromVeto(bytes32 id)");
 
     /// @dev Initializes the Guardians contract with predefined members and setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.

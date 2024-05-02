@@ -18,7 +18,7 @@ abstract contract Multisig is IERC1271 {
     address[] public members;
 
     /// @notice The threshold for EIP-1271 signature verification.
-    uint256 immutable EIP1271_THRESHOLD;
+    uint256 internal immutable EIP1271_THRESHOLD;
 
     /// @dev Initializes the contract by setting the sorted list of multisig members.
     /// Members must be unique and sorted in ascending order to ensure efficient

@@ -16,46 +16,46 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     IProtocolUpgradeHandler public immutable protocolUpgradeHandler;
 
     /// @dev EIP-712 TypeHash for protocol upgrades approval by the security council.
-    bytes32 private constant APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
+    bytes32 internal constant APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
         keccak256("ApproveUpgradeSecurityCouncil(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for soft emergency freeze approval by the security council.
-    bytes32 private constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
+    bytes32 internal constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
         keccak256("SoftFreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for hard emergency freeze approval by the security council.
-    bytes32 private constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
+    bytes32 internal constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
         keccak256("HardFreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for setting threshold for soft freeze approval by the security council.
-    bytes32 private constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
+    bytes32 internal constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the security council.
-    bytes32 private constant UNFREEZE_THRESHOLD_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
+    bytes32 internal constant UNFREEZE_THRESHOLD_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev The default threshold for soft freeze initiated by the security council.
-    uint256 private constant SOFT_FREEZE_CONSERATIVE_THRESHOLD = 9;
+    uint256 internal constant SOFT_FREEZE_CONSERATIVE_THRESHOLD = 9;
 
     /// @dev Tracks the unique identifier used in the last successful soft emergency freeze,
     /// to ensure each request is unique.
-    uint256 softFreezeNonce;
+    uint256 internal softFreezeNonce;
 
     /// @dev Tracks the unique identifier used in the last successful hard emergency freeze,
     /// to ensure each request is unique.
-    uint256 hardFreezeNonce;
+    uint256 internal hardFreezeNonce;
 
     /// @dev Tracks the unique identifier used in the last successful setting of the soft freeze threshold,
     /// to ensure each request is unique.
-    uint256 softFreezeThresholdSettingNonce;
+    uint256 internal softFreezeThresholdSettingNonce;
 
     /// @dev Tracks the unique identifier used in the last successful unfreeze.
-    uint256 unfreezeNonce;
+    uint256 internal unfreezeNonce;
 
     /// @dev Represents the number of signatures needed to trigger soft freeze.
     /// This value is automaically reset to 9 after each freeze, but it can be
     /// set by the 9 SC members and requires to be not bigger than 9.
-    uint256 softFreezeThreshold;
+    uint256 internal softFreezeThreshold;
 
     /// @dev Initializes the Security Council contract with predefined members and setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
