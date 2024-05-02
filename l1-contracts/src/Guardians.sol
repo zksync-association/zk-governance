@@ -10,7 +10,7 @@ import {Multisig} from "./Multisig.sol";
 /// @title Guadians
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
-/// @dev Temporary protector of the values of zkSync. Approves or vetoes the changes to the changes proposed by the Token Assembly.
+/// @dev Temporary protector of the values of zkSync. Approves or vetos the changes proposed by the Token Assembly.
 contract Guardians is IGuardians, Multisig, EIP712 {
     /// @notice Address of the contract, which manages protocol upgrades.
     IProtocolUpgradeHandler public immutable protocolUpgradeHandler;
@@ -46,7 +46,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
         protocolUpgradeHandler.approveUpgradeGuardians(_id);
     }
 
-    /// @notice Vetoes a protocol upgrade proposal.
+    /// @notice Vetos a protocol upgrade proposal.
     /// @param _id The unique identifier of the upgrade proposal.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians vetoing the upgrade.
