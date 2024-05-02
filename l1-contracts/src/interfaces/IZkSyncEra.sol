@@ -16,6 +16,12 @@ interface IZkSyncEra {
         bytes data;
     }
 
+    /// @notice Prove that a specific arbitrary-length message was sent in a specific L2 batch number
+    /// @param _batchNumber The executed L2 batch number in which the message appeared
+    /// @param _index The position in the L2 logs Merkle tree of the l2Log that was sent with the message
+    /// @param _message Information about the sent message: sender address, the message itself, tx index in the L2 batch where the message was sent
+    /// @param _proof Merkle proof for inclusion of L2 log that was sent with the message
+    /// @return Whether the proof is valid
     function proveL2MessageInclusion(
         uint256 _batchNumber,
         uint256 _index,

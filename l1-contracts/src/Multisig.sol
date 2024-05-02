@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.24;
 
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 /// @title Multisig
@@ -12,6 +12,8 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 abstract contract Multisig is IERC1271 {
+    using SignatureChecker for address;
+
     /// @notice List of addresses authorized as members of the multisig.
     address[] public members;
 
@@ -40,16 +42,22 @@ abstract contract Multisig is IERC1271 {
     /// @dev The function to check if the provided signatures meet the threshold requirement.
     /// Signatures must be from unique members and are expected in the same order as the members list (sorted order).
     /// @param _digest The hash of the data being signed.
+    /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures to be validated.
     /// @param _threshold The minimum number of valid signatures required to pass the check.
-    function checkSignatures(bytes32 _digest, bytes[] memory _signatures, uint256 _threshold) public view {
+    function checkSignatures(bytes32 _digest, address[] memory _signers, bytes[] memory _signatures, uint256 _threshold)
+        public
+        view
+    {
         // Ensure the total number of signatures meets or exceeds the threshold.
         require(_signatures.length >= _threshold, "Insufficient valid signatures");
+        require(_signers.length == _signatures.length, "Inconsistent signers/signatures length");
 
         uint256 currentMember;
         for (uint256 i = 0; i < _signatures.length; ++i) {
-            address signer = ECDSA.recover(_digest, _signatures[i]);
-            while (members[currentMember] != signer) {
+            bool success = _signers[i].isValidSignatureNow(_digest, _signatures[i]);
+            require(success, "Signature verification failed");
+            while (members[currentMember] != _signers[i]) {
                 currentMember++;
             }
             currentMember++;
@@ -58,10 +66,10 @@ abstract contract Multisig is IERC1271 {
 
     /// @dev The function to check if the provided signatures are valid and meet predefined threshold.
     /// @param _digest The hash of the data being signed.
-    /// @param _signature An array of signatures to be validated ABI encoded from `bytes[]` to `abi.decode(data,(bytes[]))`.
+    /// @param _signature An array of signers and signatures to be validated ABI encoded from `address[], bytes[]` to `abi.decode(data,(address[],bytes[]))`.
     function isValidSignature(bytes32 _digest, bytes calldata _signature) external view override returns (bytes4) {
-        bytes[] memory signatures = abi.decode(_signature, (bytes[]));
-        checkSignatures(_digest, signatures, EIP1271_THRESHOLD);
+        (address[] memory signers, bytes[] memory signatures) = abi.decode(_signature, (address[], bytes[]));
+        checkSignatures(_digest, signers, signatures, EIP1271_THRESHOLD);
         return IERC1271.isValidSignature.selector;
     }
 }
