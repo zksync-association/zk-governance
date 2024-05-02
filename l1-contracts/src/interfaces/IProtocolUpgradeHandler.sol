@@ -55,11 +55,9 @@ interface IProtocolUpgradeHandler {
     }
 
     /// @dev This enumeration includes the following states:
-    /// @param None Default state, indicating the freeze has not been happening.
-    /// @param Soft The protocol is frozen for the short time until the Security Council will approve hard freeze
-    /// or soft freeze period will pass.
-    /// @param Hard The protocol is frozen for the long time until the Security Council will perfrom the protocol
-    /// emergency upgrade or hard freeze period will pass.
+    /// @param None Default state, indicating the freeze has not been happening in this upgrade cycle.
+    /// @param Soft The protocol is/was frozen for the short time.
+    /// @param Hard The protocol is/was frozen for the long time.
     enum FreezeStatus {
         None,
         Soft,

@@ -55,12 +55,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// This freeze window is needed for the Security Council to perform emergency protocol upgrade.
     uint256 internal constant HARD_FREEZE_PERIOD = 7 days;
 
-    /// @dev Duration of a cooldown period after the soft freeze happen.
-    uint256 internal constant SOFT_FREEZE_COOLDOWN_PERIOD = 3 days;
-
-    /// @dev Duration of a cooldown period after the hard freeze happen.
-    uint256 internal constant HARD_FREEZE_COOLDOWN_PERIOD = 14 days;
-
     /// @dev Address of the L2 Protocol Governor contract.
     /// This address is used to interface with governance actions initiated on Layer 2,
     /// specifically for proposing and approving protocol upgrades.
@@ -94,12 +88,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @notice Stores the timestamp until which the protocol remains frozen.
     uint256 internal protocolFrozenUntil;
-
-    /// @notice Stores the timestamp until which the protocol can't become frozen for short time.
-    uint256 internal softFreezeCooldownUntil;
-
-    /// @notice Stores the timestamp until which the protocol can't become frozen for long time.
-    uint256 internal hardFreezeCooldownUntil;
 
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _securityCouncil The address to be assigned as the Security Council of the contract.
@@ -301,10 +289,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
             timestamp: uint48(block.timestamp),
             guardiansApproval: upgStatus.guardiansApproval
         });
+        // Save the upgrade process
         upgradeStatus[id] = newUpgStatus;
+        // Clear the freeze
+        freezeStatus = FreezeStatus.None;
+        protocolFrozenUntil = 0;
+        _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
-
+        emit Unfreeze();
         emit UpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
     }
@@ -328,8 +321,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         // Clear the freeze
         freezeStatus = FreezeStatus.None;
         protocolFrozenUntil = 0;
-        softFreezeCooldownUntil = 0;
-        hardFreezeCooldownUntil = 0;
         _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
@@ -438,8 +429,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @notice Initiates a soft protocol freeze.
     function softFreeze() external onlySecurityCouncil {
         require(freezeStatus == FreezeStatus.None, "Protocol already frozen");
-        require(block.timestamp > softFreezeCooldownUntil, "Can't freeze in the cooldown period");
-        softFreezeCooldownUntil = block.timestamp + SOFT_FREEZE_COOLDOWN_PERIOD;
         freezeStatus = FreezeStatus.Soft;
         protocolFrozenUntil = block.timestamp + SOFT_FREEZE_PERIOD;
         _freeze();
@@ -449,8 +438,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @notice Initiates a hard protocol freeze.
     function hardFreeze() external onlySecurityCouncil {
         require(freezeStatus != FreezeStatus.Hard, "Protocol can't be hard frozen");
-        require(block.timestamp > hardFreezeCooldownUntil, "Can't freeze in the cooldown period");
-        hardFreezeCooldownUntil = block.timestamp + HARD_FREEZE_COOLDOWN_PERIOD;
         freezeStatus = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
         _freeze();
@@ -481,7 +468,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Unfreezes the protocol and resumes normal operations.
     function unfreeze() external onlySecurityCouncilOrProtocolUnfrozen {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen to unfreeze it");
-        freezeStatus = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();
         emit Unfreeze();
