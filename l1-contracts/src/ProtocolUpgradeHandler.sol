@@ -153,8 +153,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _;
     }
 
-    /// @notice Checks that the message sender is an active Security Council or the protocol is not in freeze.
-    modifier onlySecurityCouncilOrProtocolUnfrozen() {
+    /// @notice Checks that the protocol is in active freeze and the message sender is Security Council or the freeze period expired.
+    modifier onlySecurityCouncilInFreezeOrFreezeExpired() {
+        require(protocolFrozenUntil != 0, "Protocol is not in active freeze");
         require(
             msg.sender == securityCouncil || block.timestamp > protocolFrozenUntil,
             "Only Security Council is allowed to call this function or the protocol should be frozen"
@@ -471,7 +472,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
-    function unfreeze() external onlySecurityCouncilOrProtocolUnfrozen {
+    function unfreeze() external onlySecurityCouncilInFreezeOrFreezeExpired {
         freezeStatus = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();
