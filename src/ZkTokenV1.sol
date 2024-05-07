@@ -104,7 +104,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
 
   /// @notice Delegates votes from signer to `_delegatee` by EIP-1271/ECDSA signature.
   /// @dev This method should be used instead of `delegateBySig` as it supports validations via EIP-1271.
-  /// @param _signer The address of the voter delegating their vote.
+  /// @param _signer The address of the token holder delegating their voting power.
   /// @param _delegatee The address to which the voting power is delegated.
   /// @param _deadline The timestamp at which the signed message expires.
   /// @param _signature The signature proving the `_signer` has authorized the delegation.
