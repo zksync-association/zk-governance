@@ -51,7 +51,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   error DelegateSignatureExpired(uint256 deadline);
 
   /// @dev Thrown if a signature for selecting a delegate is invalid.
-  error DelegateSignatureInvalidNow();
+  error DelegateSignatureIsInvalidNow();
 
   /// @notice A one-time configuration method meant to be called immediately upon the deployment of ZkTokenV1. It sets
   /// up the token's name and symbol, configures and assigns role admins, and mints the initial token supply.
@@ -103,11 +103,11 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   }
 
   /// @notice Delegates votes from signer to `delegatee` by EIP-1271/ECDSA signature.
+  /// @param signer The address of the voter delegating their vote.
   /// @param delegatee The address to which the voting power is delegated.
   /// @param deadline The timestamp at which the signed message expires.
-  /// @param signer The address of the voter delegating their vote.
   /// @param signature The signature proving the `signer` has authorized the delegation.
-  function delegateBySigNow(address delegatee, uint256 deadline, address signer, bytes memory signature) external {
+  function delegateBySigNow(address signer, address delegatee, uint256 deadline, bytes memory signature) external {
     if (block.timestamp > deadline) {
       revert DelegateSignatureExpired(deadline);
     }
@@ -117,7 +117,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
     );
 
     if (!isSignatureValid) {
-      revert DelegateSignatureInvalidNow();
+      revert DelegateSignatureIsInvalidNow();
     }
     _delegate(signer, delegatee);
   }
