@@ -9,6 +9,7 @@ import {ERC20VotesUpgradeable} from
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC20PermitUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 /// @title ZkTokenV1
 /// @author [ScopeLift](https://scopelift.co)
@@ -17,6 +18,8 @@ import {ERC20PermitUpgradeable} from
 /// calling these functions one after the other then they should use an incremented nonce for the subsequent call.
 /// @custom:security-contact security@zksync.io
 contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgradeable {
+  using SignatureChecker for address;
+
   /// @notice The unique identifier constant used to represent the administrator of the minter role. An address that
   /// has this role may grant or revoke the minter role from other addresses. This role itself may be granted or
   /// revoked by the DEFAULT_ADMIN_ROLE.
@@ -37,8 +40,18 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   // be granted or revoked by and address holding the BURNER_ADMIN_ROLE.
   bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
+  /// @notice Type hash used when encoding data for `delegateBySig` calls.
+  bytes32 public constant DELEGATE_TYPEHASH =
+    keccak256("Delegate(address owner,address delegatee,uint256 nonce,uint256 deadline)");
+
   /// @dev The clock was incorrectly modified.
   error ERC6372InconsistentClock();
+
+  /// @dev Thrown if a signature for selecting a delegate expired.
+  error DelegateSignatureExpired(uint256 deadline);
+
+  /// @dev Thrown if a signature for selecting a delegate is invalid.
+  error DelegateSignatureInvalidNow();
 
   /// @notice A one-time configuration method meant to be called immediately upon the deployment of ZkTokenV1. It sets
   /// up the token's name and symbol, configures and assigns role admins, and mints the initial token supply.
@@ -87,5 +100,25 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   /// admin.
   function burn(address _from, uint256 _amount) external onlyRole(BURNER_ROLE) {
     _burn(_from, _amount);
+  }
+
+  /// @notice Delegates votes from signer to `delegatee` by EIP-1271/ECDSA signature.
+  /// @param delegatee The address to which the voting power is delegated.
+  /// @param deadline The timestamp at which the signed message expires.
+  /// @param signer The address of the voter delegating their vote.
+  /// @param signature The signature proving the `signer` has authorized the delegation.
+  function delegateBySigNow(address delegatee, uint256 deadline, address signer, bytes memory signature) external {
+    if (block.timestamp > deadline) {
+      revert DelegateSignatureExpired(deadline);
+    }
+    bool isSignatureValid = signer.isValidSignatureNow(
+      _hashTypedDataV4(keccak256(abi.encode(DELEGATE_TYPEHASH, signer, delegatee, _useNonce(signer), deadline))),
+      signature
+    );
+
+    if (!isSignatureValid) {
+      revert DelegateSignatureInvalidNow();
+    }
+    _delegate(signer, delegatee);
   }
 }
