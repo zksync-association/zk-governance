@@ -560,12 +560,12 @@ contract Nonces is ZkTokenTest {
   }
 }
 
-contract Delegate is ZkTokenTest {
+contract DelegateBySigNow is ZkTokenTest {
   /// @notice Type hash used when encoding data for `delegateBySig` calls.
   bytes32 public constant DELEGATE_TYPEHASH =
     keccak256("Delegate(address owner,address delegatee,uint256 nonce,uint256 deadline)");
 
-  error DelegateSignatureIsInvalidNow();
+  error DelegateSignatureIsInvalid();
 
   function testFuzz_PerformsDelegationByCallinDelegateBySigNowECDSA(
     uint256 _signerPrivateKey,
@@ -640,7 +640,7 @@ contract Delegate is ZkTokenTest {
     assertEq(token.delegates(_signer), _delegatee);
   }
 
-  function testFuzz_RevertIf_DelegateSignatureIsInvalid(
+  function testFuzz_RevertIf_InvalidECDSASignature(
     address _notSigner,
     uint256 _signerPrivateKey,
     uint256 _amount,
@@ -676,7 +676,7 @@ contract Delegate is ZkTokenTest {
     // verify the signer has no delegate
     assertEq(token.delegates(_signer), address(0));
 
-    vm.expectRevert(DelegateSignatureIsInvalidNow.selector);
+    vm.expectRevert(DelegateSignatureIsInvalid.selector);
     token.delegateBySigNow(_signer, _delegatee, _deadline, abi.encodePacked(_r, _s, _v));
   }
 }
