@@ -24,6 +24,10 @@ abstract contract ProposalTest is Test {
     delegates = _delegates;
   }
 
+  function _setDelegates(address _delegate) internal {
+    delegates.push(_delegate);
+  }
+
   function _proposalSnapshot(uint256 _proposalId) internal view returns (uint256) {
     return governor.proposalSnapshot(_proposalId);
   }
