@@ -560,21 +560,19 @@ contract Nonces is ZkTokenTest {
   }
 }
 
-contract DelegateBySigNow is ZkTokenTest {
+contract delegateOnBehalf is ZkTokenTest {
   /// @notice Type hash used when encoding data for `delegateBySig` calls.
-  bytes32 public constant DELEGATE_TYPEHASH =
-    keccak256("Delegate(address owner,address delegatee,uint256 nonce,uint256 deadline)");
+  bytes32 public constant DELEGATION_TYPEHASH =
+    keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
 
-  error DelegateSignatureIsInvalid();
-
-  function testFuzz_PerformsDelegationByCallinDelegateBySigNowECDSA(
+  function testFuzz_PerformsDelegationByCallindelegateOnBehalfECDSA(
     uint256 _signerPrivateKey,
     uint256 _amount,
     address _delegatee,
-    uint256 _deadline
+    uint256 _expiry
   ) public {
     vm.assume(_delegatee != address(0));
-    _deadline = bound(_deadline, block.timestamp + 1, type(uint256).max);
+    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
@@ -587,7 +585,7 @@ contract DelegateBySigNow is ZkTokenTest {
     // verify the owner has the expected balance
     assertEq(token.balanceOf(_signer), _amount);
 
-    bytes32 _message = keccak256(abi.encode(DELEGATE_TYPEHASH, _signer, _delegatee, token.nonces(_signer), _deadline));
+    bytes32 _message = keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, token.nonces(_signer), _expiry));
 
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_signerPrivateKey, _messageHash);
@@ -595,20 +593,20 @@ contract DelegateBySigNow is ZkTokenTest {
     // verify the signer has no delegate
     assertEq(token.delegates(_signer), address(0));
 
-    token.delegateBySigNow(_signer, _delegatee, _deadline, abi.encodePacked(_r, _s, _v));
+    token.delegateOnBehalf(_signer, _delegatee, _expiry, abi.encodePacked(_r, _s, _v));
 
     // verify the signer has delegate
     assertEq(token.delegates(_signer), _delegatee);
   }
 
-  function testFuzz_PerformsDelegationByCallinDelegateBySigNowEIP1271(
+  function testFuzz_PerformsDelegationByCallindelegateOnBehalfEIP1271(
     uint256 _signerPrivateKey,
     uint256 _amount,
     address _delegatee,
-    uint256 _deadline
+    uint256 _expiry
   ) public {
     vm.assume(_delegatee != address(0));
-    _deadline = bound(_deadline, block.timestamp + 1, type(uint256).max);
+    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
@@ -621,7 +619,7 @@ contract DelegateBySigNow is ZkTokenTest {
     // verify the owner has the expected balance
     assertEq(token.balanceOf(_signer), _amount);
 
-    bytes32 _message = keccak256(abi.encode(DELEGATE_TYPEHASH, _signer, _delegatee, token.nonces(_signer), _deadline));
+    bytes32 _message = keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, token.nonces(_signer), _expiry));
 
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
 
@@ -634,7 +632,7 @@ contract DelegateBySigNow is ZkTokenTest {
       abi.encode(IERC1271.isValidSignature.selector)
     );
 
-    token.delegateBySigNow(_signer, _delegatee, _deadline, "");
+    token.delegateOnBehalf(_signer, _delegatee, _expiry, "");
 
     // verify the signer has delegate
     assertEq(token.delegates(_signer), _delegatee);
@@ -645,10 +643,10 @@ contract DelegateBySigNow is ZkTokenTest {
     uint256 _signerPrivateKey,
     uint256 _amount,
     address _delegatee,
-    uint256 _deadline
+    uint256 _expiry
   ) public {
     vm.assume(_delegatee != address(0));
-    _deadline = bound(_deadline, block.timestamp + 1, type(uint256).max);
+    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
@@ -662,7 +660,7 @@ contract DelegateBySigNow is ZkTokenTest {
     assertEq(token.balanceOf(_signer), _amount);
 
     bytes32 _message =
-      keccak256(abi.encode(DELEGATE_TYPEHASH, _notSigner, _delegatee, token.nonces(_notSigner), _deadline));
+      keccak256(abi.encode(DELEGATION_TYPEHASH, _notSigner, _delegatee, token.nonces(_notSigner), _expiry));
 
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_signerPrivateKey, _messageHash);
@@ -676,7 +674,7 @@ contract DelegateBySigNow is ZkTokenTest {
     // verify the signer has no delegate
     assertEq(token.delegates(_signer), address(0));
 
-    vm.expectRevert(DelegateSignatureIsInvalid.selector);
-    token.delegateBySigNow(_signer, _delegatee, _deadline, abi.encodePacked(_r, _s, _v));
+    vm.expectRevert(ZkTokenV1.DelegateSignatureIsInvalid.selector);
+    token.delegateOnBehalf(_signer, _delegatee, _expiry, abi.encodePacked(_r, _s, _v));
   }
 }

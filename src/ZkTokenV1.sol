@@ -40,15 +40,15 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   // be granted or revoked by and address holding the BURNER_ADMIN_ROLE.
   bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-  /// @notice Type hash used when encoding data for `delegateBySig` calls.
-  bytes32 public constant DELEGATE_TYPEHASH =
-    keccak256("Delegate(address owner,address delegatee,uint256 nonce,uint256 deadline)");
+  /// @notice Type hash used when encoding data for `delegateOnBehalf` calls.
+  bytes32 public constant DELEGATION_TYPEHASH =
+    keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
 
   /// @dev The clock was incorrectly modified.
   error ERC6372InconsistentClock();
 
   /// @dev Thrown if a signature for selecting a delegate expired.
-  error DelegateSignatureExpired(uint256 deadline);
+  error DelegateSignatureExpired(uint256 expiry);
 
   /// @dev Thrown if a signature for selecting a delegate is invalid.
   error DelegateSignatureIsInvalid();
@@ -106,18 +106,18 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   /// @dev This method should be used instead of `delegateBySig` as it supports validations via EIP-1271.
   /// @param _signer The address of the token holder delegating their voting power.
   /// @param _delegatee The address to which the voting power is delegated.
-  /// @param _deadline The timestamp at which the signed message expires.
+  /// @param _expiry The timestamp at which the signed message expires.
   /// @param _signature The signature proving the `_signer` has authorized the delegation.
-  function delegateBySigNow(address _signer, address _delegatee, uint256 _deadline, bytes memory _signature) external {
-    if (block.timestamp > _deadline) {
-      revert DelegateSignatureExpired(_deadline);
+  function delegateOnBehalf(address _signer, address _delegatee, uint256 _expiry, bytes memory _signature) external {
+    if (block.timestamp > _expiry) {
+      revert DelegateSignatureExpired(_expiry);
     }
-    bool isSignatureValid = _signer.isValidSignatureNow(
-      _hashTypedDataV4(keccak256(abi.encode(DELEGATE_TYPEHASH, _signer, _delegatee, _useNonce(_signer), _deadline))),
+    bool _isSignatureValid = _signer.isValidSignatureNow(
+      _hashTypedDataV4(keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, _useNonce(_signer), _expiry))),
       _signature
     );
 
-    if (!isSignatureValid) {
+    if (!_isSignatureValid) {
       revert DelegateSignatureIsInvalid();
     }
     _delegate(_signer, _delegatee);
