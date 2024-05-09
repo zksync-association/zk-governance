@@ -30,19 +30,19 @@ describe("ZkSocialGovernor", function () {
     const deployerWallet = new Wallet(deployerAccount.privateKey);
     const deployer = new Deployer(hre, deployerWallet);
 
-    const ZkSocialGovernor = await deployer.loadArtifact(
-      "ZkSocialGovernor"
-    );
+    const ZkSocialGovernor = await deployer.loadArtifact("ZkSocialGovernor");
     socialGovernor = (await deployer.deploy(ZkSocialGovernor, [
-      name,
-      mockTokenAddr,
-      mockTimelockAddr,
-      votingDelay,
-      votingPeriod,
-      proposalThreshold,
-      initialQuorum,
-      initialLateQuorum,
-			mockGuardian
+      {
+        name,
+        token: mockTokenAddr,
+        timelock: mockTimelockAddr,
+        initialVotingDelay: votingDelay,
+        initialVotingPeriod: votingPeriod,
+        initialProposalThreshold: proposalThreshold,
+        initialQuorum: initialQuorum,
+        initialVoteExtension: initialLateQuorum,
+        vetoGuardian: mockGuardian,
+      },
     ])) as unknown as ZkSocialGovernor;
   });
 
@@ -64,7 +64,7 @@ describe("ZkSocialGovernor", function () {
         initialLateQuorum
       );
       expect(await socialGovernor.timelock()).to.equal(mockTimelockAddr);
-      expect(await socialGovernor.GUARDIAN()).to.equal(mockGuardian);
+      expect(await socialGovernor.VETO_GUARDIAN()).to.equal(mockGuardian);
     });
   });
 });

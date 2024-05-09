@@ -12,6 +12,7 @@ import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 
 import {GovernorSettableFixedQuorum} from "src/extensions/GovernorSettableFixedQuorum.sol";
+import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 
 /// @title ZkSocialGovernor
 /// @author [ScopeLift](https://scopelift.co)
@@ -22,47 +23,40 @@ contract ZkSocialGovernor is
   GovernorVotes,
   GovernorTimelockControl,
   GovernorPreventLateQuorum,
-  GovernorSettableFixedQuorum
+  GovernorSettableFixedQuorum,
+  GovernorGuardianVeto
 {
-  /// @notice An immutable address which can cancel proposals while they are pending or active.
-  address public immutable GUARDIAN;
-
-  /// @notice Thrown if a proposal is in a state in which it cannot be canceled.
-  error UncancelableProposalState();
-
-  /// @notice Thrown if an address tries to perform an action for which it is not authorized.
-  error Unauthorized();
-
-  /// @param _name The name used as the EIP712 signing domain.
-  /// @param _token The token used for voting on proposals.
-  /// @param _timelock The timelock used for managing proposals.
-  /// @param _initialVotingDelay The delay before voting on a proposal begins.
-  /// @param _initialVotingPeriod The period of time voting will take place.
-  /// @param _initialProposalThreshold The number of tokens needed to create a proposal.
-  /// @param _initialQuorum The number of total votes needed to pass a proposal.
-  /// @param _initialVoteExtension The time to extend the voting period if quorum is met near the end of voting.
-  /// @param _initialGuardian An immutable address that can cancel proposals when it is in either a pending or active
+  /// @param name The name used as the EIP712 signing domain.
+  /// @param token The token used for voting on proposals.
+  /// @param timelock The timelock used for managing proposals.
+  /// @param initialVotingDelay The delay before voting on a proposal begins.
+  /// @param initialVotingPeriod The period of time voting will take place.
+  /// @param initialProposalThreshold The number of tokens needed to create a proposal.
+  /// @param initialQuorum The number of total votes needed to pass a proposal.
+  /// @param initialVoteExtension The time to extend the voting period if quorum is met near the end of voting.
+  /// @param vetoGuardian An immutable address that can cancel proposals when it is in either a pending or active
   /// state.
-  constructor(
-    string memory _name,
-    IVotes _token,
-    TimelockController _timelock,
-    uint48 _initialVotingDelay,
-    uint32 _initialVotingPeriod,
-    uint256 _initialProposalThreshold,
-    uint224 _initialQuorum,
-    uint64 _initialVoteExtension,
-    address _initialGuardian
-  )
-    Governor(_name)
-    GovernorSettings(_initialVotingDelay, _initialVotingPeriod, _initialProposalThreshold)
-    GovernorVotes(_token)
-    GovernorTimelockControl(_timelock)
-    GovernorPreventLateQuorum(_initialVoteExtension)
-    GovernorSettableFixedQuorum(_initialQuorum)
-  {
-    GUARDIAN = _initialGuardian;
+  struct ConstructorParams {
+    string name;
+    IVotes token;
+    TimelockController timelock;
+    uint48 initialVotingDelay;
+    uint32 initialVotingPeriod;
+    uint256 initialProposalThreshold;
+    uint224 initialQuorum;
+    uint64 initialVoteExtension;
+    address vetoGuardian;
   }
+
+  constructor(ConstructorParams memory _params)
+    Governor(_params.name)
+    GovernorSettings(_params.initialVotingDelay, _params.initialVotingPeriod, _params.initialProposalThreshold)
+    GovernorVotes(_params.token)
+    GovernorTimelockControl(_params.timelock)
+    GovernorPreventLateQuorum(_params.initialVoteExtension)
+    GovernorSettableFixedQuorum(_params.initialQuorum)
+    GovernorGuardianVeto(_params.vetoGuardian)
+  {}
 
   /// @notice This function will cancel a proposal, and can only be called by the guardian while the proposal is either
   /// pending or active.
@@ -75,19 +69,8 @@ contract ZkSocialGovernor is
     uint256[] memory _values,
     bytes[] memory _calldatas,
     bytes32 _descriptionHash
-  ) public virtual override(Governor, IGovernor) returns (uint256) {
-    if (msg.sender != GUARDIAN) {
-      revert Unauthorized();
-    }
-
-    uint256 proposalId = hashProposal(_targets, _values, _calldatas, _descriptionHash);
-
-    ProposalState proposalState = state(proposalId);
-
-    if (proposalState != ProposalState.Active && proposalState != ProposalState.Pending) {
-      revert UncancelableProposalState();
-    }
-    return _cancel(_targets, _values, _calldatas, _descriptionHash);
+  ) public virtual override(Governor, IGovernor, GovernorGuardianVeto) returns (uint256) {
+    return GovernorGuardianVeto.cancel(_targets, _values, _calldatas, _descriptionHash);
   }
 
   /// @inheritdoc GovernorCountingFractional

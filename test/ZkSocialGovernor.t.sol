@@ -5,6 +5,7 @@ import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {Test, console2} from "forge-std/Test.sol";
 
 import {ZkSocialGovernor} from "src/ZkSocialGovernor.sol";
+import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 import {ProposalTest} from "test/helpers/ProposalTest.sol";
 import {ProposalBuilder} from "test/helpers/ProposalBuilder.sol";
 import {ERC20VotesFake} from "test/fakes/ERC20VotesFake.sol";
@@ -18,7 +19,7 @@ contract ZkSocialGovernorTest is Test {
   uint64 constant INITIAL_VOTE_EXTENSION = 1 days;
   string constant DESCRIPTION = "Description";
   address initialOwner;
-  address initialGuardian;
+  address vetoGuardian;
 
   TimelockControllerFake timelock;
   ERC20VotesFake token;
@@ -26,20 +27,21 @@ contract ZkSocialGovernorTest is Test {
 
   function setUp() public {
     initialOwner = makeAddr("Initial Owner");
-    initialGuardian = makeAddr("Guardian");
+    vetoGuardian = makeAddr("Veto Guardian");
     timelock = new TimelockControllerFake(initialOwner);
     token = new ERC20VotesFake();
-    governor = new ZkSocialGovernor(
-      "Example Gov",
-      token,
-      timelock,
-      INITIAL_VOTING_DELAY,
-      INITIAL_VOTING_PERIOD,
-      INITIAL_PROPOSAL_THRESHOLD,
-      INITIAL_QUORUM,
-      INITIAL_VOTE_EXTENSION,
-      initialGuardian
-    );
+    ZkSocialGovernor.ConstructorParams memory params = ZkSocialGovernor.ConstructorParams({
+      name: "Example Gov",
+      token: token,
+      timelock: timelock,
+      initialVotingDelay: INITIAL_VOTING_DELAY,
+      initialVotingPeriod: INITIAL_VOTING_PERIOD,
+      initialProposalThreshold: INITIAL_PROPOSAL_THRESHOLD,
+      initialQuorum: INITIAL_QUORUM,
+      initialVoteExtension: INITIAL_VOTE_EXTENSION,
+      vetoGuardian: vetoGuardian
+    });
+    governor = new ZkSocialGovernor(params);
 
     vm.prank(initialOwner);
     timelock.grantRole(keccak256("PROPOSER_ROLE"), address(governor));
@@ -74,7 +76,7 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     IGovernor.ProposalState proposalState = governor.state(_proposalId);
     assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Pending));
 
-    vm.startPrank(initialGuardian);
+    vm.startPrank(vetoGuardian);
     governor.cancel(builder.targets(), builder.values(), builder.calldatas(), keccak256(bytes(DESCRIPTION)));
     vm.stopPrank();
 
@@ -90,7 +92,7 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     IGovernor.ProposalState proposalState = governor.state(_proposalId);
     assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Active));
 
-    vm.startPrank(initialGuardian);
+    vm.startPrank(vetoGuardian);
     governor.cancel(builder.targets(), builder.values(), builder.calldatas(), keccak256(bytes(DESCRIPTION)));
     vm.stopPrank();
 
@@ -113,8 +115,8 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     uint256[] memory values = builder.values();
     bytes[] memory calldatas = builder.calldatas();
 
-    vm.startPrank(initialGuardian);
-    vm.expectRevert(ZkSocialGovernor.UncancelableProposalState.selector);
+    vm.startPrank(vetoGuardian);
+    vm.expectRevert(GovernorGuardianVeto.UncancelableProposalState.selector);
     governor.cancel(targets, values, calldatas, keccak256(bytes(DESCRIPTION)));
     vm.stopPrank();
   }
@@ -134,8 +136,8 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     uint256[] memory values = builder.values();
     bytes[] memory calldatas = builder.calldatas();
 
-    vm.startPrank(initialGuardian);
-    vm.expectRevert(ZkSocialGovernor.UncancelableProposalState.selector);
+    vm.startPrank(vetoGuardian);
+    vm.expectRevert(GovernorGuardianVeto.UncancelableProposalState.selector);
     governor.cancel(targets, values, calldatas, keccak256(bytes(DESCRIPTION)));
     vm.stopPrank();
   }
@@ -156,8 +158,8 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     uint256[] memory values = builder.values();
     bytes[] memory calldatas = builder.calldatas();
 
-    vm.startPrank(initialGuardian);
-    vm.expectRevert(ZkSocialGovernor.UncancelableProposalState.selector);
+    vm.startPrank(vetoGuardian);
+    vm.expectRevert(GovernorGuardianVeto.UncancelableProposalState.selector);
     governor.cancel(targets, values, calldatas, keccak256(bytes(DESCRIPTION)));
     vm.stopPrank();
   }
@@ -181,14 +183,14 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     IGovernor.ProposalState proposalState = governor.state(_proposalId);
     assertEq(uint8(proposalState), uint8(IGovernor.ProposalState.Executed));
 
-    vm.startPrank(initialGuardian);
-    vm.expectRevert(ZkSocialGovernor.UncancelableProposalState.selector);
+    vm.startPrank(vetoGuardian);
+    vm.expectRevert(GovernorGuardianVeto.UncancelableProposalState.selector);
     governor.cancel(targets, values, calldatas, keccak256(bytes(DESCRIPTION)));
     vm.stopPrank();
   }
 
   function testFuzz_RevertIf_CancelledByNonGuardian(address _caller) public {
-    vm.assume(_caller != initialGuardian);
+    vm.assume(_caller != vetoGuardian);
     (ProposalBuilder builder,) = _buildProposal();
     uint256 _proposalId = _propose(builder.targets(), builder.values(), builder.calldatas(), DESCRIPTION);
     IGovernor.ProposalState proposalState = governor.state(_proposalId);
@@ -199,7 +201,7 @@ contract Cancel is ZkSocialGovernorTest, ProposalTest {
     bytes[] memory calldatas = builder.calldatas();
 
     vm.startPrank(_caller);
-    vm.expectRevert(ZkSocialGovernor.Unauthorized.selector);
+    vm.expectRevert(GovernorGuardianVeto.Unauthorized.selector);
     governor.cancel(targets, values, calldatas, keccak256(bytes(DESCRIPTION)));
     vm.stopPrank();
   }

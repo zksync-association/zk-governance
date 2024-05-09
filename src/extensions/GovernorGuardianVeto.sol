@@ -13,8 +13,9 @@ abstract contract GovernorGuardianVeto is Governor {
   /// @notice Thrown if an address tries to perform an action for which it is not authorized.
   error Unauthorized();
 
-  constructor(address _initialVetoGuardian) {
-    VETO_GUARDIAN = _initialVetoGuardian;
+  /// @param _vetoGuardian The address to set as the immutable `VETO_GUARDIAN`.
+  constructor(address _vetoGuardian) {
+    VETO_GUARDIAN = _vetoGuardian;
   }
 
   /// @notice This function will cancel a proposal, and can only be called by the guardian while the proposal is either

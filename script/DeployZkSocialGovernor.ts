@@ -29,7 +29,17 @@ async function main() {
   const deployer = new Deployer(hre, zkWallet);
 
   const contract = await deployer.loadArtifact(contractName);
-  const constructorArgs = [contractName, tokenAddress, timeLockAddress, votingDelay, votingPeriod, proposalThreshold, initialQuorum, initialLateQuorum, initialGuardian];
+  const constructorArgs = [{
+		name: contractName, 
+		token: tokenAddress, 
+		timelock: timeLockAddress, 
+		initialVotingDelay: votingDelay, 
+		initialVotingPeriod: votingPeriod, 
+		initialProposalThreshold: proposalThreshold, 
+		initialQuorum: initialQuorum, 
+		initialVoteExtension: initialLateQuorum, 
+		vetoGuardian: initialGuardian
+	}];
   const socialGovernor = await deployer.deploy(contract, constructorArgs);
 
   console.log("constructor args:" + socialGovernor.interface.encodeDeploy(constructorArgs));
