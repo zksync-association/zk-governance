@@ -560,8 +560,8 @@ contract Nonces is ZkTokenTest {
   }
 }
 
-contract delegateOnBehalf is ZkTokenTest {
-  /// @notice Type hash used when encoding data for `delegateBySig` calls.
+contract DelegateOnBehalf is ZkTokenTest {
+ /// @notice Type hash used when encoding data for `delegateOnBehalf` calls.
   bytes32 public constant DELEGATION_TYPEHASH =
     keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
 
