@@ -15,7 +15,7 @@ const accounts = [
 describe("ZkTokenGovernor", function () {
   let tokenGovernor: ZkTokenGovernor;
 
-  const name = "zkSync Social Governor";
+  const name = "zkSync Token Governor";
   const mockTokenAddr = "0xCAFEcaFE00000000000000000000000000000000";
   const mockTimelockAddr = "0x55bE1B079b53962746B2e86d12f158a41DF294A6";
   const mockVetoGuardian = "0xdEADBEeF00000000000000000000000000000000";

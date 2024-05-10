@@ -4,14 +4,14 @@ pragma solidity 0.8.24;
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {Test, console2} from "forge-std/Test.sol";
 
-import {ZkSocialGovernor} from "src/ZkSocialGovernor.sol";
+import {ZkGovOpsGovernor} from "src/ZkGovOpsGovernor.sol";
 import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 import {ProposalTest} from "test/helpers/ProposalTest.sol";
 import {ProposalBuilder} from "test/helpers/ProposalBuilder.sol";
 import {ERC20VotesFake} from "test/fakes/ERC20VotesFake.sol";
 import {TimelockControllerFake} from "test/fakes/TimelockControllerFake.sol";
 
-contract ZkSocialGovernorTest is Test {
+contract ZkGovOpsGovernorTest is Test {
   uint48 constant INITIAL_VOTING_DELAY = 1 days;
   uint32 constant INITIAL_VOTING_PERIOD = 7 days;
   uint256 constant INITIAL_PROPOSAL_THRESHOLD = 500_000e18;
@@ -23,14 +23,14 @@ contract ZkSocialGovernorTest is Test {
 
   TimelockControllerFake timelock;
   ERC20VotesFake token;
-  ZkSocialGovernor governor;
+  ZkGovOpsGovernor governor;
 
   function setUp() public {
     initialOwner = makeAddr("Initial Owner");
     vetoGuardian = makeAddr("Veto Guardian");
     timelock = new TimelockControllerFake(initialOwner);
     token = new ERC20VotesFake();
-    ZkSocialGovernor.ConstructorParams memory params = ZkSocialGovernor.ConstructorParams({
+    ZkGovOpsGovernor.ConstructorParams memory params = ZkGovOpsGovernor.ConstructorParams({
       name: "Example Gov",
       token: token,
       timelock: timelock,
@@ -41,7 +41,7 @@ contract ZkSocialGovernorTest is Test {
       initialVoteExtension: INITIAL_VOTE_EXTENSION,
       vetoGuardian: vetoGuardian
     });
-    governor = new ZkSocialGovernor(params);
+    governor = new ZkGovOpsGovernor(params);
 
     vm.prank(initialOwner);
     timelock.grantRole(keccak256("PROPOSER_ROLE"), address(governor));
@@ -51,7 +51,7 @@ contract ZkSocialGovernorTest is Test {
   }
 }
 
-contract Cancel is ZkSocialGovernorTest, ProposalTest {
+contract Cancel is ZkGovOpsGovernorTest, ProposalTest {
   function _buildProposal() internal returns (ProposalBuilder, address) {
     address delegate = makeAddr("delegate");
     token.mint(delegate, governor.proposalThreshold());

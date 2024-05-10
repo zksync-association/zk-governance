@@ -2,7 +2,7 @@ import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
 import { Wallet } from "zksync-ethers";
 import { expect } from "chai";
 import hre from "hardhat";
-import type { ZkSocialGovernor } from "../typechain-types";
+import type { ZkGovOpsGovernor } from "../typechain-types";
 
 const accounts = [
   {
@@ -12,10 +12,10 @@ const accounts = [
   },
 ];
 
-describe("ZkSocialGovernor", function () {
-  let socialGovernor: ZkSocialGovernor;
+describe("ZkGovOpsGovernor", function () {
+  let govOpsGovernor: ZkGovOpsGovernor;
 
-  const name = "zkSync Social Governor";
+  const name = "zkSync GovOps Governor";
   const mockTokenAddr = "0xCAFEcaFE00000000000000000000000000000000";
   const mockTimelockAddr = "0x55bE1B079b53962746B2e86d12f158a41DF294A6";
   const mockGuardian = "0xdEADBEeF00000000000000000000000000000000";
@@ -30,8 +30,8 @@ describe("ZkSocialGovernor", function () {
     const deployerWallet = new Wallet(deployerAccount.privateKey);
     const deployer = new Deployer(hre, deployerWallet);
 
-    const ZkSocialGovernor = await deployer.loadArtifact("ZkSocialGovernor");
-    socialGovernor = (await deployer.deploy(ZkSocialGovernor, [
+    const ZkGovOpsGovernor = await deployer.loadArtifact("ZkGovOpsGovernor");
+    govOpsGovernor = (await deployer.deploy(ZkGovOpsGovernor, [
       {
         name,
         token: mockTokenAddr,
@@ -43,28 +43,28 @@ describe("ZkSocialGovernor", function () {
         initialVoteExtension: initialLateQuorum,
         vetoGuardian: mockGuardian,
       },
-    ])) as unknown as ZkSocialGovernor;
+    ])) as unknown as ZkGovOpsGovernor;
   });
 
   describe("Constructor", function () {
     it("Set paramters correctly", async function () {
       const block = await hre.ethers.provider.getBlock("latest");
 
-      expect(await socialGovernor.name()).to.equal(name);
-      expect(await socialGovernor.token()).to.equal(mockTokenAddr);
-      expect(await socialGovernor.votingDelay()).to.equal(votingDelay);
-      expect(await socialGovernor.votingPeriod()).to.equal(votingPeriod);
-      expect(await socialGovernor.proposalThreshold()).to.equal(
+      expect(await govOpsGovernor.name()).to.equal(name);
+      expect(await govOpsGovernor.token()).to.equal(mockTokenAddr);
+      expect(await govOpsGovernor.votingDelay()).to.equal(votingDelay);
+      expect(await govOpsGovernor.votingPeriod()).to.equal(votingPeriod);
+      expect(await govOpsGovernor.proposalThreshold()).to.equal(
         proposalThreshold
       );
-      expect(await socialGovernor.quorum(block?.timestamp || 0)).to.equal(
+      expect(await govOpsGovernor.quorum(block?.timestamp || 0)).to.equal(
         initialQuorum
       );
-      expect(await socialGovernor.lateQuorumVoteExtension()).to.equal(
+      expect(await govOpsGovernor.lateQuorumVoteExtension()).to.equal(
         initialLateQuorum
       );
-      expect(await socialGovernor.timelock()).to.equal(mockTimelockAddr);
-      expect(await socialGovernor.VETO_GUARDIAN()).to.equal(mockGuardian);
+      expect(await govOpsGovernor.timelock()).to.equal(mockTimelockAddr);
+      expect(await govOpsGovernor.VETO_GUARDIAN()).to.equal(mockGuardian);
     });
   });
 });

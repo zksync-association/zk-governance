@@ -6,7 +6,7 @@ import * as hre from "hardhat";
 // Before executing a real deployment, be sure to set these values as appropriate for the environment being deployed
 // to. The values used in the script at the time of deployment can be checked in along with the deployment artifacts
 // produced by running the scripts.
-const contractName = "ZkSocialGovernor";
+const contractName = "ZkGovOpsGovernor";
 const tokenAddress = "0x99E12239CBf8112fBB3f7Fd473d0558031abcbb5";  // TODO: We'll need to deploy this contract first to get the actual address
 const timeLockAddress = "0x55bE1B079b53962746B2e86d12f158a41DF294A6"; // TODO: We'll need to deploy this contract first to get the actual address
 const votingDelay = 60 * 60 * 24; // Initially 1 days worth of seconds
@@ -40,14 +40,14 @@ async function main() {
 		initialVoteExtension: initialLateQuorum, 
 		vetoGuardian: initialGuardian
 	}];
-  const socialGovernor = await deployer.deploy(contract, constructorArgs);
+  const govOpsGovernor = await deployer.deploy(contract, constructorArgs);
 
-  console.log("constructor args:" + socialGovernor.interface.encodeDeploy(constructorArgs));
+  console.log("constructor args:" + govOpsGovernor.interface.encodeDeploy(constructorArgs));
 
-  const contractAddress = await socialGovernor.getAddress();
+  const contractAddress = await govOpsGovernor.getAddress();
   console.log(`${contractName} was deployed to ${contractAddress}`);
 
-  const theToken = await socialGovernor.token();
+  const theToken = await govOpsGovernor.token();
   console.log(`The Token is set to: ${theToken}`);
 }
 

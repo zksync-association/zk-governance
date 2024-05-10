@@ -14,10 +14,10 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {GovernorSettableFixedQuorum} from "src/extensions/GovernorSettableFixedQuorum.sol";
 import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 
-/// @title ZkSocialGovernor
+/// @title ZkGovOpsGovernor
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A Governance contract used to manage decisions that aren't covered by the token or protocol governors.
-contract ZkSocialGovernor is
+contract ZkGovOpsGovernor is
   GovernorCountingFractional,
   GovernorSettings,
   GovernorVotes,
