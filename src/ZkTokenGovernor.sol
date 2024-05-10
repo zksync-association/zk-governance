@@ -131,6 +131,9 @@ contract ZkTokenGovernor is
     return GovernorSettings.proposalThreshold();
   }
 
+  /// @dev A function to turn on and off the ability for all addresses to create a proposal as long as they meet the set
+  /// proposal threshold. This value can only be changed through a governance propoosal.
+  /// @param _isProposeGuarded Whether this ability should be turned on or off.
   function setIsProposeGuarded(bool _isProposeGuarded) external onlyGovernance {
     _setIsProposeGuarded(_isProposeGuarded);
   }
@@ -199,6 +202,9 @@ contract ZkTokenGovernor is
     return GovernorTimelockControl._executor();
   }
 
+  /// @dev A function to turn on and off the ability for all addresses to create a proposal as long as they meet the set
+  /// proposal threshold.
+  /// @param _isProposeGuarded Whether this ability should be turned on or off.
   function _setIsProposeGuarded(bool _isProposeGuarded) internal {
     emit IsProposeGuardedToggled(isProposeGuarded, _isProposeGuarded);
     isProposeGuarded = _isProposeGuarded;
