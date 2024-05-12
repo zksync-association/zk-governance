@@ -565,7 +565,7 @@ contract DelegateOnBehalf is ZkTokenTest {
   bytes32 public constant DELEGATION_TYPEHASH =
     keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
 
-  function testFuzz_PerformsDelegationByCallindelegateOnBehalfECDSA(
+  function testFuzz_PerformsDelegationByCallingDelegateOnBehalfECDSA(
     uint256 _signerPrivateKey,
     uint256 _amount,
     address _delegatee,
@@ -599,7 +599,7 @@ contract DelegateOnBehalf is ZkTokenTest {
     assertEq(token.delegates(_signer), _delegatee);
   }
 
-  function testFuzz_PerformsDelegationByCallindelegateOnBehalfEIP1271(
+  function testFuzz_PerformsDelegationByCallingDelegateOnBehalfEIP1271(
     uint256 _signerPrivateKey,
     uint256 _amount,
     address _delegatee,
