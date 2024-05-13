@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {ZkTokenV1, Initializable} from "src/ZkTokenV1.sol";
 import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
 import {ZkTokenFakeV2ClockChange} from "test/harnesses/ZkTokenFakeV2ClockChange.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract Initialize is ZkTokenTest {
   function calculateDomainSeparator(ZkTokenV1 _token) public view returns (bytes32) {
@@ -556,5 +557,124 @@ contract Nonces is ZkTokenTest {
     token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
     uint256 _nonce = token.nonces(_owner);
     assertEq(token.nonces(_owner), _nonce);
+  }
+}
+
+contract DelegateOnBehalf is ZkTokenTest {
+  /// @notice Type hash used when encoding data for `delegateOnBehalf` calls.
+  bytes32 public constant DELEGATION_TYPEHASH =
+    keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
+
+  function testFuzz_PerformsDelegationByCallingDelegateOnBehalfECDSA(
+    uint256 _signerPrivateKey,
+    uint256 _amount,
+    address _delegatee,
+    uint256 _expiry
+  ) public {
+    vm.assume(_delegatee != address(0));
+    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
+    _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
+    address _signer = vm.addr(_signerPrivateKey);
+    _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, _signer);
+    vm.prank(_signer);
+    token.mint(_signer, _amount);
+
+    // verify the owner has the expected balance
+    assertEq(token.balanceOf(_signer), _amount);
+
+    bytes32 _message = keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, token.nonces(_signer), _expiry));
+
+    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
+    (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_signerPrivateKey, _messageHash);
+
+    // verify the signer has no delegate
+    assertEq(token.delegates(_signer), address(0));
+
+    token.delegateOnBehalf(_signer, _delegatee, _expiry, abi.encodePacked(_r, _s, _v));
+
+    // verify the signer has delegate
+    assertEq(token.delegates(_signer), _delegatee);
+  }
+
+  function testFuzz_PerformsDelegationByCallingDelegateOnBehalfEIP1271(
+    uint256 _signerPrivateKey,
+    uint256 _amount,
+    address _delegatee,
+    uint256 _expiry
+  ) public {
+    vm.assume(_delegatee != address(0));
+    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
+    _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
+    address _signer = vm.addr(_signerPrivateKey);
+    _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, _signer);
+    vm.prank(_signer);
+    token.mint(_signer, _amount);
+
+    // verify the owner has the expected balance
+    assertEq(token.balanceOf(_signer), _amount);
+
+    bytes32 _message = keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, token.nonces(_signer), _expiry));
+
+    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
+
+    // verify the signer has no delegate
+    assertEq(token.delegates(_signer), address(0));
+
+    vm.mockCall(
+      _signer,
+      abi.encodeWithSelector(IERC1271.isValidSignature.selector, _messageHash),
+      abi.encode(IERC1271.isValidSignature.selector)
+    );
+
+    token.delegateOnBehalf(_signer, _delegatee, _expiry, "");
+
+    // verify the signer has delegate
+    assertEq(token.delegates(_signer), _delegatee);
+  }
+
+  function testFuzz_RevertIf_InvalidECDSASignature(
+    address _notSigner,
+    uint256 _signerPrivateKey,
+    uint256 _amount,
+    address _delegatee,
+    uint256 _expiry
+  ) public {
+    vm.assume(_delegatee != address(0));
+    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
+    _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
+    address _signer = vm.addr(_signerPrivateKey);
+    _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, _signer);
+    vm.prank(_signer);
+    token.mint(_signer, _amount);
+
+    // verify the owner has the expected balance
+    assertEq(token.balanceOf(_signer), _amount);
+
+    bytes32 _message =
+      keccak256(abi.encode(DELEGATION_TYPEHASH, _notSigner, _delegatee, token.nonces(_notSigner), _expiry));
+
+    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
+    (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_signerPrivateKey, _messageHash);
+    // check both ECDSA and EIP-1271 signature verification in one test
+    vm.mockCall(
+      _signer,
+      abi.encodeWithSelector(IERC1271.isValidSignature.selector, _messageHash),
+      abi.encode(IERC1271.isValidSignature.selector)
+    );
+
+    // verify the signer has no delegate
+    assertEq(token.delegates(_signer), address(0));
+
+    vm.expectRevert(ZkTokenV1.DelegateSignatureIsInvalid.selector);
+    token.delegateOnBehalf(_signer, _delegatee, _expiry, abi.encodePacked(_r, _s, _v));
   }
 }
