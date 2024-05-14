@@ -12,17 +12,18 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
 
   error ZkMerkleDistributor__InvalidProof();
 
-  // Type hash of the data that makes up the claim.
+  /// @notice Type hash of the data that makes up the claim request.
   bytes32 public constant ZK_CLAIM_TYPEHASH =
-    keccak256("Claim(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,uint256 expiry,uint256 nonce)");
+    keccak256("Claim(uint256 index,address claimant,uint256 amount,uint256 expiry,uint256 nonce)");
 
-  // Type hash of the data that makes up the claim.
+  /// @notice Type hash of the data that makes up the claim and delegate request.
   bytes32 public constant ZK_CLAIM_AND_DELEGATE_TYPEHASH = keccak256(
-    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 delegationNonce,uint8 delegationV,bytes32 delegationR,bytes32 delegationS,uint256 expiry,uint256 nonce)"
+    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,address delegatee,uint256 expiry,uint256 nonce)"
   );
 
-  // type hash for the delegation struct used in delegation by signature upon receiving a claim
-  bytes32 constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
+  /// @notice Type hash used when encoding data for `delegateOnBehalf` calls.
+  bytes32 public constant DELEGATION_TYPEHASH =
+    keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
 
   struct MakeClaimSignatureParams {
     uint256 claimantPrivateKey;
@@ -122,18 +123,16 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     view
     returns (ZkMerkleDistributor.DelegateInfo memory)
   {
-    bytes32 _message =
-      keccak256(abi.encode(DELEGATION_TYPEHASH, _delegatee, token.nonces(_claimant), block.timestamp + 12 hours));
+    bytes32 _message = keccak256(
+      abi.encode(DELEGATION_TYPEHASH, _claimant, _delegatee, token.nonces(_claimant), block.timestamp + 12 hours)
+    );
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_claimantPrivateKey, _messageHash);
 
     return ZkMerkleDistributor.DelegateInfo({
       delegatee: _delegatee,
-      nonce: token.nonces(_claimant),
-      expiry: block.timestamp + 12 hours,
-      v: _v,
-      r: _r,
-      s: _s
+      signature: abi.encodePacked(_r, _s, _v),
+      expiry: block.timestamp + 12 hours
     });
   }
 
@@ -142,17 +141,15 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     view
     returns (ZkMerkleDistributor.DelegateInfo memory)
   {
-    bytes32 _message = keccak256(abi.encode(DELEGATION_TYPEHASH, _delegatee, token.nonces(_claimant), _expiry));
+    bytes32 _message =
+      keccak256(abi.encode(DELEGATION_TYPEHASH, _claimant, _delegatee, token.nonces(_claimant), _expiry));
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_claimantPrivateKey, _messageHash);
 
     return ZkMerkleDistributor.DelegateInfo({
       delegatee: _delegatee,
-      nonce: token.nonces(_claimant),
-      expiry: _expiry,
-      v: _v,
-      r: _r,
-      s: _s
+      signature: abi.encodePacked(_r, _s, _v),
+      expiry: _expiry
     });
   }
 
@@ -165,15 +162,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     // Get nonce, using distributor
     uint256 _nonce = _distributor.nonces(_params.claimant);
     bytes32 _message = keccak256(
-      abi.encode(
-        ZK_CLAIM_TYPEHASH,
-        _params.claimIndex,
-        _params.claimant,
-        _params.amount,
-        keccak256(abi.encodePacked(_params.proof)),
-        _params.expiry,
-        _nonce
-      )
+      abi.encode(ZK_CLAIM_TYPEHASH, _params.claimIndex, _params.claimant, _params.amount, _params.expiry, _nonce)
     );
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", _distributor.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_params.claimantPrivateKey, _messageHash);
@@ -193,12 +182,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
         _params.claimIndex,
         _params.claimant,
         _params.amount,
-        keccak256(abi.encodePacked(_params.proof)),
         _params.delegateInfo.delegatee,
-        _params.delegateInfo.nonce,
-        _params.delegateInfo.v,
-        _params.delegateInfo.r,
-        _params.delegateInfo.s,
         _params.expiry,
         _nonce
       )
@@ -524,7 +508,7 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
     );
 
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
     _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo);
     assertEq(token.balanceOf(_claimant), _amount);
   }
@@ -568,7 +552,7 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       _distributor
     );
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
 
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidSignature.selector));
     _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo);
@@ -610,7 +594,7 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       _distributor
     );
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
 
     vm.prank(_claimant);
     _distributor.invalidateNonce();
@@ -656,7 +640,7 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
       _distributor
     );
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
 
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ExpiredSignature.selector));
     _distributor.claimOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo);
@@ -907,15 +891,10 @@ contract ClaimAndDelegate is ZkMerkleDistributorTest {
     ZkMerkleDistributor.DelegateInfo memory _frontrunDelegateeInfo =
       createDelegateeInfo(_frontrunDelegatee, _claimant, _claimantPrivateKey);
 
-    // mint some tokens to be used in front-running a delegateBySig call
+    // mint some tokens to be used in front-running a delegateOnBehalf call
     vm.prank(address(_distributor));
-    token.delegateBySig(
-      _frontrunDelegateeInfo.delegatee,
-      _frontrunDelegateeInfo.nonce,
-      _frontrunDelegateeInfo.expiry,
-      _frontrunDelegateeInfo.v,
-      _frontrunDelegateeInfo.r,
-      _frontrunDelegateeInfo.s
+    token.delegateOnBehalf(
+      _claimant, _frontrunDelegateeInfo.delegatee, _frontrunDelegateeInfo.expiry, _frontrunDelegateeInfo.signature
     );
 
     vm.warp(block.timestamp + 6 hours);
@@ -971,7 +950,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     );
 
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
     _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), _amount);
     assertEq(token.delegates(_claimant), _delegatee);
@@ -1020,7 +999,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
       _distributor
     );
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
 
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__InvalidSignature.selector));
     _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
@@ -1066,7 +1045,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
       _distributor
     );
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
 
     vm.prank(_claimant);
     _distributor.invalidateNonce();
@@ -1116,7 +1095,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
       _distributor
     );
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo =
-      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, signingClaimant: _claimant, expiry: _expiry});
+      ZkMerkleDistributor.ClaimSignatureInfo({signature: _claimSignature, claimant: _claimant, expiry: _expiry});
 
     vm.expectRevert(abi.encodeWithSelector(ZkMerkleDistributor.ZkMerkleDistributor__ExpiredSignature.selector));
     _distributor.claimAndDelegateOnBehalf(_claimIndex, _amount, _proof, _claimSignatureInfo, _delegateeInfo);
@@ -1149,18 +1128,13 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     ZkMerkleDistributor.DelegateInfo memory _delegateeInfo =
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
 
-    // simulate a front-run of the delegateBySig call
+    // simulate a front-run of the delegateOnBehalf call
     // Using _admin as the front-run delegatee to avoid "stack too deep" error.
     ZkMerkleDistributor.DelegateInfo memory _frontrunDelegateeInfo =
       createDelegateeInfo(_admin, _claimant, _claimantPrivateKey);
     vm.prank(address(_distributor));
-    token.delegateBySig(
-      _frontrunDelegateeInfo.delegatee,
-      _frontrunDelegateeInfo.nonce,
-      _frontrunDelegateeInfo.expiry,
-      _frontrunDelegateeInfo.v,
-      _frontrunDelegateeInfo.r,
-      _frontrunDelegateeInfo.s
+    token.delegateOnBehalf(
+      _claimant, _frontrunDelegateeInfo.delegatee, _frontrunDelegateeInfo.expiry, _frontrunDelegateeInfo.signature
     );
 
     vm.warp(block.timestamp + 6 hours);
@@ -1182,7 +1156,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
 
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo = ZkMerkleDistributor.ClaimSignatureInfo({
       signature: _claimSignature,
-      signingClaimant: _claimant,
+      claimant: _claimant,
       expiry: block.timestamp + 7 hours
     });
     _distributor.claimAndDelegateOnBehalf(_claimIndex, 1000, _proof, _claimSignatureInfo, _delegateeInfo);
