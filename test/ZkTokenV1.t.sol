@@ -565,6 +565,33 @@ contract DelegateOnBehalf is ZkTokenTest {
   bytes32 public constant DELEGATION_TYPEHASH =
     keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
 
+  function testFuzz_RevertIf_ExpiredSignatureDelegateOnBehalf(
+    uint256 _signerPrivateKey,
+    uint256 _amount,
+    address _delegatee,
+    uint256 _expiry
+  ) public {
+    vm.assume(_delegatee != address(0));
+    _expiry = bound(_expiry, 0, block.timestamp - 1);
+    _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
+    address _signer = vm.addr(_signerPrivateKey);
+    _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
+
+    vm.prank(admin);
+    token.grantRole(MINTER_ROLE, _signer);
+    vm.prank(_signer);
+    token.mint(_signer, _amount);
+
+    // verify the owner has the expected balance
+    assertEq(token.balanceOf(_signer), _amount);
+
+    // verify the signer has no delegate
+    assertEq(token.delegates(_signer), address(0));
+
+    vm.expectRevert(abi.encodeWithSelector(ZkTokenV1.DelegateSignatureExpired.selector, _expiry));
+    token.delegateOnBehalf(_signer, _delegatee, _expiry, "");
+  }
+
   function testFuzz_PerformsDelegationByCallingDelegateOnBehalfECDSA(
     uint256 _signerPrivateKey,
     uint256 _amount,
@@ -572,7 +599,7 @@ contract DelegateOnBehalf is ZkTokenTest {
     uint256 _expiry
   ) public {
     vm.assume(_delegatee != address(0));
-    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
+    _expiry = bound(_expiry, block.timestamp, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
@@ -606,7 +633,7 @@ contract DelegateOnBehalf is ZkTokenTest {
     uint256 _expiry
   ) public {
     vm.assume(_delegatee != address(0));
-    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
+    _expiry = bound(_expiry, block.timestamp, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
@@ -646,7 +673,7 @@ contract DelegateOnBehalf is ZkTokenTest {
     uint256 _expiry
   ) public {
     vm.assume(_delegatee != address(0));
-    _expiry = bound(_expiry, block.timestamp + 1, type(uint256).max);
+    _expiry = bound(_expiry, block.timestamp, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
