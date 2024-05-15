@@ -78,7 +78,7 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
         onlyBootloader
         returns (bytes4, bytes memory)
     {
-        address from = address(uint160(uint256(_transaction.from)));
+        address from = address(uint160(_transaction.from));
         // Prevent spamming by limiting the number of paid transactions per account.
         uint256 newTransactionCount = paidTransactionCount[from] + 1;
         require(newTransactionCount <= maxPaidTransactionsPerAccount, "Account transaction limit exceeded");
@@ -97,7 +97,7 @@ contract AADistributorPaymaster is IPaymaster, IAADistributorPaymaster, Ownable 
 
         // The Merkle proof can be stored inside the paymaster input, but if the account calls
         // Distributor we can extract the proof from calldata directly.
-        address to = address(uint160(uint256(_transaction.to)));
+        address to = address(uint160(_transaction.to));
         if (to == address(zkMerkleDistributor)) {
             bytes4 selector = bytes4(_transaction.data[0:4]);
             require(
