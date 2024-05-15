@@ -172,10 +172,11 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
 
     /// @notice Increments the nonce for a given sender address, effectively canceling the current nonce.
     /// @param _sender The address of the sender whose nonce is to be incremented.
-    function cancelNonce(address _sender) external onlyOwnerOrSigner {
-        uint256 nonce = nonces[_sender];
-        nonces[_sender]++;
-        emit NonceCanceled(_sender, nonce);
+    /// @param _expectedNonce The current valid nonce that is expected for the sender.
+    function cancelNonce(address _sender, uint256 _expectedNonce) external onlyOwnerOrSigner {
+        require(nonces[_sender] == _expectedNonce, "Current nonce does not match the expected value");
+        nonces[_sender] = _expectedNonce + 1;
+        emit NonceCanceled(_sender, _expectedNonce);
     }
 
     /// @notice Approves a sender address to use the paymaster for paying transaction fees until a specified timestamp.
