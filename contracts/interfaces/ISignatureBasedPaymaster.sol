@@ -5,7 +5,7 @@ pragma solidity 0.8.24;
 interface ISignatureBasedPaymaster {
     event SignerChanged(address indexed oldSigner, address indexed newSigner);
 
-    event NonceCanceled(address indexed sender, uint256 newNonce);
+    event NonceCanceled(address indexed sender, uint256 canceledNonce);
 
     event SenderApproved(address indexed sender, uint256 validUntil);
 
