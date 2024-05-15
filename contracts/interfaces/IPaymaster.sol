@@ -62,8 +62,8 @@ interface IPaymaster {
     /// @dev Called by the bootloader to verify that the paymaster agrees to pay for the
     /// fee for the transaction. This transaction should also send the necessary amount of funds onto the bootloader
     /// address.
-    /// @param _txHash The hash of the transaction
-    /// @param _suggestedSignedHash The hash of the transaction that is signed by an EOA
+    /// @param _txHash The hash of the transaction.
+    /// @param _suggestedSignedHash The hash of the transaction that is signed by an EOA.
     /// @param _transaction The transaction itself.
     /// @return magic The value that should be equal to the signature of the validateAndPayForPaymasterTransaction
     /// if the paymaster agrees to pay for the transaction.
@@ -83,6 +83,8 @@ interface IPaymaster {
     /// this method won't be called if the transaction execution results in out-of-gas.
     /// @param _context, the context of the execution, returned by the "validateAndPayForPaymasterTransaction" method.
     /// @param _transaction, the users' transaction.
+    /// @param _txHash The hash of the transaction.
+    /// @param _suggestedSignedHash The hash of the transaction that is signed by an EOA.
     /// @param _txResult, the result of the transaction execution (success or failure).
     /// @param _maxRefundedGas, the upper bound on the amount of gas that could be refunded to the paymaster.
     /// @dev The exact amount refunded depends on the gas spent by the "postOp" itself and so the developers should
