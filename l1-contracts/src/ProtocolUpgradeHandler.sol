@@ -25,7 +25,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 ///    from the veto and then the proposal instantly moves to the next stage (pending).
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
 ///    preparations and reviews.
-/// 5. Execution: The proposed changes are executed by the authorized in the proposal address,
+/// 5. Execution: The proposed changes are executed by the authorized address in the proposal,
 ///    completing the upgrade process.
 ///
 /// The contract implements the state machine that represents the logic of moving upgrade from each
@@ -34,49 +34,43 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Specifies the duration of the veto period for guardians.
     /// During this time, guardians have the opportunity to veto proposed upgrades,
     /// providing a safeguard against potentially harmful changes.
-    uint256 constant GUARDIANS_VETO_PERIOD = 3 days;
+    uint256 internal constant GUARDIANS_VETO_PERIOD = 3 days;
 
     /// @dev The mandatory delay period before an upgrade can be executed.
     /// This period is intended to provide a buffer after an upgrade's final approval and before its execution,
     /// allowing for final reviews and preparations for devs and users.
-    uint256 constant UPGRADE_DELAY_PERIOD = 1 days;
+    uint256 internal constant UPGRADE_DELAY_PERIOD = 1 days;
 
     /// @dev Time limit for an upgrade proposal to be approved or expire, and the waiting period for execution post-guardian approval.
     /// If the Security Council approves, the upgrade can proceed immediately; otherwise,
     /// the proposal will expire after this period if not approved, or wait this period after guardian approval.
-    uint256 constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 90 days;
+    uint256 internal constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 90 days;
 
     /// @dev Duration of a soft freeze which temporarily pause protocol contract functionality.
     /// This freeze window is needed for the Security Council to decide whether they want to
     /// do hard freeze and protocol upgrade.
-    uint256 constant SOFT_FREEZE_PERIOD = 12 hours;
+    uint256 internal constant SOFT_FREEZE_PERIOD = 12 hours;
 
     /// @dev Duration of a hard freeze which temporarily pause protocol contract functionality.
     /// This freeze window is needed for the Security Council to perform emergency protocol upgrade.
-    uint256 constant HARD_FREEZE_PERIOD = 7 days;
-
-    /// @dev Duration of a cooldown period after the soft freeze happen.
-    uint256 constant SOFT_FREEZE_COOLDOWN_PERIOD = 3 days;
-
-    /// @dev Duration of a cooldown period after the hard freeze happen.
-    uint256 constant HARD_FREEZE_COOLDOWN_PERIOD = 14 days;
+    uint256 internal constant HARD_FREEZE_PERIOD = 7 days;
 
     /// @dev Address of the L2 Protocol Governor contract.
     /// This address is used to interface with governance actions initiated on Layer 2,
     /// specifically for proposing and approving protocol upgrades.
-    address immutable L2_PROTOCOL_GOVERNOR;
+    address public immutable L2_PROTOCOL_GOVERNOR;
 
     /// @dev zkSync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IZkSyncEra immutable ZKSYNC_ERA;
+    IZkSyncEra public immutable ZKSYNC_ERA;
 
     /// @dev zkSync smart contract that is responsible for creating new hyperchains and changing parameters in existent.
-    IStateTransitionManager immutable STATE_TRANSITION_MANAGER;
+    IStateTransitionManager public immutable STATE_TRANSITION_MANAGER;
 
     /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IPausable immutable BRIDGE_HUB;
+    IPausable public immutable BRIDGE_HUB;
 
     /// @dev The shared bridge that is used for all bridging.
-    IPausable immutable SHARED_BRIDGE;
+    IPausable public immutable SHARED_BRIDGE;
 
     /// @notice The address of the Security Council.
     address public securityCouncil;
@@ -90,16 +84,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @notice A mapping to store status of an upgrade process for each upgrade ID.
     mapping(bytes32 upgradeId => UpgradeStatus) public upgradeStatus;
 
-    FreezeStatus public freezeStatus;
+    /// @notice Tracks the last freeze type within an upgrade cycle.
+    FreezeStatus public lastFreezeStatusInUpgradeCycle;
 
     /// @notice Stores the timestamp until which the protocol remains frozen.
-    uint256 protocolFrozenUntil;
-
-    /// @notice Stores the timestamp until which the protocol can't become frozen for short time.
-    uint256 softFreezeCooldownUntil;
-
-    /// @notice Stores the timestamp until which the protocol can't become frozen for long time.
-    uint256 hardFreezeCooldownUntil;
+    uint256 internal protocolFrozenUntil;
 
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _securityCouncil The address to be assigned as the Security Council of the contract.
@@ -153,11 +142,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _;
     }
 
-    /// @notice Checks that the protocol is in active freeze and the message sender is Security Council or the freeze period expired.
-    modifier onlySecurityCouncilInFreezeOrFreezeExpired() {
-        require(protocolFrozenUntil != 0, "Protocol is not in active freeze");
+    /// @notice Checks that the message sender is an active Security Council or the protocol is frozen but freeze period expired.
+    modifier onlySecurityCouncilOrProtocolFreezeExpired() {
         require(
-            msg.sender == securityCouncil || block.timestamp > protocolFrozenUntil,
+            msg.sender == securityCouncil || (protocolFrozenUntil != 0 && block.timestamp > protocolFrozenUntil),
             "Only Security Council is allowed to call this function or the protocol should be frozen"
         );
         _;
@@ -247,13 +235,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit UpgradeStatusChanged(_id, newUpgStatus);
     }
 
-    /// @notice Vetoes an upgrade proposal during its veto period by guardians.
+    /// @notice Vetos an upgrade proposal during its veto period by guardians.
     /// @dev Sets the state of an upgrade proposal identified by `_id` to `Canceled` if it is currently
     /// in the `VetoPeriod`.
     /// @param _id The unique identifier of the upgrade proposal to be vetoed.
     function veto(bytes32 _id) external onlyGuardians {
         UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(upgStatus.state == UpgradeState.VetoPeriod, "Upgrade can't be vetoed in not the veto period");
+        require(upgStatus.state == UpgradeState.VetoPeriod, "Upgrade can't be vetoed outside of the veto period");
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.Canceled,
             timestamp: uint48(block.timestamp),
@@ -271,7 +259,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @param _id The unique identifier of the upgrade proposal for which guardians are refraining from vetoing.
     function refrainFromVeto(bytes32 _id) external onlyGuardians {
         UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(upgStatus.state == UpgradeState.VetoPeriod, "Guardians can't refrain from veto in not the veto period");
+        require(
+            upgStatus.state == UpgradeState.VetoPeriod, "Guardians can't refrain from veto outside of the veto period"
+        );
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.ExecutionPending,
             timestamp: uint48(block.timestamp),
@@ -292,7 +282,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         require(upgStatus.state == UpgradeState.Ready, "Upgrade is not yet ready");
         require(
             _proposal.executor == address(0) || _proposal.executor == msg.sender,
-            "msg.sender is not authorised to perform the upgrade"
+            "msg.sender is not authorized to perform the upgrade"
         );
         // 2. Effects
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
@@ -300,10 +290,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
             timestamp: uint48(block.timestamp),
             guardiansApproval: upgStatus.guardiansApproval
         });
+        // Save the upgrade process
         upgradeStatus[id] = newUpgStatus;
+        // Clear the freeze
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
+        protocolFrozenUntil = 0;
+        _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
-
+        emit Unfreeze();
         emit UpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
     }
@@ -315,7 +310,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         UpgradeStatus memory upgStatus = updateUpgradeStatus(id);
         // 1. Checks
         require(upgStatus.state == UpgradeState.None, "Upgrade already exists");
-        require(_proposal.executor == msg.sender, "msg.sender is not authorised to perform the upgrade");
+        require(_proposal.executor == msg.sender, "msg.sender is not authorized to perform the upgrade");
         // 2. Effects
         UpgradeStatus memory newUpgStatus = UpgradeStatus({
             state: UpgradeState.Done,
@@ -325,13 +320,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         // Save the upgrade process
         upgradeStatus[id] = newUpgStatus;
         // Clear the freeze
-        freezeStatus = FreezeStatus.None;
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
-        softFreezeCooldownUntil = 0;
-        hardFreezeCooldownUntil = 0;
         _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
+        emit Unfreeze();
         emit EmergencyUpgradeExecuted(id);
         emit UpgradeStatusChanged(id, newUpgStatus);
     }
@@ -414,6 +408,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @param _calls The array of calls to be executed.
     function _execute(Call[] calldata _calls) internal {
         for (uint256 i = 0; i < _calls.length; ++i) {
+            if (_calls[i].data.length > 0) {
+                require(
+                    _calls[i].target.code.length > 0, "Target must be a smart contract if the calldata is not empty"
+                );
+            }
             (bool success, bytes memory returnData) = _calls[i].target.call{value: _calls[i].value}(_calls[i].data);
             if (!success) {
                 // Propagate an error if the call fails.
@@ -430,10 +429,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @notice Initiates a soft protocol freeze.
     function softFreeze() external onlySecurityCouncil {
-        require(freezeStatus == FreezeStatus.None, "Protocol already frozen");
-        require(block.timestamp > softFreezeCooldownUntil, "Can't freeze in the cooldown period");
-        softFreezeCooldownUntil = block.timestamp + SOFT_FREEZE_COOLDOWN_PERIOD;
-        freezeStatus = FreezeStatus.Soft;
+        require(lastFreezeStatusInUpgradeCycle == FreezeStatus.None, "Protocol already frozen");
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.Soft;
         protocolFrozenUntil = block.timestamp + SOFT_FREEZE_PERIOD;
         _freeze();
         emit SoftFreeze(protocolFrozenUntil);
@@ -441,10 +438,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @notice Initiates a hard protocol freeze.
     function hardFreeze() external onlySecurityCouncil {
-        require(freezeStatus != FreezeStatus.Hard, "Protocol can't be hard frozen");
-        require(block.timestamp > hardFreezeCooldownUntil, "Can't freeze in the cooldown period");
-        hardFreezeCooldownUntil = block.timestamp + HARD_FREEZE_COOLDOWN_PERIOD;
-        freezeStatus = FreezeStatus.Hard;
+        require(lastFreezeStatusInUpgradeCycle != FreezeStatus.Hard, "Protocol can't be hard frozen");
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
         _freeze();
         emit HardFreeze(protocolFrozenUntil);
@@ -463,7 +458,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function _freeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < len; ++i) {
             try STATE_TRANSITION_MANAGER.freezeChain(hyperchainIds[i]) {} catch {}
         }
 
@@ -472,7 +467,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
-    function unfreeze() external onlySecurityCouncilInFreezeOrFreezeExpired {
+    function unfreeze() external onlySecurityCouncilOrProtocolFreezeExpired {
         freezeStatus = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();
@@ -480,7 +475,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     }
 
     /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode. This function can be called
-    /// by anyone to ensure the protocol remains in a unfrozen state, particularly useful if there is a need
+    /// by anyone to ensure the protocol remains in an unfrozen state, particularly useful if there is a need
     /// to confirm or re-apply the unfreeze due to partial or incomplete application during the initial unfreeze.
     function reinforceUnfreeze() external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
@@ -492,7 +487,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function _unfreeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < len; ++i) {
             try STATE_TRANSITION_MANAGER.unfreezeChain(hyperchainIds[i]) {} catch {}
         }
 

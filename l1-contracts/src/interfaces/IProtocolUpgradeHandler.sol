@@ -27,6 +27,7 @@ interface IProtocolUpgradeHandler {
     /// @dev Represents the status of an upgrade process, including its current state and the last update time.
     /// @param state The current state of the upgrade, indicating its phase in the lifecycle.
     /// @param timestamp The last time (in seconds) the upgrade state was updated.
+    /// @param guardiansApproval Indicates whether the upgrade has been approved by the guardians.
     struct UpgradeStatus {
         UpgradeState state;
         uint48 timestamp;
@@ -43,8 +44,8 @@ interface IProtocolUpgradeHandler {
         bytes data;
     }
 
-    /// @dev Defines the structure of an upgrade that executes by Protocol Upgrade Handler.
-    /// @param executor The L1 address that is authorised to perform the upgrade execution (if address(0) then anyone).
+    /// @dev Defines the structure of an upgrade that is executed by Protocol Upgrade Handler.
+    /// @param executor The L1 address that is authorized to perform the upgrade execution (if address(0) then anyone).
     /// @param calls An array of `Call` structs, each representing a call to be made during the upgrade execution.
     /// @param salt A bytes32 value used for creating unique upgrade proposal hashes.
     struct UpgradeProposal {
@@ -54,11 +55,9 @@ interface IProtocolUpgradeHandler {
     }
 
     /// @dev This enumeration includes the following states:
-    /// @param None Default state, indicating the freeze has not been happen.
-    /// @param Soft The protocol is frozen for the short time until the Security Council will approve hard freeze
-    /// or soft freeze period will pass.
-    /// @param Hard The protocol is frozen for the long time until the Security Council will perfrom the protocol
-    /// emergency upgrade or hard freeze period will pass.
+    /// @param None Default state, indicating the freeze has not been happening in this upgrade cycle.
+    /// @param Soft The protocol is/was frozen for the short time.
+    /// @param Hard The protocol is/was frozen for the long time.
     enum FreezeStatus {
         None,
         Soft,
@@ -92,6 +91,12 @@ interface IProtocolUpgradeHandler {
     function reinforceFreeze() external;
 
     function unfreeze() external;
+
+    function reinforceUnfreeze() external;
+
+    function updateUpgradeStatus(bytes32 _id) external returns (UpgradeStatus memory updatedStatus);
+
+    function getUpgradeStatusNow(bytes32 _id) external view returns (UpgradeStatus memory newUpgStatus);
 
     /// @notice Emitted when the security council address is changed.
     event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
@@ -132,12 +137,12 @@ interface IProtocolUpgradeHandler {
     /// @notice Emitted when the protocol became hard frozen.
     event HardFreeze(uint256 _protocolFrozenUntil);
 
-    /// @notice Emitted when someone make an attempt to freeze the protocol when it is frozen already.
+    /// @notice Emitted when someone makes an attempt to freeze the protocol when it is frozen already.
     event ReinforceFreeze();
 
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
     event Unfreeze();
 
-    /// @notice Emitted when someone make an attempt to unfreeze the protocol when it is unfrozen already.
+    /// @notice Emitted when someone makes an attempt to unfreeze the protocol when it is unfrozen already.
     event ReinforceUnfreeze();
 }
