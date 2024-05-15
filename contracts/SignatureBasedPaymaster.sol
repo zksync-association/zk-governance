@@ -36,7 +36,7 @@ contract SignatureBasedPaymaster is IPaymaster, ISignatureBasedPaymaster, Ownabl
     bytes32 public constant APPROVED_TRANSACTION_SENDER_TYPEHASH =
         keccak256("ApprovedTransactionSender(address sender,uint256 validUntil,uint256 nonce)");
 
-    /// @notice The signer authorized to approve sender accounts for which this paymaster pay for.
+    /// @notice The signer authorized to approve sender accounts for which this paymaster pays for.
     /// @dev Transactions with a valid signature from this address are considered approved for fee coverage.
     address public signer;
 
