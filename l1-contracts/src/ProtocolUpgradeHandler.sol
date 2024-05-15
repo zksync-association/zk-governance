@@ -58,19 +58,19 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Address of the L2 Protocol Governor contract.
     /// This address is used to interface with governance actions initiated on Layer 2,
     /// specifically for proposing and approving protocol upgrades.
-    address internal immutable L2_PROTOCOL_GOVERNOR;
+    address public immutable L2_PROTOCOL_GOVERNOR;
 
     /// @dev zkSync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IZkSyncEra internal immutable ZKSYNC_ERA;
+    IZkSyncEra public immutable ZKSYNC_ERA;
 
     /// @dev zkSync smart contract that is responsible for creating new hyperchains and changing parameters in existent.
-    IStateTransitionManager internal immutable STATE_TRANSITION_MANAGER;
+    IStateTransitionManager public immutable STATE_TRANSITION_MANAGER;
 
     /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IPausable internal immutable BRIDGE_HUB;
+    IPausable public immutable BRIDGE_HUB;
 
     /// @dev The shared bridge that is used for all bridging.
-    IPausable internal immutable SHARED_BRIDGE;
+    IPausable public immutable SHARED_BRIDGE;
 
     /// @notice The address of the Security Council.
     address public securityCouncil;
