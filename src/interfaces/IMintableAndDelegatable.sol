@@ -5,6 +5,6 @@ import {IMintable} from "src/interfaces/IMintable.sol";
 
 interface IMintableAndDelegatable is IMintable {
   function DOMAIN_SEPARATOR() external view returns (bytes32);
-  function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) external;
-  function delegates(address account) external view returns (address);
+  function delegateOnBehalf(address _signer, address _delegatee, uint256 _expiry, bytes memory _signature) external;
+  function delegates(address _account) external view returns (address);
 }

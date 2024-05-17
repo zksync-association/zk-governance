@@ -16,30 +16,27 @@ import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/Signa
 contract ZkMerkleDistributor is EIP712, Nonces {
   using BitMaps for BitMaps.BitMap;
 
-  /// @dev A struct of delegate information used for signature based delegatebySig.
+  /// @dev A struct of delegate information used for signature based delegateOnBehalf.
   struct DelegateInfo {
     address delegatee;
-    uint256 nonce;
     uint256 expiry;
-    uint8 v;
-    bytes32 r;
-    bytes32 s;
+    bytes signature;
   }
 
   /// @dev A struct of claim information used for signature based claiming.
   struct ClaimSignatureInfo {
-    address signingClaimant;
-    bytes signature;
+    address claimant;
     uint256 expiry;
+    bytes signature;
   }
 
   /// @notice Type hash of the data that makes up the claim request.
   bytes32 public constant ZK_CLAIM_TYPEHASH =
-    keccak256("Claim(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,uint256 expiry,uint256 nonce)");
+    keccak256("Claim(uint256 index,address claimant,uint256 amount,uint256 expiry,uint256 nonce)");
 
   /// @notice Type hash of the data that makes up the claim and delegate request.
   bytes32 public constant ZK_CLAIM_AND_DELEGATE_TYPEHASH = keccak256(
-    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,bytes32[] merkleProof,address delegatee,uint256 delegationNonce,uint8 delegationV,bytes32 delegationR,bytes32 delegationS,uint256 expiry,uint256 nonce)"
+    "ClaimAndDelegate(uint256 index,address claimant,uint256 amount,address delegatee,uint256 expiry,uint256 nonce)"
   );
 
   /// @notice The address of the admin of the MerkleDistributor.
@@ -158,17 +155,16 @@ contract ZkMerkleDistributor is EIP712, Nonces {
           abi.encode(
             ZK_CLAIM_TYPEHASH,
             _index,
-            _claimSignatureInfo.signingClaimant,
+            _claimSignatureInfo.claimant,
             _amount,
-            keccak256(abi.encodePacked(_merkleProof)),
             _claimSignatureInfo.expiry,
-            _useNonce(_claimSignatureInfo.signingClaimant)
+            _useNonce(_claimSignatureInfo.claimant)
           )
         )
       );
     }
-    _revertIfSignatureIsNotValidNow(_claimSignatureInfo.signingClaimant, _dataHash, _claimSignatureInfo.signature);
-    _claim(_index, _claimSignatureInfo.signingClaimant, _amount, _merkleProof);
+    _revertIfSignatureIsNotValidNow(_claimSignatureInfo.claimant, _dataHash, _claimSignatureInfo.signature);
+    _claim(_index, _claimSignatureInfo.claimant, _amount, _merkleProof);
   }
 
   /// @notice Claims the tokens for a claimant, given a claimant address, an index, an amount, and a merkle proof.
@@ -186,16 +182,10 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   ) external virtual {
     _claim(_index, msg.sender, _amount, _merkleProof);
 
-    // Use delegateBySig to delegate on behalf of the claimer.
-    // Catch delegateBySig reverts caused by a front-run delegateBySig so entire claim doesn't revert.
-    try TOKEN.delegateBySig(
-      _delegateInfo.delegatee,
-      _delegateInfo.nonce,
-      _delegateInfo.expiry,
-      _delegateInfo.v,
-      _delegateInfo.r,
-      _delegateInfo.s
-    ) {} catch (bytes memory) {}
+    // Use delegateOnBehalf to delegate on behalf of the claimer.
+    // Catch delegateOnBehalf reverts caused by a front-run delegateOnBehalf so entire claim doesn't revert.
+    try TOKEN.delegateOnBehalf(msg.sender, _delegateInfo.delegatee, _delegateInfo.expiry, _delegateInfo.signature) {}
+      catch (bytes memory) {}
   }
 
   /// @notice Claims on behalf of another account, using the ERC-712 or ERC-1271 signature standard.
@@ -229,33 +219,23 @@ contract ZkMerkleDistributor is EIP712, Nonces {
             abi.encode(
               ZK_CLAIM_AND_DELEGATE_TYPEHASH,
               _index,
-              _claimSignatureInfo.signingClaimant,
+              _claimSignatureInfo.claimant,
               _amount,
-              keccak256(abi.encodePacked(_merkleProof)),
               _delegateInfo.delegatee,
-              _delegateInfo.nonce,
-              _delegateInfo.v,
-              _delegateInfo.r,
-              _delegateInfo.s,
               _claimSignatureInfo.expiry,
-              _useNonce(_claimSignatureInfo.signingClaimant)
+              _useNonce(_claimSignatureInfo.claimant)
             )
           )
         )
       );
     }
-    _revertIfSignatureIsNotValidNow(_claimSignatureInfo.signingClaimant, _dataHash, _claimSignatureInfo.signature);
-    _claim(_index, _claimSignatureInfo.signingClaimant, _amount, _merkleProof);
+    _revertIfSignatureIsNotValidNow(_claimSignatureInfo.claimant, _dataHash, _claimSignatureInfo.signature);
+    _claim(_index, _claimSignatureInfo.claimant, _amount, _merkleProof);
 
-    // Use delegateBySig to delegate on behalf of the claimer.
-    // Catch delegateBySig reverts caused by a front-run delegateBySig so entire claim doesn't revert.
-    try TOKEN.delegateBySig(
-      _delegateInfo.delegatee,
-      _delegateInfo.nonce,
-      _claimSignatureInfo.expiry,
-      _delegateInfo.v,
-      _delegateInfo.r,
-      _delegateInfo.s
+    // Use delegateOnBehalf to delegate on behalf of the claimer.
+    // Catch delegateOnBehalf reverts caused by a front-run delegateOnBehalf so entire claim doesn't revert.
+    try TOKEN.delegateOnBehalf(
+      _claimSignatureInfo.claimant, _delegateInfo.delegatee, _delegateInfo.expiry, _delegateInfo.signature
     ) {} catch (bytes memory) {}
   }
 
