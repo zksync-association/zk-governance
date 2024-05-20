@@ -9,6 +9,7 @@ import * as hre from "hardhat";
 const TOKEN_ADDRESS = "0x99E12239CBf8112fBB3f7Fd473d0558031abcbb5";
 const ADMIN_ACCOUNT = "0xdEADBEeF00000000000000000000000000000000";
 const CAP_AMOUNT = "1000000000000000000000000000"; // raw decimals, bigint fails to encode with deploy :shrug:
+const SALT = "0x4273795673417857416686492163276941983664248508133571812215241323";
 
 async function main() {
   dotEnvConfig();
@@ -22,11 +23,12 @@ async function main() {
   console.log("Deploying " + contractName + "...");
 
   const zkWallet = new Wallet(deployerPrivateKey);
-  const deployer = new Deployer(hre, zkWallet);
+  const deployer = new Deployer(hre, zkWallet, 'create2');
 
   const contract = await deployer.loadArtifact(contractName);
   const constructorArgs = [TOKEN_ADDRESS, ADMIN_ACCOUNT, CAP_AMOUNT];
-  const cappedMinter = await deployer.deploy(contract, constructorArgs);
+  const customData = {salt: SALT};
+  const cappedMinter = await deployer.deploy(contract, constructorArgs, {customData});
 
   console.log("constructor args:" + cappedMinter.interface.encodeDeploy(constructorArgs));
 
