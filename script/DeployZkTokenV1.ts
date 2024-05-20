@@ -13,6 +13,10 @@ const ADMIN_ACCOUNT = "0x55bE1B079b53962746B2e86d12f158a41DF294A6";
 const INITIAL_MINT_ACCOUNT = "0xCAFEcaFE00000000000000000000000000000000";
 const INITIAL_MINT_AMOUNT = 1_000_000_000n * (10n ** 18n);
 
+// The SALT_IMPL and SALT_PROXY values are used to derive the contract addresses and are set to arbitrary values for local testing.
+const SALT_IMPL = "0x4273795673417857416686492163276941983664248508133571812215241323";
+const SALT_PROXY = "0x5273795673417857416686492163276941983664248508133571812215241323";
+
 async function main() {
   dotEnvConfig();
 
@@ -34,8 +38,13 @@ async function main() {
     deployer.zkWallet,
     contract,
     [ADMIN_ACCOUNT, INITIAL_MINT_ACCOUNT, INITIAL_MINT_AMOUNT],
-    { initializer: "initialize" }
-  );
+    {
+      initializer: "initialize",
+      saltImpl: SALT_IMPL,
+      deploymentTypeImpl: "create2",
+      saltProxy: SALT_PROXY,
+      deploymentTypeProxy: "create2"
+    });
 
   await zkTokenV1.waitForDeployment();
   console.log(contractName + " deployed to:", await zkTokenV1.getAddress());
