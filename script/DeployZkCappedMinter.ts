@@ -7,8 +7,8 @@ import * as hre from "hardhat";
 // to. The values used in the script at the time of deployment can be checked in along with the deployment artifacts
 // produced by running the scripts.
 const TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
-const ADMIN_ACCOUNT = "0xdEADBEeF00000000000000000000000000000000";
-const CAP_AMOUNT = "1000000000000000000000000000"; // raw decimals, bigint fails to encode with deploy :shrug:
+const ADMIN_ACCOUNT = "0x8233C26b974e28178A96F0599E698093cD395b69";
+const CAP_AMOUNT = "105000000000000000000000"; // raw decimals, bigint fails to encode with deploy :shrug:
 const SALT = "0x8ceb348f712ba12ccf22e8a2228a74a6f75ea1d2ca4afe04ed7aa430528e4b99";
 
 async function main() {
