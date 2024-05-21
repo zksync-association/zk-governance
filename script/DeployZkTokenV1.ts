@@ -31,7 +31,7 @@ async function main() {
   console.log("Deploying " + contractName + "...");
 
   const zkWallet = new Wallet(deployerPrivateKey);
-  const deployer = new Deployer(hre, zkWallet);
+  const deployer = new Deployer(hre, zkWallet, 'create2');
 
   const contract = await deployer.loadArtifact(contractName);
   const zkTokenV1 = await hre.zkUpgrades.deployProxy(
