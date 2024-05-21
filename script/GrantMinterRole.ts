@@ -6,7 +6,7 @@ import { getTokenContract } from './utils'
 // produced by running the scripts.
 // The TOKEN_ADDRESS below is derived from the output of the DeployZkTokenV1.ts script, using hardhat account 0 as the deployer.
 // For local testing purposes, the MINTER is set to local hardhat account 2.
-const TOKEN_ADDRESS = "0x99E12239CBf8112fBB3f7Fd473d0558031abcbb5";
+const TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
 const MINTER = "0xCE9e6063674DC585F6F3c7eaBe82B9936143Ba6C";
 
 async function main() {
