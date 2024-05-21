@@ -46,11 +46,11 @@ async function main() {
   const theToken = await protocolGovernor.token();
   console.log(`The ${contractName} Token is set to: ${theToken}`);
 
-  await timelock.grantRole(await timelock.PROPOSER_ROLE(), contractAddress);
-  await timelock.grantRole(await timelock.CANCELLER_ROLE(), contractAddress);
-  await timelock.grantRole(await timelock.EXECUTOR_ROLE(), contractAddress);
+  (await timelock.grantRole(await timelock.PROPOSER_ROLE(), contractAddress)).wait();
+  (await timelock.grantRole(await timelock.CANCELLER_ROLE(), contractAddress)).wait();
+  (await timelock.grantRole(await timelock.EXECUTOR_ROLE(), contractAddress)).wait();
   console.log(`Timelock PROPOSER, CANCELLER, and EXECUTOR roles granted to ${contractName} contract`);
-  await timelock.renounceRole(await timelock.TIMELOCK_ADMIN_ROLE(), adminAddress);
+  (await timelock.renounceRole(await timelock.TIMELOCK_ADMIN_ROLE(), adminAddress)).wait();
   console.log(`ADMIN Role renounced for ${contractName} TimelockController contract (now self-administered)`);
 }
 
