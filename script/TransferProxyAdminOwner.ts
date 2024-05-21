@@ -9,7 +9,7 @@ import * as hre from "hardhat";
 //
 // The NEW_OWNER is the account that will be the new proxy admin owner.
 // For local testing purposes, the ADMIN_ACCOUNT is set to local hardhat account 3.
-const NEW_OWNER = "0xd986b0cB0D1Ad4CCCF0C4947554003fC0Be548E9";
+const NEW_OWNER = "0x3cFc0e11D88B38A7577DAB36f3a8E5e8538a8C22";
 
 async function main() {
   dotEnvConfig();
