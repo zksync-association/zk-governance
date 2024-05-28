@@ -20,6 +20,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * knowledge proofs.
  * @dev This code was copied from
  * https://github.com/ScopeLift/flexible-voting/blob/d71c4e02256d4ef6c9067b947d398753402afdd2/src/GovernorCountingFractional.sol.
+ * @custom:security-contact security@zksync.io
  */
 abstract contract GovernorCountingFractional is Governor {
   struct ProposalVote {
