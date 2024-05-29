@@ -15,7 +15,9 @@ import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 import {GovernorSettableFixedQuorum} from "src/extensions/GovernorSettableFixedQuorum.sol";
 
 /// @title ZkTokenGovernor
+/// @author [ScopeLift](https://scopelift.co)
 /// @notice A Governance contract used to manage the supply of the ZK token.
+/// @custom:security-contact security@zksync.io
 contract ZkTokenGovernor is
   GovernorCountingFractional,
   GovernorSettings,

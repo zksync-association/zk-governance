@@ -17,6 +17,7 @@ import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 /// @title ZkGovOpsGovernor
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A Governance contract used to manage decisions that aren't covered by the token or protocol governors.
+/// @custom:security-contact security@zksync.io
 contract ZkGovOpsGovernor is
   GovernorCountingFractional,
   GovernorSettings,

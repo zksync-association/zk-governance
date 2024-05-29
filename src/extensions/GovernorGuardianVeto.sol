@@ -3,6 +3,11 @@ pragma solidity 0.8.24;
 
 import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
 
+/// @title GovernorGuardianVeto
+/// @author [ScopeLift](https://scopelift.co)
+/// @notice An abstract extension contract that allows a trusted address to cancel a proposal if it is pending or
+/// active.
+/// @custom:security-contact security@zksync.io
 abstract contract GovernorGuardianVeto is Governor {
   /// @notice An immutable address which can cancel proposals while they are pending or active.
   address public immutable VETO_GUARDIAN;
