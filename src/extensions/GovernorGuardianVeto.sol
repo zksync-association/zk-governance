@@ -30,7 +30,7 @@ abstract contract GovernorGuardianVeto is Governor {
     bytes[] memory _calldatas,
     bytes32 _descriptionHash
   ) public virtual override returns (uint256) {
-    if (msg.sender != VETO_GUARDIAN) {
+    if (_msgSender() != VETO_GUARDIAN) {
       revert Unauthorized();
     }
     uint256 proposalId = hashProposal(_targets, _values, _calldatas, _descriptionHash);

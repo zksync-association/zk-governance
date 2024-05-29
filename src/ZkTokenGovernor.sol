@@ -122,7 +122,7 @@ contract ZkTokenGovernor is
   /// guardian then they do not need to hold tokens. If the propser is another address then they can propose only if
   /// they meet the set proposal threshold and `isProposeGuarded` is set to false.
   function proposalThreshold() public view virtual override(Governor, GovernorSettings) returns (uint256) {
-    if (msg.sender == PROPOSE_GUARDIAN) {
+    if (_msgSender() == PROPOSE_GUARDIAN) {
       return 0;
     }
     if (isProposeGuarded) {
