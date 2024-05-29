@@ -16,7 +16,7 @@ import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 
 /// @title ZkGovOpsGovernor
 /// @author [ScopeLift](https://scopelift.co)
-/// @notice A Governance contract responsible for facilitating proposals related to governance and operation decisions
+/// @notice A governance contract responsible for facilitating proposals related to governance and operation decisions
 /// that do require autonomous onchain execution.
 /// @custom:security-contact security@zksync.io
 contract ZkGovOpsGovernor is
