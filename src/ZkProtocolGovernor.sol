@@ -15,7 +15,7 @@ import {GovernorSettableFixedQuorum} from "src/extensions/GovernorSettableFixedQ
 
 /// @title ZkProtocolGovernor
 /// @author [ScopeLift](https://scopelift.co)
-/// @notice A governance contract responsible for executing proposals that upgrade ZkSync or components of the ZkSync
+/// @notice A governance contract responsible for executing proposals that upgrade zkSync or components of the zkSync
 /// governance system.
 /// @custom:security-contact security@zksync.io
 contract ZkProtocolGovernor is
