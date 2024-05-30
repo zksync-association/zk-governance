@@ -4,7 +4,7 @@
   "scripts": {
     "clean": "forge clean && npx hardhat clean",
     "compile": "forge build && npx hardhat compile",
-    "local-node": "npx hardhat node-zksync --tag 0.1.0-alpha.19",
+    "local-node": "npx hardhat node-zksync",
     "script": "node script/RunScript.js",
     "foundry-test": "forge test",
     "test": "forge test && npx hardhat test",
