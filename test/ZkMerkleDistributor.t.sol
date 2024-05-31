@@ -627,7 +627,7 @@ contract ClaimOnBehalf is ZkMerkleDistributorTest {
     token.grantRole(MINTER_ROLE, address(_distributor));
 
     _expiry = bound(_expiry, 0, block.timestamp + 6 hours);
-    vm.warp(block.timestamp + 6 hours);
+    vm.warp(block.timestamp + 6 hours + 1);
     bytes memory _claimSignature = makeClaimSignature(
       MakeClaimSignatureParams({
         claimantPrivateKey: _claimantPrivateKey,
@@ -1081,7 +1081,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
       createDelegateeInfo(_delegatee, _claimant, _claimantPrivateKey);
 
     _expiry = bound(_expiry, 0, block.timestamp + 6 hours);
-    vm.warp(block.timestamp + 6 hours);
+    vm.warp(block.timestamp + 6 hours + 1);
     bytes memory _claimSignature = makeClaimAndDelegateSignature(
       MakeClaimAndDelegateSignatureParams({
         claimantPrivateKey: _claimantPrivateKey,

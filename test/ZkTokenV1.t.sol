@@ -11,7 +11,7 @@ contract Initialize is ZkTokenTest {
     return keccak256(
       abi.encode(
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-        keccak256(bytes("zkSync")),
+        keccak256(bytes("ZKsync")),
         keccak256(bytes("1")),
         block.chainid,
         address(_token)
@@ -21,7 +21,7 @@ contract Initialize is ZkTokenTest {
 
   function test_InitializesTheTokenWithTheCorrectConfigurationWhenDeployedViaUpgrades() public {
     assertEq(token.symbol(), "ZK");
-    assertEq(token.name(), "zkSync");
+    assertEq(token.name(), "ZKsync");
 
     // verify that the domain separator is setup correctly
     assertEq(token.DOMAIN_SEPARATOR(), calculateDomainSeparator(token));
@@ -62,7 +62,7 @@ contract Initialize is ZkTokenTest {
     assertEq(_token.balanceOf(_initMintReceiver), _mintAmount);
     assertEq(_token.totalSupply(), _mintAmount);
     assertEq(_token.symbol(), "ZK");
-    assertEq(_token.name(), "zkSync");
+    assertEq(_token.name(), "ZKsync");
     assertTrue(_token.hasRole(DEFAULT_ADMIN_ROLE, _admin));
     assertTrue(_token.hasRole(MINTER_ADMIN_ROLE, _admin));
     assertTrue(_token.hasRole(BURNER_ADMIN_ROLE, _admin));
