@@ -2,8 +2,14 @@
 pragma solidity 0.8.24;
 
 import {Test} from "forge-std/Test.sol";
+import {ZkTokenV1} from "src/ZkTokenV1.sol";
 import {ZkTokenV2} from "src/ZkTokenV2.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {
+  TransparentUpgradeableProxy,
+  ITransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 contract Initialize is Test {
   ZkTokenV2 tokenV2;
@@ -31,6 +37,24 @@ contract Initialize is Test {
         _token
       )
     );
+  }
+
+  function test_UpgradeTransparentUpgradeableProxyFromTokenV1ToTokenV2() public {
+    address tokenV1 = address(new ZkTokenV1());
+    address proxyAdmin = address(new ProxyAdmin());
+
+    bytes memory initializeV1Data = abi.encodeCall(ZkTokenV1.initialize, (admin, initMintReceiver, INITIAL_MINT_AMOUNT));
+    address proxy = address(new TransparentUpgradeableProxy(tokenV1, proxyAdmin, initializeV1Data));
+
+    assertEq(ZkTokenV1(proxy).symbol(), "ZK");
+    assertEq(ZkTokenV1(proxy).name(), "ZKsync");
+
+    bytes memory initializeV2Data = abi.encodeCall(ZkTokenV2.initializeV2, ());
+    vm.prank(proxyAdmin);
+    ITransparentUpgradeableProxy(proxy).upgradeToAndCall(address(tokenV2), initializeV2Data);
+
+    assertEq(ZkTokenV2(proxy).symbol(), "ZK");
+    assertEq(ZkTokenV2(proxy).name(), "ZKsync");
   }
 
   function test_InitializesTheTokenWithTheCorrectConfigurationWhenDeployedViaUpgrades() public {
