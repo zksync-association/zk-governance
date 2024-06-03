@@ -7,14 +7,12 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {ERC20VotesUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ERC20PermitUpgradeable} from
-  "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 /// @title ZkTokenV1
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A proxy-upgradeable governance token with minting and burning capability gated by access controls.
-/// @dev The same incrementing nonce is used in both the `delegateBySig` and `permit` function. If a client is
+/// @dev The same incrementing nonce is used in `delegateBySig`/`delegateOnBehalf` and `permit` function. If a client is
 /// calling these functions one after the other then they should use an incremented nonce for the subsequent call.
 /// @custom:security-contact security@zksync.io
 contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgradeable {
@@ -59,8 +57,8 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   /// @param _mintReceiver The address that will receive the initial token supply.
   /// @param _mintAmount The amount of tokens, in raw decimals, that will be minted to the mint receiver's wallet.
   function initialize(address _admin, address _mintReceiver, uint256 _mintAmount) external initializer {
-    __ERC20_init("zkSync", "ZK");
-    __ERC20Permit_init("zkSync");
+    __ERC20_init("ZKsync", "ZK");
+    __ERC20Permit_init("ZKsync");
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(MINTER_ADMIN_ROLE, _admin);
     _grantRole(BURNER_ADMIN_ROLE, _admin);
@@ -108,7 +106,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   /// @param _delegatee The address to which the voting power is delegated.
   /// @param _expiry The timestamp at which the signed message expires.
   /// @param _signature The signature proving the `_signer` has authorized the delegation.
-  function delegateOnBehalf(address _signer, address _delegatee, uint256 _expiry, bytes memory _signature) external {
+  function delegateOnBehalf(address _signer, address _delegatee, uint256 _expiry, bytes calldata _signature) external {
     if (block.timestamp > _expiry) {
       revert DelegateSignatureExpired(_expiry);
     }

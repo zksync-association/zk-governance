@@ -69,7 +69,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   /// @notice Error thrown when the claim has already been claimed.
   error ZkMerkleDistributor__AlreadyClaimed();
 
-  /// @notice Error thrown or when the claim window is not open and should be.
+  /// @notice Error thrown when the claim window is not open and should be.
   error ZkMerkleDistributor__ClaimWindowNotOpen();
 
   /// @notice Error thrown when the claim window is open and should not be.
@@ -78,7 +78,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   /// @notice Error for when the claim has an invalid proof.
   error ZkMerkleDistributor__InvalidProof();
 
-  /// @notice Error for when the total claimed exceeds the total amount claimed.
+  /// @notice Error for when the total claimed exceeds the maximum claimable amount.
   error ZkMerkleDistributor__ClaimAmountExceedsMaximum();
 
   /// @notice Error for when the sweep has already been done.
@@ -145,7 +145,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   ) external {
     bytes32 _dataHash;
 
-    if (_claimSignatureInfo.expiry <= block.timestamp) {
+    if (block.timestamp > _claimSignatureInfo.expiry) {
       revert ZkMerkleDistributor__ExpiredSignature();
     }
     unchecked {
@@ -168,8 +168,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   }
 
   /// @notice Claims the tokens for a claimant, given a claimant address, an index, an amount, and a merkle proof.
-  /// @dev This method makes use of signature parameters to delegate the claimant's voting power to another address,
-  /// and therefore cannot be called by smart contract accounts.
+  /// @dev This method makes use of signature parameters to delegate the claimant's voting power to another address.
   /// @param _index The index of the claim.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   /// @param _merkleProof The Merkle proof for the claim.
@@ -178,7 +177,7 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     uint256 _index,
     uint256 _amount,
     bytes32[] calldata _merkleProof,
-    DelegateInfo memory _delegateInfo
+    DelegateInfo calldata _delegateInfo
   ) external virtual {
     _claim(_index, msg.sender, _amount, _merkleProof);
 
@@ -202,11 +201,11 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     uint256 _amount,
     bytes32[] calldata _merkleProof,
     ClaimSignatureInfo calldata _claimSignatureInfo,
-    DelegateInfo memory _delegateInfo
+    DelegateInfo calldata _delegateInfo
   ) external {
     bytes32 _dataHash;
 
-    if (_claimSignatureInfo.expiry <= block.timestamp) {
+    if (block.timestamp > _claimSignatureInfo.expiry) {
       revert ZkMerkleDistributor__ExpiredSignature();
     }
 
@@ -254,7 +253,8 @@ contract ZkMerkleDistributor is EIP712, Nonces {
   /// @param _claimant The address that will receive the new tokens.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   /// @param _merkleProof The Merkle proof for the claim.
-  /// @dev Internal method for claiming tokens, called by 'claim' and 'claimOnBehalf'.
+  /// @dev Internal method for claiming tokens, called by 'claim', 'claimOnBehalf', 'claimAndDelegate' and
+  /// 'claimAndDelegateOnBehalf'.
   function _claim(uint256 _index, address _claimant, uint256 _amount, bytes32[] calldata _merkleProof) internal {
     _revertIfClaimWindowNotOpen();
     _revertIfClaimAmountExceedsMaximum(_amount);
