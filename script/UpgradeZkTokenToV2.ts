@@ -32,7 +32,7 @@ async function main() {
     {call: "initializeV2"}
    );
 
-  const zkTokenV2 = new Contract(ZK_TOKEN_PROXY, contract.abi, zkWallet);
+  const zkTokenV2 = new Contract(ZK_TOKEN_PROXY, contract.abi, deployer.zkWallet);
 
   const name = await zkTokenV2.name();
   console.log("ZkTokenV2 name: ", name);
