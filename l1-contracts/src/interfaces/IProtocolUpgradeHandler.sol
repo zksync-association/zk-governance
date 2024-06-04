@@ -2,36 +2,39 @@
 
 pragma solidity 0.8.24;
 
-/// @title ProtocolUpgradeHandler contract interface
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 interface IProtocolUpgradeHandler {
     /// @dev This enumeration includes the following states:
     /// @param None Default state, indicating the upgrade has not been set.
-    /// @param Waiting The upgrade passed L2 voting process but it is not yet approved for execution.
-    /// @param VetoPeriod The upgrade proposal is waiting for the guardians to veto or explicitly refrain from that.
+    /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.
+    /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Concil.
     /// @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for execution.
     /// @param Ready The upgrade proposal is ready to be executed.
     /// @param Canceled The upgrade proposal was canceled.
     /// @param Done The upgrade has been successfully executed.
     enum UpgradeState {
         None,
+        LegalVetoPeriod,
         Waiting,
-        VetoPeriod,
         ExecutionPending,
         Ready,
         Canceled,
         Done
     }
 
-    /// @dev Represents the status of an upgrade process, including its current state and the last update time.
-    /// @param state The current state of the upgrade, indicating its phase in the lifecycle.
-    /// @param timestamp The last time (in seconds) the upgrade state was updated.
+    /// @dev Represents the status of an upgrade process, including the creation timestamp and actions made by guardians and Security Council.
+    /// @param creationTimestamp The timestamp (in seconds) when the upgrade state was created.
+    /// @param securityCouncilApprovalTimestamp The timestamp (in seconds) when Security Council approved the upgrade.
     /// @param guardiansApproval Indicates whether the upgrade has been approved by the guardians.
+    /// @param guardiansExtendedLegalVeto Indicates whether guardians extended the legal veto period.
+    /// @param executed Indicates whether the proposal is executed or not.
     struct UpgradeStatus {
-        UpgradeState state;
-        uint48 timestamp;
+        uint48 creationTimestamp;
+        uint48 securityCouncilApprovalTimestamp;
         bool guardiansApproval;
+        bool guardiansExtendedLegalVeto;
+        bool executed;
     }
 
     /// @dev Represents a call to be made during an upgrade.
@@ -72,13 +75,11 @@ interface IProtocolUpgradeHandler {
         UpgradeProposal calldata _proposal
     ) external;
 
+    function extendLegalVeto(bytes32 _id) external;
+
     function approveUpgradeSecurityCouncil(bytes32 _id) external;
 
     function approveUpgradeGuardians(bytes32 _id) external;
-
-    function veto(bytes32 _id) external;
-
-    function refrainFromVeto(bytes32 _id) external;
 
     function execute(UpgradeProposal calldata _proposal) external payable;
 
@@ -94,10 +95,6 @@ interface IProtocolUpgradeHandler {
 
     function reinforceUnfreeze() external;
 
-    function updateUpgradeStatus(bytes32 _id) external returns (UpgradeStatus memory updatedStatus);
-
-    function getUpgradeStatusNow(bytes32 _id) external view returns (UpgradeStatus memory newUpgStatus);
-
     /// @notice Emitted when the security council address is changed.
     event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
 
@@ -110,26 +107,20 @@ interface IProtocolUpgradeHandler {
     /// @notice Emitted when upgrade process on L1 is started.
     event UpgradeStarted(bytes32 indexed _id, UpgradeProposal _proposal);
 
+    /// @notice Emitted when the legal veto period is extended.
+    event UpgradeLegalVetoExtended(bytes32 indexed _id);
+
     /// @notice Emitted when Security Council approved the upgrade.
     event UpgradeApprovedBySecurityCouncil(bytes32 indexed _id);
 
     /// @notice Emitted when Guardians approved the upgrade.
     event UpgradeApprovedByGuardians(bytes32 indexed _id);
 
-    /// @notice Emitted when Guardians vetoed the upgrade.
-    event UpgradeVetoed(bytes32 indexed _id);
-
-    /// @notice Emitted when Guardians refrain from veto for the upgrade.
-    event GuardiansRefrainFromVeto(bytes32 indexed _id);
-
     /// @notice Emitted when the upgrade is executed.
     event UpgradeExecuted(bytes32 indexed _id);
 
     /// @notice Emitted when the emergency upgrade is executed.
     event EmergencyUpgradeExecuted(bytes32 indexed _id);
-
-    /// @notice Emitted when the upgrade status is changed.
-    event UpgradeStatusChanged(bytes32 indexed _id, UpgradeStatus _upgradeStatus);
 
     /// @notice Emitted when the protocol became soft frozen.
     event SoftFreeze(uint256 _protocolFrozenUntil);

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.24;
 
-import {IZkSyncEra} from "./interfaces/IZkSyncEra.sol";
+import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
@@ -10,19 +10,18 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 /// @title Protocol Upgrade Handler
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
-/// @dev The contract that holds ownership of all zkSync contracts (L1 and L2). It is responsible
-/// for handling zkSync protocol upgrades proposed by L2 Token Assembly and executing it.
+/// @dev The contract that holds ownership of all ZKsync contracts (L1 and L2). It is responsible
+/// for handling ZKsync protocol upgrades proposed by L2 Token Assembly and executing it.
 ///
 /// The upgrade process follows these key stages:
 /// 1. Proposal: Token holders on L2 propose the protocol upgrades and send the L2 -> L1 message
 ///    that this contract reads and starts the upgrade process.
-/// 2. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
-///    immediately move the proposal to the next stage, while guardian approval will move the proposal to the
-///    next stage only after 90 days delay. If no approval is received within the specified period, the proposal
+/// 2. Legal veto: During this period, the guardians can veto the upgrade **offchain**. The default legal period review
+///    takes 3 days but can be extended by guardians onchain for 7 days in total.
+/// 3. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
+///    immediately move the proposal to the next stage, while guardians approval will move the proposal to the
+///    next stage only after 30 days delay after the legal veto passes. If no approval is received within the specified period, the proposal
 ///    is canceled.
-/// 3. Veto Period: During this period, the guardians can veto the upgrade. If the veto period (3 days) expires
-///    without intervention, the proposal moves to pending. Guardians can also explicitly refrain
-///    from the veto and then the proposal instantly moves to the next stage (pending).
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
 ///    preparations and reviews.
 /// 5. Execution: The proposed changes are executed by the authorized address in the proposal,
@@ -31,20 +30,21 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 /// The contract implements the state machine that represents the logic of moving upgrade from each
 /// stage by time changes and Guardians/Security Council actions.
 contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
-    /// @dev Specifies the duration of the veto period for guardians.
-    /// During this time, guardians have the opportunity to veto proposed upgrades,
-    /// providing a safeguard against potentially harmful changes.
-    uint256 internal constant GUARDIANS_VETO_PERIOD = 3 days;
+    /// @dev Duration of the standard legal veto period.
+    uint256 internal constant STANDARD_LEGAL_VETO_PERIOD = 3 days;
+
+    /// @dev Duration of the extended legal veto period.
+    uint256 internal constant EXTENDED_LEGAL_VETO_PERIOD = 7 days;
 
     /// @dev The mandatory delay period before an upgrade can be executed.
     /// This period is intended to provide a buffer after an upgrade's final approval and before its execution,
     /// allowing for final reviews and preparations for devs and users.
     uint256 internal constant UPGRADE_DELAY_PERIOD = 1 days;
 
-    /// @dev Time limit for an upgrade proposal to be approved or expire, and the waiting period for execution post-guardian approval.
+    /// @dev Time limit for an upgrade proposal to be approved by guardians or expire, and the waiting period for execution post-guardians approval.
     /// If the Security Council approves, the upgrade can proceed immediately; otherwise,
-    /// the proposal will expire after this period if not approved, or wait this period after guardian approval.
-    uint256 internal constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 90 days;
+    /// the proposal will expire after this period if not approved, or wait this period after guardians approval.
+    uint256 internal constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 30 days;
 
     /// @dev Duration of a soft freeze which temporarily pause protocol contract functionality.
     /// This freeze window is needed for the Security Council to decide whether they want to
@@ -60,10 +60,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// specifically for proposing and approving protocol upgrades.
     address public immutable L2_PROTOCOL_GOVERNOR;
 
-    /// @dev zkSync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IZkSyncEra public immutable ZKSYNC_ERA;
+    /// @dev ZKsync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
+    IZKsyncEra public immutable ZKSYNC_ERA;
 
-    /// @dev zkSync smart contract that is responsible for creating new hyperchains and changing parameters in existent.
+    /// @dev ZKsync smart contract that is responsible for creating new hyperchains and changing parameters in existent.
     IStateTransitionManager public immutable STATE_TRANSITION_MANAGER;
 
     /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
@@ -99,7 +99,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         address _guardians,
         address _emergencyUpgradeBoard,
         address _l2ProtocolGovernor,
-        IZkSyncEra _zkSyncEra,
+        IZKsyncEra _ZKsyncEra,
         IStateTransitionManager _stateTransitionManager,
         IPausable _bridgeHub,
         IPausable _sharedBridge
@@ -114,7 +114,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit ChangeEmergencyUpgradeBoard(address(0), _emergencyUpgradeBoard);
 
         L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
-        ZKSYNC_ERA = _zkSyncEra;
+        ZKSYNC_ERA = _ZKsyncEra;
         STATE_TRANSITION_MANAGER = _stateTransitionManager;
         BRIDGE_HUB = _bridgeHub;
         SHARED_BRIDGE = _sharedBridge;
@@ -157,6 +157,44 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _;
     }
 
+    /// @notice Calculates the current upgrade state for the specified upgrade ID.
+    /// @param _id The unique identifier of the upgrade proposal to be approved.
+    function upgradeState(bytes32 _id) public view returns (UpgradeState) {
+        UpgradeStatus memory upg = upgradeStatus[_id];
+        // Upgrade doesn't exist
+        if (upg.creationTimestamp == 0) {
+            return UpgradeState.None;
+        }
+
+        // Upgrade already executed
+        if (upg.executed) {
+            return UpgradeState.Done;
+        }
+
+        // Legal veto period
+        uint256 legalVetoTime = upg.guardiansExtendedLegalVeto ? EXTENDED_LEGAL_VETO_PERIOD : STANDARD_LEGAL_VETO_PERIOD;
+        if (block.timestamp < upg.creationTimestamp + legalVetoTime) {
+            return UpgradeState.LegalVetoPeriod;
+        }
+
+        uint256 waitOrExpiryTimestamp = upg.creationTimestamp + legalVetoTime + UPGRADE_WAIT_OR_EXPIRE_PERIOD;
+        if (block.timestamp >= waitOrExpiryTimestamp) {
+            if (!upg.guardiansApproval) {
+                return UpgradeState.Canceled;
+            }
+
+            uint256 readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD;
+            return block.timestamp >= readyWithGuardiansTimestamp ? UpgradeState.Ready : UpgradeState.ExecutionPending;
+        }
+
+        if (upg.securityCouncilApprovalTimestamp == 0) {
+            return UpgradeState.Waiting;
+        }
+
+        uint256 readyWithSecurityCouncilTimestamp = upg.securityCouncilApprovalTimestamp + UPGRADE_DELAY_PERIOD;
+        return block.timestamp >= readyWithSecurityCouncilTimestamp ? UpgradeState.Ready : UpgradeState.ExecutionPending;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             UPGRADE PROCESS
     //////////////////////////////////////////////////////////////*/
@@ -176,7 +214,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         UpgradeProposal calldata _proposal
     ) external {
         bytes memory upgradeMessage = abi.encode(_proposal);
-        IZkSyncEra.L2Message memory l2ToL1Message = IZkSyncEra.L2Message({
+        IZKsyncEra.L2Message memory l2ToL1Message = IZKsyncEra.L2Message({
             txNumberInBatch: _l2TxNumberInBatch,
             sender: L2_PROTOCOL_GOVERNOR,
             data: upgradeMessage
@@ -186,34 +224,36 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         require(_proposal.executor != emergencyUpgradeBoard, "Emergency Upgrade Board can't execute usual upgrade");
 
         bytes32 id = keccak256(upgradeMessage);
-        UpgradeStatus memory upgStatus = upgradeStatus[id];
-        require(upgStatus.state == UpgradeState.None, "Upgrade with this id already exists");
-        UpgradeStatus memory newUpgStatus =
-            UpgradeStatus({state: UpgradeState.Waiting, timestamp: uint48(block.timestamp), guardiansApproval: false});
+        UpgradeState upgState = upgradeState(id);
+        require(upgState == UpgradeState.None, "Upgrade with this id already exists");
 
-        upgradeStatus[id] = newUpgStatus;
+        upgradeStatus[id].creationTimestamp = uint48(block.timestamp);
         emit UpgradeStarted(id, _proposal);
-        emit UpgradeStatusChanged(id, newUpgStatus);
+    }
+
+    /// @notice Extends the legal veto period by the guardians.
+    /// @param _id The unique identifier of the upgrade proposal to be approved.
+    function extendLegalVeto(bytes32 _id) external onlyGuardians {
+        require(!upgradeStatus[_id].guardiansExtendedLegalVeto, "Legal veto period is already extended");
+        UpgradeState upgState = upgradeState(_id);
+        require(upgState == UpgradeState.LegalVetoPeriod, "Upgrade with this id is not in the legal veto period");
+        upgradeStatus[_id].guardiansExtendedLegalVeto = true;
+
+        emit UpgradeLegalVetoExtended(_id);
     }
 
     /// @notice Approves an upgrade proposal by the Security Council.
     /// @dev Transitions the state of an upgrade proposal to 'VetoPeriod' after approval by the Security Council.
     /// @param _id The unique identifier of the upgrade proposal to be approved.
     function approveUpgradeSecurityCouncil(bytes32 _id) external onlySecurityCouncil {
-        UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
+        UpgradeState upgState = upgradeState(_id);
         require(
-            upgStatus.state == UpgradeState.Waiting,
+            upgState == UpgradeState.Waiting,
             "Upgrade with this id is not waiting for the approval from Security Council"
         );
-        UpgradeStatus memory newUpgStatus = UpgradeStatus({
-            state: UpgradeState.VetoPeriod,
-            timestamp: uint48(block.timestamp),
-            guardiansApproval: upgStatus.guardiansApproval
-        });
-        upgradeStatus[_id] = newUpgStatus;
+        upgradeStatus[_id].securityCouncilApprovalTimestamp = uint48(block.timestamp);
 
         emit UpgradeApprovedBySecurityCouncil(_id);
-        emit UpgradeStatusChanged(_id, newUpgStatus);
     }
 
     /// @notice Approves an upgrade proposal by the guardians.
@@ -222,76 +262,26 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function approveUpgradeGuardians(bytes32 _id) external onlyGuardians {
         require(!upgradeStatus[_id].guardiansApproval, "Upgrade is already approved by guardians");
 
-        UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(
-            upgStatus.state == UpgradeState.Waiting,
-            "Upgrade with this id is not waiting for the approval from Guardians"
-        );
-        UpgradeStatus memory newUpgStatus =
-            UpgradeStatus({state: upgStatus.state, timestamp: uint48(upgStatus.timestamp), guardiansApproval: true});
-        upgradeStatus[_id] = newUpgStatus;
+        UpgradeState upgState = upgradeState(_id);
+        require(upgState == UpgradeState.Waiting, "Upgrade with this id is not waiting for the approval from Guardians");
+        upgradeStatus[_id].guardiansApproval = true;
 
         emit UpgradeApprovedByGuardians(_id);
-        emit UpgradeStatusChanged(_id, newUpgStatus);
-    }
-
-    /// @notice Vetos an upgrade proposal during its veto period by guardians.
-    /// @dev Sets the state of an upgrade proposal identified by `_id` to `Canceled` if it is currently
-    /// in the `VetoPeriod`.
-    /// @param _id The unique identifier of the upgrade proposal to be vetoed.
-    function veto(bytes32 _id) external onlyGuardians {
-        UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(upgStatus.state == UpgradeState.VetoPeriod, "Upgrade can't be vetoed outside of the veto period");
-        UpgradeStatus memory newUpgStatus = UpgradeStatus({
-            state: UpgradeState.Canceled,
-            timestamp: uint48(block.timestamp),
-            guardiansApproval: upgStatus.guardiansApproval
-        });
-        upgradeStatus[_id] = newUpgStatus;
-
-        emit UpgradeVetoed(_id);
-        emit UpgradeStatusChanged(_id, newUpgStatus);
-    }
-
-    /// @notice Records guardians' decision to refrain from vetoing an upgrade proposal.
-    /// @dev Transitions the upgrade proposal's status to 'ExecutionPending' if guardians decide not to veto it
-    /// during the 'VetoPeriod'.
-    /// @param _id The unique identifier of the upgrade proposal for which guardians are refraining from vetoing.
-    function refrainFromVeto(bytes32 _id) external onlyGuardians {
-        UpgradeStatus memory upgStatus = updateUpgradeStatus(_id);
-        require(
-            upgStatus.state == UpgradeState.VetoPeriod, "Guardians can't refrain from veto outside of the veto period"
-        );
-        UpgradeStatus memory newUpgStatus = UpgradeStatus({
-            state: UpgradeState.ExecutionPending,
-            timestamp: uint48(block.timestamp),
-            guardiansApproval: upgStatus.guardiansApproval
-        });
-        upgradeStatus[_id] = newUpgStatus;
-
-        emit GuardiansRefrainFromVeto(_id);
-        emit UpgradeStatusChanged(_id, newUpgStatus);
     }
 
     /// @notice Executes an upgrade proposal that has reached the 'Ready' state.
     /// @param _proposal The upgrade proposal to be executed, containing the target calls and optionally an executor.
     function execute(UpgradeProposal calldata _proposal) external payable {
         bytes32 id = keccak256(abi.encode(_proposal));
-        UpgradeStatus memory upgStatus = updateUpgradeStatus(id);
+        UpgradeState upgState = upgradeState(id);
         // 1. Checks
-        require(upgStatus.state == UpgradeState.Ready, "Upgrade is not yet ready");
+        require(upgState == UpgradeState.Ready, "Upgrade is not yet ready");
         require(
             _proposal.executor == address(0) || _proposal.executor == msg.sender,
             "msg.sender is not authorized to perform the upgrade"
         );
         // 2. Effects
-        UpgradeStatus memory newUpgStatus = UpgradeStatus({
-            state: UpgradeState.Done,
-            timestamp: uint48(block.timestamp),
-            guardiansApproval: upgStatus.guardiansApproval
-        });
-        // Save the upgrade process
-        upgradeStatus[id] = newUpgStatus;
+        upgradeStatus[id].executed = true;
         // Clear the freeze
         lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
@@ -300,25 +290,18 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _execute(_proposal.calls);
         emit Unfreeze();
         emit UpgradeExecuted(id);
-        emit UpgradeStatusChanged(id, newUpgStatus);
     }
 
     /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
     /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
     function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable onlyEmergencyUpgradeBoard {
         bytes32 id = keccak256(abi.encode(_proposal));
-        UpgradeStatus memory upgStatus = updateUpgradeStatus(id);
+        UpgradeState upgState = upgradeState(id);
         // 1. Checks
-        require(upgStatus.state == UpgradeState.None, "Upgrade already exists");
+        require(upgState == UpgradeState.None, "Upgrade already exists");
         require(_proposal.executor == msg.sender, "msg.sender is not authorized to perform the upgrade");
         // 2. Effects
-        UpgradeStatus memory newUpgStatus = UpgradeStatus({
-            state: UpgradeState.Done,
-            timestamp: uint48(block.timestamp),
-            guardiansApproval: upgStatus.guardiansApproval
-        });
-        // Save the upgrade process
-        upgradeStatus[id] = newUpgStatus;
+        upgradeStatus[id].executed = true;
         // Clear the freeze
         lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
@@ -327,77 +310,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         _execute(_proposal.calls);
         emit Unfreeze();
         emit EmergencyUpgradeExecuted(id);
-        emit UpgradeStatusChanged(id, newUpgStatus);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            UPGRADE STATUS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Calculates and returns the current status of an upgrade proposal based on time-based conditions.
-    /// @dev This function checks the current block.timestamp against the upgrade proposal's timestamp and
-    /// the defined periods for transitions between states (Waiting, VetoPeriod, ExecutionPending).
-    /// It returns the updated status without modifying the state.
-    /// @param _id The unique identifier of the upgrade proposal whose status is being queried.
-    /// @return newUpgStatus The current or imminent status of the upgrade proposal, considering the passage of time
-    /// and predefined conditions. This may differ from the stored status if conditions for a state transition are met.
-    function getUpgradeStatusNow(bytes32 _id) public view returns (UpgradeStatus memory newUpgStatus) {
-        UpgradeStatus memory upgStatus = upgradeStatus[_id];
-        newUpgStatus = _getUpgradeStatusOneTimeUpdate(upgStatus);
-
-        // Upgrade status can be changed at most twice in a row by the timing reason,
-        // so if the status changes once we need to check it a second time.
-        if (upgStatus.state != newUpgStatus.state) {
-            newUpgStatus = _getUpgradeStatusOneTimeUpdate(newUpgStatus);
-        }
-    }
-
-    /// @dev Calculates and returns the upgrade status after one stage changes based on timing.
-    /// Please note, that there may be multiple (2 at most) stage changes based on timing in a row,
-    /// so this function should be called multiple times to know the latest upgrade status.
-    /// @param _upgStatus The upgrade status that may change.
-    function _getUpgradeStatusOneTimeUpdate(UpgradeStatus memory _upgStatus)
-        internal
-        view
-        returns (UpgradeStatus memory)
-    {
-        if (_upgStatus.state == UpgradeState.Waiting) {
-            if (block.timestamp > _upgStatus.timestamp + UPGRADE_WAIT_OR_EXPIRE_PERIOD) {
-                return UpgradeStatus({
-                    state: _upgStatus.guardiansApproval ? UpgradeState.ExecutionPending : UpgradeState.Canceled,
-                    timestamp: uint48(_upgStatus.timestamp + UPGRADE_WAIT_OR_EXPIRE_PERIOD),
-                    guardiansApproval: _upgStatus.guardiansApproval
-                });
-            }
-        } else if (_upgStatus.state == UpgradeState.VetoPeriod) {
-            if (block.timestamp > _upgStatus.timestamp + GUARDIANS_VETO_PERIOD) {
-                return UpgradeStatus({
-                    state: UpgradeState.ExecutionPending,
-                    timestamp: uint48(_upgStatus.timestamp + GUARDIANS_VETO_PERIOD),
-                    guardiansApproval: _upgStatus.guardiansApproval
-                });
-            }
-        } else if (_upgStatus.state == UpgradeState.ExecutionPending) {
-            if (block.timestamp > _upgStatus.timestamp + UPGRADE_DELAY_PERIOD) {
-                return UpgradeStatus({
-                    state: UpgradeState.Ready,
-                    timestamp: uint48(_upgStatus.timestamp + UPGRADE_DELAY_PERIOD),
-                    guardiansApproval: _upgStatus.guardiansApproval
-                });
-            }
-        }
-
-        // All other upgrade state changes triggered on an action basis (e.g. `startUpgrade`, `approveUpgradeSecurityCouncil`, etc).
-        return _upgStatus;
-    }
-
-    /// @notice Updates the stored status of a specified upgrade proposal to reflect the time-based state changes.
-    /// @param _id The unique identifier of the upgrade proposal whose status is to be updated.
-    /// @return updatedStatus The new status of the upgrade proposal, reflecting any state transitions based on
-    /// the current time and previously defined conditions.
-    function updateUpgradeStatus(bytes32 _id) public returns (UpgradeStatus memory updatedStatus) {
-        updatedStatus = getUpgradeStatusNow(_id);
-        upgradeStatus[_id] = updatedStatus;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -454,7 +366,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit ReinforceFreeze();
     }
 
-    /// @dev Freeze all zkSync contracts, including bridges, state transition managers and all hyperchains.
+    /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.
     function _freeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
@@ -468,7 +380,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev Unfreezes the protocol and resumes normal operations.
     function unfreeze() external onlySecurityCouncilOrProtocolFreezeExpired {
-        freezeStatus = FreezeStatus.None;
+        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
         _unfreeze();
         emit Unfreeze();
@@ -483,7 +395,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit ReinforceUnfreeze();
     }
 
-    /// @dev Unfreeze all zkSync contracts, including bridges, state transition managers and all hyperchains.
+    /// @dev Unfreeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.
     function _unfreeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
