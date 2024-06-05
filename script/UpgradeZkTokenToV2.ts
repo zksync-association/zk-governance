@@ -39,6 +39,9 @@ async function main() {
 
   const symbol = await zkTokenV2.symbol();
   console.log("ZkTokenV2 symbol: ", symbol);
+
+  const totalSupply = await zkTokenV2.totalSupply();
+  console.log("ZkTokenV2 totalSupply: ", totalSupply);
 }
 
 main().catch((error) => {
