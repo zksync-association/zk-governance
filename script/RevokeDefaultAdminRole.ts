@@ -6,8 +6,8 @@ import { getTokenContract } from './utils'
 // produced by running the scripts.
 // The TOKEN_ADDRESS below is derived from the output of the DeployZkTokenV1.ts script, using hardhat account 0 as the deployer.
 // For local testing purposes, the NEW_ADMIN is set to local hardhat account 3.
-const TOKEN_ADDRESS = "0x99E12239CBf8112fBB3f7Fd473d0558031abcbb5";
-const SELECTED_DEFAULT_ADMIN = "0xd986b0cB0D1Ad4CCCF0C4947554003fC0Be548E9";
+const TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
+const SELECTED_DEFAULT_ADMIN = "0x478A1eBE665396ce0F2F87aB0F057aC273451B92";
 
 async function main() {
   dotEnvConfig();

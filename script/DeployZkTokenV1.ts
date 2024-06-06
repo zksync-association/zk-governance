@@ -9,13 +9,13 @@ import * as hre from "hardhat";
 //
 // The ADMIN_ACCOUNT is the account that will be able set minter/burner roles for other accounts.
 // For local testing purposes, the ADMIN_ACCOUNT is set to local hardhat account 1.
-const ADMIN_ACCOUNT = "0x55bE1B079b53962746B2e86d12f158a41DF294A6";
-const INITIAL_MINT_ACCOUNT = "0xCAFEcaFE00000000000000000000000000000000";
-const INITIAL_MINT_AMOUNT = 1_000_000_000n * (10n ** 18n);
+const ADMIN_ACCOUNT = "0x478A1eBE665396ce0F2F87aB0F057aC273451B92";
+const INITIAL_MINT_ACCOUNT = "0x478A1eBE665396ce0F2F87aB0F057aC273451B92";
+const INITIAL_MINT_AMOUNT = 0;
 
 // The SALT_IMPL and SALT_PROXY values are used to derive the contract addresses and are set to arbitrary values for local testing.
-const SALT_IMPL = "0x4273795673417857416686492163276941983664248508133571812215241323";
-const SALT_PROXY = "0x5273795673417857416686492163276941983664248508133571812215241323";
+const SALT_IMPL = "0x8ceb348f712ba12ccf22e8a2228a74a6f75ea1d2ca4afe04ed7aa430528e4b99";
+const SALT_PROXY = "0x8ceb348f712ba12ccf22e8a2228a74a6f75ea1d2ca4afe04ed7aa430528e4b99";
 
 async function main() {
   dotEnvConfig();
@@ -31,7 +31,7 @@ async function main() {
   console.log("Deploying " + contractName + "...");
 
   const zkWallet = new Wallet(deployerPrivateKey);
-  const deployer = new Deployer(hre, zkWallet);
+  const deployer = new Deployer(hre, zkWallet, 'create2');
 
   const contract = await deployer.loadArtifact(contractName);
   const zkTokenV1 = await hre.zkUpgrades.deployProxy(

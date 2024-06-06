@@ -34,6 +34,15 @@ const config: HardhatUserConfig = {
       ethNetwork: "ethNetwork",
       url: process.env.ZK_LOCAL_NETWORK_URL ? process.env.ZK_LOCAL_NETWORK_URL : "http://0.0.0.0:8011",
     },
+    mainnet: {
+      zksync: false,
+      url: "https://eth-mainnet.g.alchemy.com/v2/SECRET",
+    },
+    zkSyncEra: {
+      zksync: true,
+      ethNetwork: "mainnet",
+      url: "https://zksync-mainnet.g.alchemy.com/v2/SECRET",
+    },
   },
   defaultNetwork: "zkSyncLocal",
 };
