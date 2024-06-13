@@ -1,4 +1,4 @@
-import { Contract, Wallet, Provider } from "zksync-web3";
+import { Contract, Wallet, Provider } from "zksync-ethers";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
 import * as hre from "hardhat";
 import * as ethers from "ethers";

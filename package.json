@@ -4,25 +4,30 @@
   "description": "Paymaster implementation that sponsors token distribution",
   "license": "MIT",
   "devDependencies": {
-    "@matterlabs/hardhat-zksync-deploy": "^0.6.5",
-    "@matterlabs/hardhat-zksync-solc": "^0.4.2",
-    "@matterlabs/hardhat-zksync-verify": "^0.1.8",
+    "@matterlabs/hardhat-zksync-deploy": "^1.2.1",
+    "@matterlabs/hardhat-zksync-node": "^1.0.3",
+    "@matterlabs/hardhat-zksync-solc": "^1.1.4",
+    "@matterlabs/hardhat-zksync-upgradable": "^1.4.1",
+    "@matterlabs/hardhat-zksync-verify": "^1.4.3",
     "@matterlabs/zksync-contracts": "^0.6.1",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.8",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@openzeppelin/contracts": "^4.9.1",
     "@types/chai": "^4.3.4",
     "@types/mocha": "^10.0.1",
     "chai": "^4.3.7",
     "dotenv": "^16.0.3",
-    "ethers": "^5.7.2",
+    "ethers": "^6.7.2",
     "hardhat": "^2.12.4",
     "mocha": "^10.2.0",
     "prettier": "^2.8.8",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.4",
-    "zksync-web3": "^0.14.3"
+    "zksync-ethers": "^6.8.0"
   },
   "scripts": {
+    "deploy:signature-based-paymaster": "hardhat run scripts/deploySignatureBasedPaymaster.ts",
     "test": "hardhat test --network zkSyncInMemory"
   }
 }

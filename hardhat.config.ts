@@ -1,7 +1,6 @@
 import "@matterlabs/hardhat-zksync-deploy";
 import "@matterlabs/hardhat-zksync-solc";
 import "@matterlabs/hardhat-zksync-verify";
-import "@nomiclabs/hardhat-etherscan";
 
 import { HardhatUserConfig } from "hardhat/config";
 
