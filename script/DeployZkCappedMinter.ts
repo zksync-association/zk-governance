@@ -8,7 +8,7 @@ import * as hre from "hardhat";
 // produced by running the scripts.
 const TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
 const ADMIN_ACCOUNT = "0x1054cB76FF7d77C387c82d1E0aFC374fD0cA86d9";
-const CAP_AMOUNT = "4830000000000000000000000000"; // raw decimals, bigint fails to encode with deploy :shrug:
+const CAP_AMOUNT = "3489000000000000000000000000"; // raw decimals, bigint fails to encode with deploy :shrug:
 const SALT = "0x8ceb348f712ba12ccf22e8a2228a74a6f75ea1d2ca4afe04ed7aa430528e4b99";
 
 async function main() {
