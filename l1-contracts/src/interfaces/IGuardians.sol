@@ -34,4 +34,20 @@ interface IGuardians {
     function extendLegalVeto(bytes32 _id, address[] calldata _signers, bytes[] calldata _signatures) external;
 
     function approveUpgradeGuardians(bytes32 _id, address[] calldata _signers, bytes[] calldata _signatures) external;
+
+    function cancelL2GovernorProposal(
+        L2GovernorProposal memory _l2Proposal,
+        TxRequest memory _txRequest,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external payable;
+
+    function proposeL2GovernorProposal(
+        L2GovernorProposal memory _l2Proposal,
+        TxRequest memory _txRequest,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external payable;
+
+    function hashL2Proposal(L2GovernorProposal memory _l2Proposal) external pure returns (uint256 proposalId);
 }

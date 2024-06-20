@@ -103,6 +103,14 @@ interface IProtocolUpgradeHandler {
 
     function reinforceUnfreezeOneChain(uint256 _chainId) external;
 
+    function upgradeState(bytes32 _id) external view returns (UpgradeState);
+
+    function updateSecurityCouncil(address _newSecurityCouncil) external;
+
+    function updateGuardians(address _newGuardians) external;
+
+    function updateEmergencyUpgradeBoard(address _newEmergencyUpgradeBoard) external;
+
     /// @notice Emitted when the security council address is changed.
     event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
 
