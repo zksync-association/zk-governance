@@ -9,7 +9,7 @@ import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHand
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract TestSecurityCouncil is Test {
-    IProtocolUpgradeHandler protocolUpgradeHandler = IProtocolUpgradeHandler(address());
+    IProtocolUpgradeHandler protocolUpgradeHandler = IProtocolUpgradeHandler(makeAddr("protocolUpgradeHandler"));
     SecurityCouncil securityCouncil;
     Vm.Wallet[] wallets;
     address[] internal members;
