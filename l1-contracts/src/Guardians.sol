@@ -12,7 +12,8 @@ import {Multisig} from "./Multisig.sol";
 /// @title Guadians
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
-/// @dev Temporary protector of the values of ZKsync. Approves or vetos the changes proposed by the Token Assembly.
+/// @dev Temporary protector of the values of ZKsync. They can approve upgrade changes proposed by the Token Assembly, propose & cancel
+/// L2 proposals as well as extend the legal veto period of L1 upgrade proposals through the `ProtocolUpgradeHandler`.
 contract Guardians is IGuardians, Multisig, EIP712 {
     /// @notice Address of the contract, which manages protocol upgrades.
     IProtocolUpgradeHandler public immutable PROTOCOL_UPGRADE_HANDLER;
@@ -131,7 +132,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @notice Propose ZKsync proposal on one the L2 governors, by the 5 of 8 Guardians approvals.
-    /// @param _l2Proposal The L2 governor proposal to be canceled.
+    /// @param _l2Proposal The L2 governor proposal to be proposed.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.

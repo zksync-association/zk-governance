@@ -17,6 +17,12 @@ interface IGuardians {
         string description;
     }
 
+    /// @dev Struct for L1 -> L2 transaction request parameters.
+    /// @param to ZKsync address of the transaction recipient.
+    /// @param l2GasLimit The maximum gas limit for executing this transaction on L2.
+    /// @param l2GasPerPubdataByteLimit Limits the amount of gas per byte of public data on L2.
+    /// @param refundRecipient The L2 address to which any refunds should be sent.
+    /// @param txMintValue The ether minted on L2 in this L1 -> L2 transaction.
     struct TxRequest {
         address to;
         uint256 l2GasLimit;
