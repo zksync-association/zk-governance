@@ -112,13 +112,15 @@ interface IProtocolUpgradeHandler {
     function updateEmergencyUpgradeBoard(address _newEmergencyUpgradeBoard) external;
 
     /// @notice Emitted when the security council address is changed.
-    event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
+    event ChangeSecurityCouncil(address indexed _securityCouncilBefore, address indexed _securityCouncilAfter);
 
     /// @notice Emitted when the guardians address is changed.
-    event ChangeGuardians(address _guardiansBefore, address _guardiansAfter);
+    event ChangeGuardians(address indexed _guardiansBefore, address indexed _guardiansAfter);
 
     /// @notice Emitted when the emergency upgrade board address is changed.
-    event ChangeEmergencyUpgradeBoard(address _emergencyUpgradeBoardBefore, address _emergencyUpgradeBoardAfter);
+    event ChangeEmergencyUpgradeBoard(
+        address indexed _emergencyUpgradeBoardBefore, address indexed _emergencyUpgradeBoardAfter
+    );
 
     /// @notice Emitted when upgrade process on L1 is started.
     event UpgradeStarted(bytes32 indexed _id, UpgradeProposal _proposal);
