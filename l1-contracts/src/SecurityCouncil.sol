@@ -32,7 +32,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the Security Council.
-    bytes32 internal constant UNFREEZE_THRESHOLD_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
+    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev The default threshold for soft freeze initiated by the Security Council.
     uint256 public constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 9;
@@ -122,8 +122,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @param _signatures An array of signatures from council members approving the freeze.
     function unfreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external {
         require(block.timestamp < _validUntil, "Signature expired");
-        bytes32 digest =
-            _hashTypedDataV4(keccak256(abi.encode(UNFREEZE_THRESHOLD_TYPEHASH, unfreezeNonce++, _validUntil)));
+        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(UNFREEZE_TYPEHASH, unfreezeNonce++, _validUntil)));
         checkSignatures(digest, _signers, _signatures, 9);
         PROTOCOL_UPGRADE_HANDLER.unfreeze();
     }

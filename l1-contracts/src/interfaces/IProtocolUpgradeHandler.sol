@@ -11,7 +11,7 @@ interface IProtocolUpgradeHandler {
     /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Concil.
     /// @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for execution.
     /// @param Ready The upgrade proposal is ready to be executed.
-    /// @param Canceled The upgrade proposal was canceled.
+    /// @param Expired The upgrade proposal was expired.
     /// @param Done The upgrade has been successfully executed.
     enum UpgradeState {
         None,
@@ -19,7 +19,7 @@ interface IProtocolUpgradeHandler {
         Waiting,
         ExecutionPending,
         Ready,
-        Canceled,
+        Expired,
         Done
     }
 

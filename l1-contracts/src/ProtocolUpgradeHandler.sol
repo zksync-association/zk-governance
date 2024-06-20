@@ -21,7 +21,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 /// 3. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
 ///    immediately move the proposal to the next stage, while guardians approval will move the proposal to the
 ///    next stage only after 30 days delay after the legal veto passes. If no approval is received within the specified period, the proposal
-///    is canceled.
+///    is expired.
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
 ///    preparations and reviews.
 /// 5. Execution: The proposed changes are executed by the authorized address in the proposal,
@@ -180,7 +180,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         uint256 waitOrExpiryTimestamp = upg.creationTimestamp + legalVetoTime + UPGRADE_WAIT_OR_EXPIRE_PERIOD;
         if (block.timestamp >= waitOrExpiryTimestamp) {
             if (!upg.guardiansApproval) {
-                return UpgradeState.Canceled;
+                return UpgradeState.Expired;
             }
 
             uint256 readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD;

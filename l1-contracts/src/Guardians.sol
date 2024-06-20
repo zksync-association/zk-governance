@@ -48,7 +48,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @dev The number of signatures needed to propose the proposal on one of the L2 Governors.
     uint256 public constant PROPOSE_L2_GOVERNOR_PROPOSAL_THRESHOLD = 5;
 
-    /// @dev Tracks the unique identifier used in the last `cancelL2Proposal`/`proposeL2Governor` to ensure replay attack protection.
+    /// @dev Tracks the unique identifier used in the last `cancelL2GovernorProposal`/`proposeL2GovernorProposal` to ensure replay attack protection.
     uint256 public nonce;
 
     /// @dev Initializes the Guardians contract with predefined members and setup for EIP-712.
@@ -89,7 +89,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
-    function cancelL2Proposal(
+    function cancelL2GovernorProposal(
         L2GovernorProposal memory _l2Proposal,
         TxRequest memory _txRequest,
         address[] calldata _signers,
@@ -135,7 +135,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
-    function proposeL2Governor(
+    function proposeL2GovernorProposal(
         L2GovernorProposal memory _l2Proposal,
         TxRequest memory _txRequest,
         address[] calldata _signers,
