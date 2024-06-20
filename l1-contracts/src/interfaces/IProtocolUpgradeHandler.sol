@@ -8,7 +8,7 @@ interface IProtocolUpgradeHandler {
     /// @dev This enumeration includes the following states:
     /// @param None Default state, indicating the upgrade has not been set.
     /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.
-    /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Concil.
+    /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Council.
     /// @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for execution.
     /// @param Ready The upgrade proposal is ready to be executed.
     /// @param Expired The upgrade proposal was expired.

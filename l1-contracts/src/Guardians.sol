@@ -85,7 +85,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
         PROTOCOL_UPGRADE_HANDLER.approveUpgradeGuardians(_id);
     }
 
-    /// @notice Cancel ZKsync proposal on one the L2 governors, by the 5 of 8 Guardians approvals.
+    /// @notice Cancel ZKsync proposal in one of the L2 governors, by the 5 of 8 Guardians approvals.
     /// @param _l2Proposal The L2 governor proposal to be canceled.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.

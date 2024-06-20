@@ -336,7 +336,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            FEEZABILITY
+                            FREEZABILITY
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Initiates a soft protocol freeze.
