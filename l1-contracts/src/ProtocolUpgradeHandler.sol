@@ -350,7 +350,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @notice Initiates a hard protocol freeze.
     function hardFreeze() external onlySecurityCouncil {
-        require(lastFreezeStatusInUpgradeCycle != FreezeStatus.Hard, "Protocol can't be hard frozen");
+        FreezeStatus freezeStatus = lastFreezeStatusInUpgradeCycle;
+        require(
+            freezeStatus == FreezeStatus.None || freezeStatus == FreezeStatus.Soft
+                || freezeStatus == FreezeStatus.AfterSoftFreeze,
+            "Protocol can't be hard frozen"
+        );
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
         _freeze();
@@ -380,7 +385,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev Unfreezes the protocol and resumes normal operations.
     function unfreeze() external onlySecurityCouncilOrProtocolFreezeExpired {
-        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
+        if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Soft) {
+            lastFreezeStatusInUpgradeCycle = FreezeStatus.AfterSoftFreeze;
+        } else if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Hard) {
+            lastFreezeStatusInUpgradeCycle = FreezeStatus.AfterHardFreeze;
+        } else {
+            revert("Unexpected last freeze status");
+        }
         protocolFrozenUntil = 0;
         _unfreeze();
         emit Unfreeze();
