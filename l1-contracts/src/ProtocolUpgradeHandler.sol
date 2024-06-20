@@ -371,6 +371,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         emit ReinforceFreeze();
     }
 
+    /// @dev Reinforces the freezing state of the specific chain if the protocol is already within the frozen period.
+    /// The function is an analog of `reinforceFreeze` but only for one specific chain, needed in the
+    /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
+    function reinforceFreezeOneChain(uint256 _chainId) external {
+        require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
+        try STATE_TRANSITION_MANAGER.freezeChain(_chainId) {} catch {}
+        emit ReinforceFreezeOneChain(_chainId);
+    }
+
     /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.
     function _freeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
@@ -404,6 +413,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
         _unfreeze();
         emit ReinforceUnfreeze();
+    }
+
+    /// @dev Reinforces the unfreeze for one specific chain if the protocol is not in the freeze mode.
+    /// The function is an analog of `reinforceUnfreeze` but only for one specific chain, needed in the
+    /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
+    function reinforceUnfreezeOneChain(uint256 _chainId) external {
+        require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
+        try STATE_TRANSITION_MANAGER.unfreezeChain(_chainId) {} catch {}
+        emit ReinforceUnfreezeOneChain(_chainId);
     }
 
     /// @dev Unfreeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.

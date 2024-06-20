@@ -97,7 +97,11 @@ interface IProtocolUpgradeHandler {
 
     function unfreeze() external;
 
+    function reinforceFreezeOneChain(uint256 _chainId) external;
+
     function reinforceUnfreeze() external;
+
+    function reinforceUnfreezeOneChain(uint256 _chainId) external;
 
     /// @notice Emitted when the security council address is changed.
     event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
@@ -138,6 +142,12 @@ interface IProtocolUpgradeHandler {
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
     event Unfreeze();
 
+    /// @notice Emitted when someone makes an attempt to freeze the specific chain when the protocol is frozen already.
+    event ReinforceFreezeOneChain(uint256 _chainId);
+
     /// @notice Emitted when someone makes an attempt to unfreeze the protocol when it is unfrozen already.
     event ReinforceUnfreeze();
+
+    /// @notice Emitted when someone makes an attempt to unfreeze the specific chain when the protocol is unfrozen already.
+    event ReinforceUnfreezeOneChain(uint256 _chainId);
 }
