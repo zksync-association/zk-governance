@@ -179,7 +179,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
                     _l2Proposal.targets,
                     _l2Proposal.values,
                     _l2Proposal.calldatas,
-                    keccak256(abi.encode(_l2Proposal.description))
+                    keccak256(bytes(_l2Proposal.description))
                 )
             )
         );
