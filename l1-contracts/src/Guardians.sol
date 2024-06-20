@@ -91,8 +91,8 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
     function cancelL2GovernorProposal(
-        L2GovernorProposal memory _l2Proposal,
-        TxRequest memory _txRequest,
+        L2GovernorProposal calldata _l2Proposal,
+        TxRequest calldata _txRequest,
         address[] calldata _signers,
         bytes[] calldata _signatures
     ) external payable {
@@ -137,8 +137,8 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
     function proposeL2GovernorProposal(
-        L2GovernorProposal memory _l2Proposal,
-        TxRequest memory _txRequest,
+        L2GovernorProposal calldata _l2Proposal,
+        TxRequest calldata _txRequest,
         address[] calldata _signers,
         bytes[] calldata _signatures
     ) external payable {
@@ -173,7 +173,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @return proposalId The unique identifier for the L2 proposal in compatible format with L2 Governors.
-    function hashL2Proposal(L2GovernorProposal memory _l2Proposal) public pure returns (uint256 proposalId) {
+    function hashL2Proposal(L2GovernorProposal calldata _l2Proposal) public pure returns (uint256 proposalId) {
         proposalId = uint256(
             keccak256(
                 abi.encode(
