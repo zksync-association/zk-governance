@@ -376,7 +376,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
     function reinforceFreezeOneChain(uint256 _chainId) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
-        try STATE_TRANSITION_MANAGER.freezeChain(_chainId) {} catch {}
+        STATE_TRANSITION_MANAGER.freezeChain(_chainId);
         emit ReinforceFreezeOneChain(_chainId);
     }
 
@@ -420,7 +420,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
     function reinforceUnfreezeOneChain(uint256 _chainId) external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
-        try STATE_TRANSITION_MANAGER.unfreezeChain(_chainId) {} catch {}
+        STATE_TRANSITION_MANAGER.unfreezeChain(_chainId);
         emit ReinforceUnfreezeOneChain(_chainId);
     }
 
