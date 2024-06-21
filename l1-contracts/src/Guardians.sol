@@ -113,12 +113,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
         checkSignatures(digest, _signers, _signatures, CANCEL_L2_GOVERNOR_PROPOSAL_THRESHOLD);
         bytes memory cancelCalldata = abi.encodeCall(
             IL2Governor.cancel,
-            (
-                _l2Proposal.targets,
-                _l2Proposal.values,
-                _l2Proposal.calldatas,
-                keccak256(abi.encode(_l2Proposal.description))
-            )
+            (_l2Proposal.targets, _l2Proposal.values, _l2Proposal.calldatas, keccak256(bytes(_l2Proposal.description)))
         );
         ZKSYNC_ERA.requestL2Transaction{value: _txRequest.txMintValue}(
             _txRequest.to,
