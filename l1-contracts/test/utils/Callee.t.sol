@@ -35,4 +35,7 @@ contract Callee {
         recordedValues.push(msg.value);
         recordedCalldatas.push(msg.data);
     }
+
+    // add this to be excluded from coverage report
+    function test() internal virtual {}
 }

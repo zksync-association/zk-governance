@@ -24,4 +24,7 @@ library Utils {
         }
         sortedWallets = _wallets;
     }
+
+    // add this to be excluded from coverage report
+    function test() private {}
 }
