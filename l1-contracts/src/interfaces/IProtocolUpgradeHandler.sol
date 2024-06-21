@@ -61,7 +61,7 @@ interface IProtocolUpgradeHandler {
     /// @param None Default state, indicating the freeze has not been happening in this upgrade cycle.
     /// @param Soft The protocol is/was frozen for the short time.
     /// @param Hard The protocol is/was frozen for the long time.
-    /// @param AfterSoftFreeze The protocol was soft frozen, it can be hard frozen in thi upgrade cycle.
+    /// @param AfterSoftFreeze The protocol was soft frozen, it can be hard frozen in this upgrade cycle.
     /// @param AfterHardFreeze The protocol was hard frozen, but now it can't be frozen until the upgrade.
     enum FreezeStatus {
         None,
