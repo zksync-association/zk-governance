@@ -198,8 +198,18 @@ contract SetIsProposeGuarded is ZkTokenGovernorTest, ProposalTest {
     assertEq(governor.isProposeGuarded(), _newIsGuarded);
   }
 
-  function testFuzz_RevertIf_CallerCannotUpdateIsGuardian(address _caller, bool isGuarded) public {
+  function testFuzz_ProposeGuardianCanUpdateIsGuarded(bool _oldIsGuarded, bool _newIsGuarded) public {
+    governor.exposed_setIsGuardianPropose(_oldIsGuarded);
+    vm.expectEmit();
+    emit ZkTokenGovernor.IsProposeGuardedToggled(_oldIsGuarded, _newIsGuarded);
+    vm.prank(proposeGuardian);
+    governor.setIsProposeGuarded(_newIsGuarded);
+    assertEq(governor.isProposeGuarded(), _newIsGuarded);
+  }
+
+  function testFuzz_RevertIf_CallerCannotUpdateIsGuarded(address _caller, bool isGuarded) public {
     vm.assume(_caller != address(timelock));
+    vm.assume(_caller != proposeGuardian);
     vm.startPrank(_caller);
     vm.expectRevert("Governor: onlyGovernance");
     governor.setIsProposeGuarded(isGuarded);

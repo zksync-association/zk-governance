@@ -135,9 +135,20 @@ contract ZkTokenGovernor is
   }
 
   /// @dev A function to turn on and off the ability for all addresses to create a proposal as long as they meet the set
-  /// proposal threshold. This value can only be changed through a governance propoosal.
+  /// proposal threshold. This value can only be changed through a governance proposal or by the `PROPOSE_GUARDIAN`.
   /// @param _isProposeGuarded Whether this ability should be turned on or off.
-  function setIsProposeGuarded(bool _isProposeGuarded) external onlyGovernance {
+  function setIsProposeGuarded(bool _isProposeGuarded) external {
+    if (_msgSender() == PROPOSE_GUARDIAN) {
+      _setIsProposeGuarded(_isProposeGuarded);
+    } else {
+      _governanceOnlySetIsProposeGuarded(_isProposeGuarded);
+    }
+  }
+
+  /// @dev An internal function to turn on and off the ability for all addresses to create a proposal as long as they
+  /// meet the set proposal threshold. This function can only be called via a governance proposal.
+  /// @param _isProposeGuarded Whether this ability should be turned on or off.
+  function _governanceOnlySetIsProposeGuarded(bool _isProposeGuarded) internal onlyGovernance {
     _setIsProposeGuarded(_isProposeGuarded);
   }
 
