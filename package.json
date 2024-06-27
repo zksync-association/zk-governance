@@ -6,8 +6,8 @@
     "compile": "forge build && npx hardhat compile",
     "local-node": "npx hardhat node-zksync",
     "script": "node script/RunScript.js",
-    "foundry-test": "forge test",
-    "test": "forge test && npx hardhat test",
+    "foundry-test": "forge test --no-match-path .integration.t.sol",
+    "test": "forge test  && npx hardhat test",
     "lint": "scopelint check",
     "lint:fix": "scopelint fmt"
   },

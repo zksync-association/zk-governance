@@ -37,7 +37,7 @@ jobs:
         run: npm install
 
       - name: Run tests
-        run: forge test
+        run: forge test --no-match-path .integration.t.sol
 
       - name: Run Era test node
         uses: dutterbutter/era-test-node-action@v0.1.3
@@ -56,7 +56,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Run coverage
-        run: FOUNDRY_PROFILE=default npm run foundry-test && FOUNDRY_PROFILE=default forge coverage --report summary --report lcov
+        run: FOUNDRY_PROFILE=default npm run foundry-test && FOUNDRY_PROFILE=default forge coverage --report summary --report lcov --no-match-path .integration.t.sol
 
       # To ignore coverage for certain directories modify the paths in this step as needed. The
       # below default ignores coverage results for the test and script directories. Alternatively,

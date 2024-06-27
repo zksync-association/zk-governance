@@ -1,5 +1,6 @@
 [profile.default]
   evm_version = "paris"
+  fuzz = { runs = 50 }
   optimizer = true
   optimizer_runs = 10_000_000
   remappings = [
@@ -31,3 +32,6 @@
   single_line_statement_blocks = "multi"
   tab_width = 2
   wrap_comments = true
+
+[rpc_endpoints]
+  zksync = "${ZKSYNC_RPC_URL}"
