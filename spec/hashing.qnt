@@ -1,3 +1,4 @@
+// -*- mode: Bluespec; -*-
 module hashing {
     import types.* from "./types"
 
