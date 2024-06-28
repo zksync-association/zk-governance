@@ -342,7 +342,7 @@ module protocolUpgradeHandler {
             err(evm, e1)
         } else {
             val upgState = upgradeState(self, evm.blockTimestamp, _id)
-            val e2 = require(upgState == UpgradeStateWaiting, "Upgrade with this id is not waiting for the approval from Security Council")
+            val e2 = require(upgState == UpgradeStateWaiting, "Upgrade with this id is not waiting for the approval from Guardians")
             if (e2 != "") {
                 err(evm, e2)
             } else {
