@@ -1,3 +1,4 @@
+// -*- mode: Bluespec; -*-
 module protocolUpgradeHandler {
     import hashing.* from "./hashing"
     import state.* from "./state"
