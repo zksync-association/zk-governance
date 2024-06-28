@@ -8,10 +8,10 @@ interface IProtocolUpgradeHandler {
     /// @dev This enumeration includes the following states:
     /// @param None Default state, indicating the upgrade has not been set.
     /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.
-    /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Concil.
+    /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Council.
     /// @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for execution.
     /// @param Ready The upgrade proposal is ready to be executed.
-    /// @param Canceled The upgrade proposal was canceled.
+    /// @param Expired The upgrade proposal was expired.
     /// @param Done The upgrade has been successfully executed.
     enum UpgradeState {
         None,
@@ -19,7 +19,7 @@ interface IProtocolUpgradeHandler {
         Waiting,
         ExecutionPending,
         Ready,
-        Canceled,
+        Expired,
         Done
     }
 
@@ -61,10 +61,14 @@ interface IProtocolUpgradeHandler {
     /// @param None Default state, indicating the freeze has not been happening in this upgrade cycle.
     /// @param Soft The protocol is/was frozen for the short time.
     /// @param Hard The protocol is/was frozen for the long time.
+    /// @param AfterSoftFreeze The protocol was soft frozen, it can be hard frozen in this upgrade cycle.
+    /// @param AfterHardFreeze The protocol was hard frozen, but now it can't be frozen until the upgrade.
     enum FreezeStatus {
         None,
         Soft,
-        Hard
+        Hard,
+        AfterSoftFreeze,
+        AfterHardFreeze
     }
 
     function startUpgrade(
@@ -93,16 +97,30 @@ interface IProtocolUpgradeHandler {
 
     function unfreeze() external;
 
+    function reinforceFreezeOneChain(uint256 _chainId) external;
+
     function reinforceUnfreeze() external;
 
+    function reinforceUnfreezeOneChain(uint256 _chainId) external;
+
+    function upgradeState(bytes32 _id) external view returns (UpgradeState);
+
+    function updateSecurityCouncil(address _newSecurityCouncil) external;
+
+    function updateGuardians(address _newGuardians) external;
+
+    function updateEmergencyUpgradeBoard(address _newEmergencyUpgradeBoard) external;
+
     /// @notice Emitted when the security council address is changed.
-    event ChangeSecurityCouncil(address _securityCouncilBefore, address _securityCouncilAfter);
+    event ChangeSecurityCouncil(address indexed _securityCouncilBefore, address indexed _securityCouncilAfter);
 
     /// @notice Emitted when the guardians address is changed.
-    event ChangeGuardians(address _guardiansBefore, address _guardiansAfter);
+    event ChangeGuardians(address indexed _guardiansBefore, address indexed _guardiansAfter);
 
     /// @notice Emitted when the emergency upgrade board address is changed.
-    event ChangeEmergencyUpgradeBoard(address _emergencyUpgradeBoardBefore, address _emergencyUpgradeBoardAfter);
+    event ChangeEmergencyUpgradeBoard(
+        address indexed _emergencyUpgradeBoardBefore, address indexed _emergencyUpgradeBoardAfter
+    );
 
     /// @notice Emitted when upgrade process on L1 is started.
     event UpgradeStarted(bytes32 indexed _id, UpgradeProposal _proposal);
@@ -134,6 +152,12 @@ interface IProtocolUpgradeHandler {
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
     event Unfreeze();
 
+    /// @notice Emitted when someone makes an attempt to freeze the specific chain when the protocol is frozen already.
+    event ReinforceFreezeOneChain(uint256 _chainId);
+
     /// @notice Emitted when someone makes an attempt to unfreeze the protocol when it is unfrozen already.
     event ReinforceUnfreeze();
+
+    /// @notice Emitted when someone makes an attempt to unfreeze the specific chain when the protocol is unfrozen already.
+    event ReinforceUnfreezeOneChain(uint256 _chainId);
 }

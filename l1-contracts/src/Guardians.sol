@@ -12,7 +12,8 @@ import {Multisig} from "./Multisig.sol";
 /// @title Guadians
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
-/// @dev Temporary protector of the values of ZKsync. Approves or vetos the changes proposed by the Token Assembly.
+/// @dev Temporary protector of the values of ZKsync. They can approve upgrade changes proposed by the Token Assembly, propose & cancel
+/// L2 proposals as well as extend the legal veto period of L1 upgrade proposals through the `ProtocolUpgradeHandler`.
 contract Guardians is IGuardians, Multisig, EIP712 {
     /// @notice Address of the contract, which manages protocol upgrades.
     IProtocolUpgradeHandler public immutable PROTOCOL_UPGRADE_HANDLER;
@@ -48,7 +49,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @dev The number of signatures needed to propose the proposal on one of the L2 Governors.
     uint256 public constant PROPOSE_L2_GOVERNOR_PROPOSAL_THRESHOLD = 5;
 
-    /// @dev Tracks the unique identifier used in the last `cancelL2Proposal`/`proposeL2Governor` to ensure replay attack protection.
+    /// @dev Tracks the unique identifier used in the last `cancelL2GovernorProposal`/`proposeL2GovernorProposal` to ensure replay attack protection.
     uint256 public nonce;
 
     /// @dev Initializes the Guardians contract with predefined members and setup for EIP-712.
@@ -84,14 +85,14 @@ contract Guardians is IGuardians, Multisig, EIP712 {
         PROTOCOL_UPGRADE_HANDLER.approveUpgradeGuardians(_id);
     }
 
-    /// @notice Cancel ZKsync proposal on one the L2 governors, by the 5 of 8 Guardians approvals.
+    /// @notice Cancel ZKsync proposal in one of the L2 governors, by the 5 of 8 Guardians approvals.
     /// @param _l2Proposal The L2 governor proposal to be canceled.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
-    function cancelL2Proposal(
-        L2GovernorProposal memory _l2Proposal,
-        TxRequest memory _txRequest,
+    function cancelL2GovernorProposal(
+        L2GovernorProposal calldata _l2Proposal,
+        TxRequest calldata _txRequest,
         address[] calldata _signers,
         bytes[] calldata _signatures
     ) external payable {
@@ -112,12 +113,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
         checkSignatures(digest, _signers, _signatures, CANCEL_L2_GOVERNOR_PROPOSAL_THRESHOLD);
         bytes memory cancelCalldata = abi.encodeCall(
             IL2Governor.cancel,
-            (
-                _l2Proposal.targets,
-                _l2Proposal.values,
-                _l2Proposal.calldatas,
-                keccak256(abi.encode(_l2Proposal.description))
-            )
+            (_l2Proposal.targets, _l2Proposal.values, _l2Proposal.calldatas, keccak256(bytes(_l2Proposal.description)))
         );
         ZKSYNC_ERA.requestL2Transaction{value: _txRequest.txMintValue}(
             _txRequest.to,
@@ -131,13 +127,13 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @notice Propose ZKsync proposal on one the L2 governors, by the 5 of 8 Guardians approvals.
-    /// @param _l2Proposal The L2 governor proposal to be canceled.
+    /// @param _l2Proposal The L2 governor proposal to be proposed.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
-    function proposeL2Governor(
-        L2GovernorProposal memory _l2Proposal,
-        TxRequest memory _txRequest,
+    function proposeL2GovernorProposal(
+        L2GovernorProposal calldata _l2Proposal,
+        TxRequest calldata _txRequest,
         address[] calldata _signers,
         bytes[] calldata _signatures
     ) external payable {
@@ -172,14 +168,14 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @return proposalId The unique identifier for the L2 proposal in compatible format with L2 Governors.
-    function hashL2Proposal(L2GovernorProposal memory _l2Proposal) public pure returns (uint256 proposalId) {
+    function hashL2Proposal(L2GovernorProposal calldata _l2Proposal) public pure returns (uint256 proposalId) {
         proposalId = uint256(
             keccak256(
                 abi.encode(
                     _l2Proposal.targets,
                     _l2Proposal.values,
                     _l2Proposal.calldatas,
-                    keccak256(abi.encode(_l2Proposal.description))
+                    keccak256(bytes(_l2Proposal.description))
                 )
             )
         );

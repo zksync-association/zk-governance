@@ -56,8 +56,8 @@ contract EmergencyUpgradeBoard is EIP712 {
     /// @notice Executes an emergency protocol upgrade approved by the Security Council, Guardians and ZK Foundation.
     /// @param _calls Array of `Call` structures specifying the calls to be made in the upgrade.
     /// @param _salt A bytes32 value used for creating unique upgrade proposal hashes.
-    /// @param _guardiansSignatures Signatures from the guardians multisig, required to authorize the emergency upgrade.
-    /// @param _securityCouncilSignatures Signatures from the Security Council multisig, required to authorize the emergency upgrade.
+    /// @param _guardiansSignatures Encoded signers & signatures from the guardians multisig, required to authorize the emergency upgrade.
+    /// @param _securityCouncilSignatures Encoded signers & signatures from the Security Council multisig, required to authorize the emergency upgrade.
     /// @param _zkFoundationSignatures Signatures from the ZK Foundation multisig, required to authorize the emergency upgrade.
     function executeEmergencyUpgrade(
         IProtocolUpgradeHandler.Call[] calldata _calls,

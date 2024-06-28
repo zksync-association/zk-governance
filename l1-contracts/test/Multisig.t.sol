@@ -4,14 +4,14 @@ pragma solidity 0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {Multisig} from "../../src/Multisig.sol";
-import {MultisigImplementer} from "./utils/MultisigImplementer.t.sol";
+import {MultisigMock} from "./mocks/MultisigMock.t.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract TestMultisig is Test {
     bytes32 private constant DIGEST = bytes32(uint256(0x1001));
     bytes32 private constant INCORRECT_DIGEST = bytes32(uint256(0x1002));
 
-    MultisigImplementer private implementer;
+    MultisigMock private implementer;
     bytes[] private correctSignatures;
     address[] private memberAddresses;
     uint256[] private memberPrivateKeys;
@@ -56,7 +56,7 @@ contract TestMultisig is Test {
         memberAddresses = members;
         correctSignatures = signatures;
 
-        implementer = new MultisigImplementer(members, 2);
+        implementer = new MultisigMock(members, 2);
     }
 
     function test_SortedArrayInConstructor() public {
@@ -66,7 +66,7 @@ contract TestMultisig is Test {
         members[1] = address(0x02);
         members[2] = address(0x03);
 
-        MultisigImplementer testImplementer = new MultisigImplementer(members, 2);
+        MultisigMock testImplementer = new MultisigMock(members, 2);
         address[] memory testMembers = testImplementer.getMembers();
         assertEq(members, testMembers);
     }
@@ -79,14 +79,14 @@ contract TestMultisig is Test {
         members[2] = address(0x02);
 
         vm.expectRevert("Members not sorted or duplicate found");
-        new MultisigImplementer(members, 2);
+        new MultisigMock(members, 2);
     }
 
     function test_RevertWhen_Eip712ThresholdIsZero() public {
         address[] memory members = new address[](0);
 
         vm.expectRevert("EIP-1271 threshold is too small");
-        new MultisigImplementer(members, 0);
+        new MultisigMock(members, 0);
     }
 
     function test_RevertWhen_Eip712ThresholdIsTooBig() public {
@@ -94,7 +94,7 @@ contract TestMultisig is Test {
         members[0] = address(0x01);
 
         vm.expectRevert("EIP-1271 threshold is too big");
-        new MultisigImplementer(members, 2);
+        new MultisigMock(members, 2);
     }
 
     function test_NonSortedMembersInConstructor() public {
@@ -105,7 +105,7 @@ contract TestMultisig is Test {
         members[2] = address(0x02);
 
         vm.expectRevert("Members not sorted or duplicate found");
-        new MultisigImplementer(members, 2);
+        new MultisigMock(members, 2);
     }
 
     function test_InvalidNumberOfSignatures() public {

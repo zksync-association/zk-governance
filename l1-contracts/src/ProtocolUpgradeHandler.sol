@@ -21,7 +21,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 /// 3. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
 ///    immediately move the proposal to the next stage, while guardians approval will move the proposal to the
 ///    next stage only after 30 days delay after the legal veto passes. If no approval is received within the specified period, the proposal
-///    is canceled.
+///    is expired.
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
 ///    preparations and reviews.
 /// 5. Execution: The proposed changes are executed by the authorized address in the proposal,
@@ -180,7 +180,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         uint256 waitOrExpiryTimestamp = upg.creationTimestamp + legalVetoTime + UPGRADE_WAIT_OR_EXPIRE_PERIOD;
         if (block.timestamp >= waitOrExpiryTimestamp) {
             if (!upg.guardiansApproval) {
-                return UpgradeState.Canceled;
+                return UpgradeState.Expired;
             }
 
             uint256 readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD;
@@ -336,7 +336,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            FEEZABILITY
+                            FREEZABILITY
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Initiates a soft protocol freeze.
@@ -350,7 +350,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @notice Initiates a hard protocol freeze.
     function hardFreeze() external onlySecurityCouncil {
-        require(lastFreezeStatusInUpgradeCycle != FreezeStatus.Hard, "Protocol can't be hard frozen");
+        FreezeStatus freezeStatus = lastFreezeStatusInUpgradeCycle;
+        require(
+            freezeStatus == FreezeStatus.None || freezeStatus == FreezeStatus.Soft
+                || freezeStatus == FreezeStatus.AfterSoftFreeze,
+            "Protocol can't be hard frozen"
+        );
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
         _freeze();
@@ -364,6 +369,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
         _freeze();
         emit ReinforceFreeze();
+    }
+
+    /// @dev Reinforces the freezing state of the specific chain if the protocol is already within the frozen period.
+    /// The function is an analog of `reinforceFreeze` but only for one specific chain, needed in the
+    /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
+    function reinforceFreezeOneChain(uint256 _chainId) external {
+        require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
+        STATE_TRANSITION_MANAGER.freezeChain(_chainId);
+        emit ReinforceFreezeOneChain(_chainId);
     }
 
     /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.
@@ -380,7 +394,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev Unfreezes the protocol and resumes normal operations.
     function unfreeze() external onlySecurityCouncilOrProtocolFreezeExpired {
-        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
+        if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Soft) {
+            lastFreezeStatusInUpgradeCycle = FreezeStatus.AfterSoftFreeze;
+        } else if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Hard) {
+            lastFreezeStatusInUpgradeCycle = FreezeStatus.AfterHardFreeze;
+        } else {
+            revert("Unexpected last freeze status");
+        }
         protocolFrozenUntil = 0;
         _unfreeze();
         emit Unfreeze();
@@ -393,6 +413,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
         _unfreeze();
         emit ReinforceUnfreeze();
+    }
+
+    /// @dev Reinforces the unfreeze for one specific chain if the protocol is not in the freeze mode.
+    /// The function is an analog of `reinforceUnfreeze` but only for one specific chain, needed in the
+    /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
+    function reinforceUnfreezeOneChain(uint256 _chainId) external {
+        require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
+        STATE_TRANSITION_MANAGER.unfreezeChain(_chainId);
+        emit ReinforceUnfreezeOneChain(_chainId);
     }
 
     /// @dev Unfreeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.

@@ -6,7 +6,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {Callee} from "./utils/Callee.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
-import {StateTransitionManagerMock} from "./utils/StateTransitionManagerMock.t.sol";
+import {StateTransitionManagerMock} from "./mocks/StateTransitionManagerMock.t.sol";
 
 import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
 import {IZKsyncEra} from "../../src/interfaces/IZKsyncEra.sol";
@@ -370,7 +370,7 @@ contract TestProtocolUpgradeHandler is Test {
         assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Waiting));
 
         vm.warp(block.timestamp + 30 days);
-        assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Canceled));
+        assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Expired));
     }
 
     function testUpgradeReadyUnderGuardiansApproval(bool _extendedOrNotLegalVeto) public {
