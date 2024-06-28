@@ -42,7 +42,7 @@ module multisig {
 
     pure def isValidSignature(self: MultisigState, _digest: AbiEncoded, _signature: List[Bytes]): Bytes4 = {
         val _signatureSize = length(_signature)
-        // lst.indices().map(i => lst[i])
+          // In our modeling, we do not check signatures against the digest.
         val signers = _signature.indices().filter(i => i < _signatureSize / 2).map(i => _signature[i])
         val signatures = _signature.indices().filter(i => i >= _signatureSize / 2).map(i => _signature[i])
         pure val err = self.checkSignatures(_digest, signers, signatures, self.EIP1271_THRESHOLD)
