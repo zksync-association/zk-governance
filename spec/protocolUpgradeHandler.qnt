@@ -148,6 +148,7 @@ module protocolUpgradeHandler {
         if (upg.creationTimestamp == 0) {
             UpgradeStateNone
         } else {
+            val upg = self.upgradeStatus.get(_id)
             // Upgrade already executed
             if (upg.executed) {
                 UpgradeStateDone
