@@ -32,6 +32,7 @@ module multisig {
     // @param _threshold The minimum number of valid signatures required to pass the check.
     pure def checkSignatures(self: MultisigState, _digest: AbiEncoded, _signers: Set[Address], _signatures: Set[Bytes], _threshold: Uint256): Error = {
         // Ensure the total number of signatures meets or exceeds the threshold.
+        // In our modeling, we do not check signatures against the digest.
         val sigSize = _signatures.size()
         val signersSize = _signers.size()
         require(sigSize >= _threshold, "Insufficient valid signatures")
