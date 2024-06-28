@@ -42,6 +42,7 @@ module guardians {
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
     /// @param _members Array of addresses representing the members of the guardians.
     /// Expected to be sorted in ascending order without duplicates.
+    // TODO: this comment does not apply to Set[Address], as sets are unordered
     pure def newGuardians(_members: Set[Address]): Result[GuardiansState] = {
         pure val multisig = newMultisig(_members, 5)
         pure val empty = { multisig: multisig.v, nonce: 0, zkSyncEraRequested: false}

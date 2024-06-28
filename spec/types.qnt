@@ -29,7 +29,7 @@ module types {
         | UpgradeStateWaiting
         | UpgradeStateExecutionPending
         | UpgradeStateReady
-        | UpgradeStateCanceled
+        | UpgradeStateExpired
         | UpgradeStateDone
     
     /// @dev This enumeration includes the following states:

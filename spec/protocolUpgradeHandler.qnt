@@ -142,8 +142,6 @@ module protocolUpgradeHandler {
 
     // TODO: verify the function
     pure def upgradeState(self: ProtocolUpgradeHandlerState, blockTimestamp: Uint256, _id: AbiElem): UpgradeState = {
-        val upg = self.upgradeStatus.get(_id);
-
         // Upgrade doesn't exist
         if (not(self.upgradeStatus.keys().contains(_id))) {
             UpgradeStateNone
@@ -167,7 +165,7 @@ module protocolUpgradeHandler {
                     
                     if (blockTimestamp >= waitOrExpiryTimestamp) {
                         if (not(upg.guardiansApproval)) {
-                            UpgradeStateCanceled
+                            UpgradeStateExpired
                         } else {
                             val readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD;
                             if (blockTimestamp >= readyWithGuardiansTimestamp)  {
