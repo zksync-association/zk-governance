@@ -154,7 +154,7 @@ module protocolUpgradeHandler {
                 UpgradeStateDone
             } else {
                 // Legal veto period
-                val legalVetoTime: Uint256 = if (upg.guardiansExtendedLegalVeto == true) {
+                val legalVetoTime: Uint256 = if (upg.guardiansExtendedLegalVeto) {
                     EXTENDED_LEGAL_VETO_PERIOD
                 } else {
                     STANDARD_LEGAL_VETO_PERIOD
