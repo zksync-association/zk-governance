@@ -145,7 +145,7 @@ module protocolUpgradeHandler {
         val upg = self.upgradeStatus.get(_id);
 
         // Upgrade doesn't exist
-        if (upg.creationTimestamp == 0) {
+        if (not(self.upgradeStatus.keys().contains(_id))) {
             UpgradeStateNone
         } else {
             val upg = self.upgradeStatus.get(_id)
