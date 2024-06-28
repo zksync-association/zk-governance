@@ -282,7 +282,7 @@ module protocolUpgradeHandler {
         if (e != "") {
             err(evm, e)
         } else {
-            val e1 = require(self.upgradeStatus.get(_id).guardiansExtendedLegalVeto == true, "Legal veto period is already extended")
+            val e1 = require(not(self.upgradeStatus.get(_id).guardiansExtendedLegalVeto), "Legal veto period is already extended")
             if (e1 != "") {
                 err(evm, e1)
             } else {
