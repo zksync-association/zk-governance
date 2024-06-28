@@ -70,7 +70,7 @@ module emergencyUpgradeBoard {
             } else {
                 val e3 = isValidSignature(evm.zkFoundation, zkFoundationDigest, _zkFoundationSignatures)
                 if (e3 != "" ) {
-                    err({ ...evm}, e3)
+                    err(evm, e3)
                 } else {
                     protocolUpgradeHandlerExecuteEmergencyUpgrade(evm, proposal)
                 }
