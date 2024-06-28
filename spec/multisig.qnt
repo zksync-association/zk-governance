@@ -1,3 +1,4 @@
+// -*- mode: Bluespec; -*-
 module multisig {
     import hashing.* from "./hashing"
     import state.* from "./state"
