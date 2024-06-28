@@ -38,6 +38,7 @@ module hashing {
 
     // Given an already hashed struct, this function returns the hash of the fully encoded EIP712 message for this domain.
     // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/EIP712.sol#L107
+    // In our modeling, the hash is simply the argument itself. It's perfect, though trivially reversible.
     pure def _hashTypedDataV4(name: Bytes, version: Bytes, structHash: AbiEncoded): AbiEncoded = {
         [ AbiStr(name), AbiStr(version)].concat(structHash)
     }
