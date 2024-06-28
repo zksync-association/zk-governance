@@ -14,7 +14,7 @@ module main {
     val L2_PROPOSALS = Set("L2Prop1", "L2Prop2", "L2Prop3")
     val TX_REQUESTS = Set("txr1", "txr2", "txr3")
 
-    val TIMESTAMPS = 1.to(10^3)
+    val TIMESTAMPS = 1.to(2592000)
 
     val WrongUpgradeIDs = Set(AbiStr("nid1"), AbiStr("nid2"))
 
