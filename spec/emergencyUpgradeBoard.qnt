@@ -66,7 +66,7 @@ module emergencyUpgradeBoard {
         } else {
             val e2 = isValidSignature(evm.guardians.multisig, guardiansDigest, _guardiansSignatures)
             if (e2 != "" ) {
-                err({ ...evm}, e2)
+                err(evm, e2)
             } else {
                 val e3 = isValidSignature(evm.zkFoundation, zkFoundationDigest, _zkFoundationSignatures)
                 if (e3 != "" ) {
