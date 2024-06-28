@@ -164,7 +164,7 @@ module protocolUpgradeHandler {
                     val waitOrExpiryTimestamp = upg.creationTimestamp + legalVetoTime + UPGRADE_WAIT_OR_EXPIRE_PERIOD;
                     
                     if (blockTimestamp >= waitOrExpiryTimestamp) {
-                        if (upg.guardiansApproval == false) {
+                        if (not(upg.guardiansApproval)) {
                             UpgradeStateCanceled
                         } else {
                             val readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD;
