@@ -1,3 +1,4 @@
+// -*- mode: Bluespec; -*-
 module guardians {
     import hashing.* from "./hashing"
     import multisig.* from "./multisig"
