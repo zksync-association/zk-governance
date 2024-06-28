@@ -362,6 +362,7 @@ module protocolUpgradeHandler {
 
     /// @notice Executes an upgrade proposal that has reached the 'Ready' state.
     /// @param _proposal The upgrade proposal to be executed, containing the target calls and optionally an executor.
+    // TODO: The smart contract has this function as payable. Is it important in this context?
     pure def protocolUpgradeHandlerExecute(evm: EvmState, _proposal: UpgradeProposal): Result[EvmState] = {
         val self = evm.protocolUpgradeHandler
         val id = keccak256_UpgradeProposal(_proposal)
