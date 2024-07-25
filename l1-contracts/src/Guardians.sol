@@ -37,6 +37,9 @@ contract Guardians is IGuardians, Multisig, EIP712 {
         "ProposeL2GovernorProposal(uint256 l2ProposalId,address l2GovernorAddress,uint256 l2GasLimit,uint256 l2GasPerPubdataByteLimit,address refundRecipient,uint256 txMintValue,uint256 nonce)"
     );
 
+    /// @dev The minimum number of guardians
+    uint256 public constant MINIMUM_GUARDIANS = 5;
+
     /// @dev The number of signatures needed to approve the upgrade by guardians.
     uint256 public constant APPROVE_UPGRADE_GUARDIANS_THRESHOLD = 5;
 
@@ -57,7 +60,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @param _members Array of addresses representing the members of the guardians.
     /// Expected to be sorted in ascending order without duplicates.
     constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, IZKsyncEra _ZKsyncEra, address[] memory _members)
-        Multisig(_members, 5)
+        Multisig(_members, MINIMUM_GUARDIANS)
         EIP712("Guardians", "1")
     {
         PROTOCOL_UPGRADE_HANDLER = _protocolUpgradeHandler;

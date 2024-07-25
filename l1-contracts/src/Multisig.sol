@@ -32,7 +32,7 @@ abstract contract Multisig is IERC1271 {
         EIP1271_THRESHOLD = _eip1271Threshold;
 
         address lastAddress;
-        for (uint256 i = 0; i < _members.length; ++i) {
+        for (uint256 i; i < _members.length; ++i) {
             address currentMember = _members[i];
             // Ensure the members list is strictly ascending to prevent duplicates and enable efficient signature checks.
             require(lastAddress < currentMember, "Members not sorted or duplicate found");
@@ -57,7 +57,7 @@ abstract contract Multisig is IERC1271 {
         require(_signers.length == _signatures.length, "Inconsistent signers/signatures length");
 
         uint256 currentMember;
-        for (uint256 i = 0; i < _signatures.length; ++i) {
+        for (uint256 i; i < _signatures.length; ++i) {
             bool success = _signers[i].isValidSignatureNow(_digest, _signatures[i]);
             require(success, "Signature verification failed");
             while (members[currentMember] != _signers[i]) {

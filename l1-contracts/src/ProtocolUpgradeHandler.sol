@@ -325,7 +325,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Execute an upgrade's calls.
     /// @param _calls The array of calls to be executed.
     function _execute(Call[] calldata _calls) internal {
-        for (uint256 i = 0; i < _calls.length; ++i) {
+        for (uint256 i; i < _calls.length; ++i) {
             if (_calls[i].data.length > 0) {
                 require(
                     _calls[i].target.code.length > 0, "Target must be a smart contract if the calldata is not empty"
@@ -390,7 +390,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function _freeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
-        for (uint256 i = 0; i < len; ++i) {
+        for (uint256 i; i < len; ++i) {
             try STATE_TRANSITION_MANAGER.freezeChain(hyperchainIds[i]) {} catch {}
         }
 
@@ -434,7 +434,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     function _unfreeze() internal {
         uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
         uint256 len = hyperchainIds.length;
-        for (uint256 i = 0; i < len; ++i) {
+        for (uint256 i; i < len; ++i) {
             try STATE_TRANSITION_MANAGER.unfreezeChain(hyperchainIds[i]) {} catch {}
         }
 

@@ -49,6 +49,9 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @dev The number of signatures needed to unfreeze the protocol.
     uint256 public constant UNFREEZE_THRESHOLD = 9;
 
+    /// @dev The minimum number of Security Council members
+    uint256 public constant MINIMUM_SECURITY_COUNCIL = 9;
+
     /// @dev Tracks the unique identifier used in the last successful soft emergency freeze,
     /// to ensure each request is unique.
     uint256 public softFreezeNonce;
@@ -74,7 +77,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @param _members Array of addresses representing the members of the Security Council.
     /// Expected to be sorted in ascending order without duplicates.
     constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, address[] memory _members)
-        Multisig(_members, 9)
+        Multisig(_members, MINIMUM_SECURITY_COUNCIL)
         EIP712("SecurityCouncil", "1")
     {
         PROTOCOL_UPGRADE_HANDLER = _protocolUpgradeHandler;
