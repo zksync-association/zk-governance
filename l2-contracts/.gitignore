@@ -1,0 +1,42 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Dotenv file
+.env
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/typechain
+/typechain-types
+
+# solidity-coverage files
+/coverage
+/coverage.json
+
+# zksync build artifacts
+/artifacts-zk
+/cache-zk
+
+# zksync local node logs
+era_test_node.log
+
+# zksync local deploy logs
+deployments-zk/zkSyncLocal
+
+# Coverage
+lcov.info
+
+# IDEs
+.vscode
+.idea
+
+node_modules/
