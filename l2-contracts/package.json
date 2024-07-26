@@ -1,5 +1,5 @@
 {
-  "name": "zk-token",
+  "name": "zk-governance",
   "license": "MIT",
   "scripts": {
     "clean": "forge clean && npx hardhat clean",
