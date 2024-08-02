@@ -31,6 +31,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 /// stage by time changes and Guardians/Security Council actions.
 contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Duration of the standard legal veto period.
+    /// Note: this value should not exceed EXTENDED_LEGAL_VETO_PERIOD.
     function STANDARD_LEGAL_VETO_PERIOD() internal pure virtual returns (uint256) {
         return 3 days;
     }
@@ -106,6 +107,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         IPausable _bridgeHub,
         IPausable _sharedBridge
     ) {
+        // Soft configuration check for contracts that inherit this contract.
+        assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
+
         securityCouncil = _securityCouncil;
         emit ChangeSecurityCouncil(address(0), _securityCouncil);
 
