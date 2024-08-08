@@ -72,12 +72,14 @@ contract EmergencyUpgradeBoard is EIP712 {
 
         bytes32 guardiansDigest =
             _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH, id)));
-        require(GUARDIANS.isValidSignatureNow(guardiansDigest, _guardiansSignatures), "Invalid guardians signatures");
+        require(
+            GUARDIANS.isValidERC1271SignatureNow(guardiansDigest, _guardiansSignatures), "Invalid guardians signatures"
+        );
 
         bytes32 securityCouncilDigest =
             _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH, id)));
         require(
-            SECURITY_COUNCIL.isValidSignatureNow(securityCouncilDigest, _securityCouncilSignatures),
+            SECURITY_COUNCIL.isValidERC1271SignatureNow(securityCouncilDigest, _securityCouncilSignatures),
             "Invalid Security Council signatures"
         );
 

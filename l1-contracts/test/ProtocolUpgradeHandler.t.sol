@@ -715,4 +715,18 @@ contract TestProtocolUpgradeHandler is Test {
         vm.prank(randomAddress);
         payable(handler).send(1 ether);
     }
+
+    function test_revertWhen_ExecuteSameEmergencyProposalMultipleTimes() public {
+        IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("22");
+        proposal.executor = emergencyUpgradeBoard;
+        bytes32 id = keccak256(abi.encode(proposal));
+        vm.startPrank(proposal.executor);
+        // once
+        handler.executeEmergencyUpgrade(proposal);
+        // state is done
+        assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Done));
+        vm.expectRevert("Upgrade already exists");
+        // Try second time
+        handler.executeEmergencyUpgrade(proposal);
+    }
 }

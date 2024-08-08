@@ -167,14 +167,14 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @param _id The unique identifier of the upgrade proposal to be approved.
     function upgradeState(bytes32 _id) public view returns (UpgradeState) {
         UpgradeStatus memory upg = upgradeStatus[_id];
-        // Upgrade doesn't exist
-        if (upg.creationTimestamp == 0) {
-            return UpgradeState.None;
-        }
-
         // Upgrade already executed
         if (upg.executed) {
             return UpgradeState.Done;
+        }
+
+        // Upgrade doesn't exist
+        if (upg.creationTimestamp == 0) {
+            return UpgradeState.None;
         }
 
         // Legal veto period
@@ -292,13 +292,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         );
         // 2. Effects
         upgradeStatus[id].executed = true;
-        // Clear the freeze
-        lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
-        protocolFrozenUntil = 0;
-        _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
-        emit Unfreeze();
         emit UpgradeExecuted(id);
     }
 
