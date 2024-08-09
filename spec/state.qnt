@@ -1,3 +1,4 @@
+// -*- mode: Bluespec; -*-
 module state {
     import types.* from "./types"
     import hashing.* from "./hashing"
@@ -6,9 +7,75 @@ module state {
     val PROTOCOL_UPGRADE_HANDLER_ADDR = "0xProtocolUpgradeHandler"
     val GUARDIANS_ADDR = "0xGuardians"
     val EMERGENCY_UPGRADE_BOARD_ADDR = "0xEmergencyUpgradeBoard"
+    val ZERO_ADDRESS = "0x0"
+    val ANY_ADDRESS = "0xAny"
 
     type L2Transaction = {
         proposeCalldata: AbiEncoded,
+    }
+
+    type Event = 
+        EventUpgradeStarted(UpgradeProposal) |
+        EventUpgradeLegalVetoExtended(AbiElem) |
+        EventUpgradeApprovedBySecurityCouncil(AbiElem) |
+        EventUpgradeApprovedByGuardians(AbiElem) |
+        EventUnfreeze |
+        EventUpgradeExecuted(AbiElem) |
+        EventEmergencyUpgradeExecutedSome |
+        EventEmergencyUpgradeExecuted(AbiElem) |
+        EventSoftFreeze(Uint256) |
+        EventHardFreeze(Uint256) |
+        EventReinforceFreeze |
+        EventReinforceFreezeOneChain(Uint256) |
+        EventReinforceUnfreeze |
+        EventReinforceUnfreezeOneChain(Uint256) |
+        EventChangeSecurityCouncil((Address, Address)) |
+        EventChangeGuardians((Address, Address)) |
+        EventChangeEmergencyUpgradeBoard((Address, Address))
+
+    type Function = 
+        FunctionApproveUpgradeSecurityCouncil |
+        FunctionApproveUpgradeGuardians |
+        FunctionSoftFreeze |
+        FunctionHardFreeze |
+        FunctionUnfreeze |
+        FunctionSetSoftFreezeThreshold |
+        FunctionStartUpgrade |
+        FunctionExtendLegalVeto |
+        FunctionExecute |
+        FunctionExecuteEmergencyUpgrade |
+        FunctionReinforceFreeze |
+        FunctionReinforceUnfreeze |
+        FunctionReinforceFreezeOneChain(Uint256) |
+        FunctionReinforceUnfreezeOneChain(Uint256) |
+        FunctionProposeL2GovernorProposal |
+        FunctionCancelL2GovernorProposal |
+        FunctionUpdateSecurityCouncil |
+        FunctionUpdateGuardians |
+        FunctionUpdateEmergencyUpgradeBoard
+    
+     pure def is_FunctionReinforceUnfreezeOneChain(f: Function): bool = {
+        match (f) {
+            | FunctionReinforceUnfreezeOneChain(_) => true
+            | FunctionApproveUpgradeSecurityCouncil => false
+            | FunctionApproveUpgradeGuardians => false
+            | FunctionSoftFreeze => false
+            | FunctionHardFreeze => false
+            | FunctionUnfreeze => false
+            | FunctionSetSoftFreezeThreshold => false
+            | FunctionStartUpgrade => false
+            | FunctionExecute => false
+            | FunctionExtendLegalVeto => false
+            | FunctionExecuteEmergencyUpgrade => false
+            | FunctionReinforceFreeze => false
+            | FunctionReinforceUnfreeze => false
+            | FunctionReinforceFreezeOneChain(_) => false
+            | FunctionProposeL2GovernorProposal => false
+            | FunctionCancelL2GovernorProposal => false
+            | FunctionUpdateSecurityCouncil => false
+            | FunctionUpdateGuardians => false
+            | FunctionUpdateEmergencyUpgradeBoard => false
+        }
     }
 
     // An abstract contract implementing a basic multisig wallet functionality.
@@ -33,7 +100,7 @@ module state {
     /// 3. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
     ///    immediately move the proposal to the next stage, while guardians approval will move the proposal to the
     ///    next stage only after 30 days delay after the legal veto passes. If no approval is received within the specified period, the proposal
-    ///    is canceled.
+    ///    is expired.
     /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
     ///    preparations and reviews.
     /// 5. Execution: The proposed changes are executed by the authorized address in the proposal,
@@ -65,30 +132,25 @@ module state {
         // Tracks the unique identifier used in the last successful unfreeze.
         unfreezeNonce: Uint256,
         // Represents the number of signatures needed to trigger soft freeze.
-        // This value is automatically reset to 9 after each freeze, but it can be
+        // This value is automatically reset to 9 after each soft freeze, but it can be
         // set by the 9 SC members and requires to be not bigger than 9.
         softFreezeThreshold: Uint256,
-
         // Multisig is stored here since dy design it is an abstract contratc
         multisig: MultisigState,
     }
 
-    /// contract state
-    /// @dev Temporary protector of the values of ZKsync.
-    /// Approves or vetos the changes proposed by the Token Assembly.
+    /// @dev Temporary protector of the values of ZKsync. They can approve upgrade changes proposed by the Token Assembly, propose & cancel
+    /// L2 proposals as well as extend the legal veto period of L1 upgrade proposals through the `ProtocolUpgradeHandler`.
     type GuardiansState = {
-        // ProtocolUpgradeHandler is used from the EVMState
+        // @dev Tracks the unique identifier used in the last `cancelL2GovernorProposal`/`proposeL2GovernorProposal` to ensure replay attack protection.
         nonce: Uint256,
-        // We do not interact with ZKSYNC_ERA in this model,
-        // instead we have just a boolean variable indication whether we have requested ZKSYNC_ERA.
-        zkSyncEraRequested: bool,
         // Multisig
         multisig: MultisigState
     }
 
     type EvmCallHistory = {
         lastSender: Address,
-        calls: List[{ caller: Address, callee: Address, method: str }]
+        calls: List[{ caller: Address, callee: Address, method: Function }]
     }
 
     type EvmState = {
@@ -101,13 +163,17 @@ module state {
         // We do not interact with ZKSYNC_ERA in this model,
         // instead we have just a boolean variable indication whether we have frozen ZK contracts.
         zkFrozen: bool,
+        // frozen chains
+        frozenChains: ChainID -> bool,
         // the history of calls made in the last transaction
         ghostCallHistory: EvmCallHistory,
         // zk Foundation SAFE multisig
-        zkFoundation: MultisigState
+        zkFoundation: MultisigState,
+        // events
+        emittedEvents: List[Event],
     }
 
-    def internalCall(evm: EvmState, msgSender: str, callee: str, method: str): EvmState = {
+    def internalCall(evm: EvmState, msgSender: Address, callee: Address, method: Function): EvmState = {
         {
             ...evm,
             ghostCallHistory: {
@@ -118,7 +184,7 @@ module state {
         }
     }
 
-    def externalCall(evm: EvmState, msgSender: str, callee: str, method: str): EvmState = {
+    def externalCall(evm: EvmState, msgSender: Address, callee: Address, method: Function): EvmState = {
         {
             ...evm,
             ghostCallHistory: {

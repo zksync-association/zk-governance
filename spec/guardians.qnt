@@ -45,7 +45,7 @@ module guardians {
     // TODO: this comment does not apply to Set[Address], as sets are unordered
     pure def newGuardians(_members: Set[Address]): Result[GuardiansState] = {
         pure val multisig = newMultisig(_members, 5)
-        pure val empty = { multisig: multisig.v, nonce: 0, zkSyncEraRequested: false}
+        pure val empty = { multisig: multisig.v, nonce: 0}
         if (isOk(multisig)) {
             pure val membersSize = _members.size()
             pure val e = require(membersSize == 8, "Guardians requires exactly 8 members")
@@ -55,7 +55,6 @@ module guardians {
                 ok({
                     multisig: multisig.v,
                     nonce: 0,
-                    zkSyncEraRequested: false
                 })
             }
         } else {
@@ -67,31 +66,38 @@ module guardians {
     /// @param _id The unique identifier of the upgrade proposal.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the extend.
-    pure def guardiansExtendLegalVeto(evm: EvmState, _id: AbiElem, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    pure def guardians::ExtendLegalVeto(evm: EvmState, _id: AbiElem, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
         val self = evm.guardians
-        val digest = _hashTypedDataV4("Guardians", "1", [EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, _id])
+        val digest = _guardiansHashTypedDataV4([EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, _id])
         val e = self.multisig.checkSignatures(digest, _signers, _signatures, EXTEND_LEGAL_VETO_THRESHOLD)
-        val evm2 = evm.internalCall(GUARDIANS_ADDR, PROTOCOL_UPGRADE_HANDLER_ADDR, "extendLegalVeto")
-        if (e != "") err(evm, e) else protocolUpgradeHandlerExtendLegalVeto(evm2, _id)
+        val evm2 = evm.internalCall(GUARDIANS_ADDR, PROTOCOL_UPGRADE_HANDLER_ADDR, FunctionExtendLegalVeto)
+        if (e != "") err(evm, e) else protocolUpgradeHandler::ExtendLegalVeto(evm2, _id)
     }
 
     /// @notice Approves ZKsync protocol upgrade, by the 5 out of 8 Guardians approvals.
     /// @param _id The unique identifier of the upgrade proposal.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
-    pure def guardiansApproveUpgradeGuardians(evm: EvmState, _id: AbiElem, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    pure def guardians::ApproveUpgradeGuardians(evm: EvmState, _id: AbiElem, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
         val self = evm.guardians
-        val digest = _hashTypedDataV4("Guardians", "1", [APPROVE_UPGRADE_GUARDIANS_TYPEHASH, _id])
+        val digest = _guardiansHashTypedDataV4([APPROVE_UPGRADE_GUARDIANS_TYPEHASH, _id])
         val e = self.multisig.checkSignatures(digest, _signers, _signatures, APPROVE_UPGRADE_GUARDIANS_THRESHOLD)
-        val evm2 = evm.internalCall(GUARDIANS_ADDR, PROTOCOL_UPGRADE_HANDLER_ADDR, "approveUpgradeGuardians")
-        if (e != "") err(evm, e) else protocolUpgradeHandlerApproveUpgradeGuardians(evm2, _id)
+        val evm2 = evm.internalCall(GUARDIANS_ADDR, PROTOCOL_UPGRADE_HANDLER_ADDR, FunctionApproveUpgradeGuardians)
+        if (e != "") err(evm, e) else protocolUpgradeHandler::ApproveUpgradeGuardians(evm2, _id)
     }
 
-    pure def guardiansProposeL2GovernorProposal(evm: EvmState,
-            _l2Proposal: L2GovernorProposalOpaque, _txRequest: TxRequestOpaque,
-            _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    /// @notice Propose ZKsync proposal on one the L2 governors, by the 5 of 8 Guardians approvals.
+    /// @param _l2Proposal The L2 governor proposal to be proposed.
+    /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
+    /// @param _signers An array of signers associated with the signatures.
+    /// @param _signatures An array of signatures from the guardians approving the upgrade.
+    pure def guardians::ProposeL2GovernorProposal(evm: EvmState,
+            _l2Proposal: L2GovernorProposalOpaque,
+            _txRequest: TxRequestOpaque,
+            _signers: Set[Address],
+            _signatures: Set[Bytes]): Result[EvmState] = {
         val self = evm.guardians
-        val digest = _hashTypedDataV4("Guardians", "1",
+        val digest = _guardiansHashTypedDataV4(
             [ PROPOSE_L2_GOVERNOR_PROPOSAL_TYPEHASH, AbiStr(_l2Proposal), AbiStr(_txRequest) /* TODO: nonce++ */]
         )
         val e = self.multisig.checkSignatures(digest, _signers, _signatures, PROPOSE_L2_GOVERNOR_PROPOSAL_THRESHOLD)
@@ -100,11 +106,18 @@ module guardians {
         if (e != "") err(evm, e) else ok({ ...evm, priorityQueue: evm.priorityQueue.append(l2tx) })
     }
 
-    pure def guardiansCancelL2GovernorProposal(evm: EvmState,
-            _l2Proposal: L2GovernorProposalOpaque, _txRequest: TxRequestOpaque,
-            _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    /// @notice Cancel ZKsync proposal in one of the L2 governors, by the 5 of 8 Guardians approvals.
+    /// @param _l2Proposal The L2 governor proposal to be proposed.
+    /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
+    /// @param _signers An array of signers associated with the signatures.
+    /// @param _signatures An array of signatures from the guardians approving the upgrade.
+    pure def guardians::CancelL2GovernorProposal(evm: EvmState,
+            _l2Proposal: L2GovernorProposalOpaque,
+            _txRequest: TxRequestOpaque,
+            _signers: Set[Address],
+            _signatures: Set[Bytes]): Result[EvmState] = {
         val self = evm.guardians
-        val digest = _hashTypedDataV4("Guardians", "1",
+        val digest = _guardiansHashTypedDataV4(
             [ CANCEL_L2_GOVERNOR_PROPOSAL_TYPEHASH, AbiStr(_l2Proposal), AbiStr(_txRequest) /* TODO: nonce++ */ ]
         )
         val e = self.multisig.checkSignatures(digest, _signers, _signatures, CANCEL_L2_GOVERNOR_PROPOSAL_THRESHOLD)

@@ -30,49 +30,47 @@ module emergencyUpgradeBoard {
     /// @param _guardiansSignatures Encoded signers & signatures from the guardians multisig, required to authorize the emergency upgrade.
     /// @param _securityCouncilSignatures Encoded signers & signatures from the Security Council multisig, required to authorize the emergency upgrade.
     /// @param _zkFoundationSignatures Signatures from the ZK Foundation multisig, required to authorize the emergency upgrade.
-    pure def executeEmergencyUpgrade(
+    pure def emergencyUpgradeBoard::ExecuteEmergencyUpgrade(
         evm: EvmState,
-        _calls: List[Call],
+        _calls: UpgradeProposalCallsOpaque,
         _salt: Bytes32,
-        _guardiansSignatures: List[Bytes],
-        _securityCouncilSignatures: List[Bytes],
-        _zkFoundationSignatures: List[Bytes]
+        _guardiansSignatures: Set[Bytes],
+        _securityCouncilSignatures: Set[Bytes],
+        _zkFoundationSignatures: Set[Bytes]
     ) : Result[EvmState] = {
-        val proposal: UpgradeProposal = {
+        val upgradeProposal: UpgradeProposal = {
             calls: _calls,
-            executor: EMERGENCY_UPGRADE_BOARD_ADDR,
             salt: _salt,
+            executor: EMERGENCY_UPGRADE_BOARD_ADDR,
         }
-        val id = keccak256_UpgradeProposal(proposal)
+        val id = keccak256_UpgradeProposal(upgradeProposal)
 
-        val securityCouncilDigest = _hashTypedDataV4(
-            "security council", "1",
+        val securityCouncilDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4( 
             keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH, id))
-        )
+        )    
 
-        val guardiansDigest = _hashTypedDataV4(
-            "guardians", "1",
+        val guardiansDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
             keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH, id))
         )
 
-        val zkFoundationDigest = _hashTypedDataV4(
-            "guardians", "1",
+        val zkFoundationDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
             keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH, id))
         )
 
-        val e1 = isValidSignature(evm.securityCouncil.multisig, securityCouncilDigest, _securityCouncilSignatures)
+        val e1 = require(isValidSignatureNow(evm.guardians.multisig, guardiansDigest, _guardiansSignatures), "Invalid guardians signatures")
         if (e1 != "" ) {
             err(evm, e1)
         } else {
-            val e2 = isValidSignature(evm.guardians.multisig, guardiansDigest, _guardiansSignatures)
+            val e2 = require(isValidSignatureNow(evm.securityCouncil.multisig, securityCouncilDigest, _securityCouncilSignatures), "Invalid Security Council signatures") 
             if (e2 != "" ) {
                 err(evm, e2)
             } else {
-                val e3 = isValidSignature(evm.zkFoundation, zkFoundationDigest, _zkFoundationSignatures)
+                val e3 = require(isValidSignatureNow(evm.zkFoundation, zkFoundationDigest, _zkFoundationSignatures), "Invalid ZK Foundation signatures")
                 if (e3 != "" ) {
                     err(evm, e3)
                 } else {
-                    protocolUpgradeHandlerExecuteEmergencyUpgrade(evm, proposal)
+                    val evm2 = evm.internalCall(EMERGENCY_UPGRADE_BOARD_ADDR, PROTOCOL_UPGRADE_HANDLER_ADDR, FunctionExecuteEmergencyUpgrade)
+                    protocolUpgradeHandler::ExecuteEmergencyUpgrade(evm2, upgradeProposal)
                 }
             }
         }
