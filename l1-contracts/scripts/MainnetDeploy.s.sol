@@ -10,7 +10,7 @@ import "./ICREATE3Factory.sol";
 
 import "../src/SecurityCouncil.sol";
 import "../src/Guardians.sol";
-import "../src/ProtocolUpgradeHandlerT.sol";
+import "../src/ProtocolUpgradeHandler.sol";
 import "../src/EmergencyUpgradeBoard.sol";
 
 contract MainnetDeploy is Script {
