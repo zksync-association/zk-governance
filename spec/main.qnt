@@ -1038,7 +1038,7 @@ module main {
 
     val freezeStatusNoneInv = {
         (evm.protocolUpgradeHandler.lastFreezeStatusInUpgradeCycle == FreezeStatusNone)
-            implies freezeOps == []
+            implies strictFreezeOps == []
     }
 
     // After a Soft Freeze and/or a Hard Freeze has been initiated, the Security Council may unfreeze (“Unfreeze”)
@@ -1062,7 +1062,7 @@ module main {
             isOk(protocolUpgradeHandler::Unfreeze(evm))
     }
 
-    val freezeSafetyFastInv = all {
+    val freezeSafetyFastInv = and {
         laxedFreezeDisallowedOpsInv,
         strictFreezeAllowedOpsInv,
         freezeLaxedDisallowedOpsInv,
@@ -1088,14 +1088,18 @@ module main {
         evm.zkFrozen
     }
 
-    // All invariants
-    val all_invariants = all {
-        accessControlPolicyInv,
-        freezeSafetyFastInv, freezeSafetySlowInv,
+    val generalInv = and {
         softFreezeThresholdNotBiggerThanNineInv,
         noZeroAddrInMultisig,
-        membersNumbersCorrectInv,
-        upgradabilityInv
+        membersNumbersCorrectInv
+    }
+
+    // All invariants
+    val allInvariants = and {
+        accessControlPolicyInv,
+        freezeSafetyFastInv, freezeSafetySlowInv,
+        upgradabilityInv,
+        generalInv
     }
         
     /// -------------------------------------------------------------------------
