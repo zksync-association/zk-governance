@@ -20,7 +20,7 @@ fi
 echo -n "" > $output_file
 
 # Extract the functions inside the and block
-function_list=$(sed -n "/$search_string = all {/,/}/p" "$input_file" | sed -e '1d' -e '$d' | sed 's/^[[:space:]]*//g' | sed 's/,$//')
+function_list=$(sed -n "/$search_string = and {/,/}/p" "$input_file" | sed -e '1d' -e '$d' | sed 's/^[[:space:]]*//g' | sed 's/,$//')
 port=18100
 
 # Check if the function_list is not empty

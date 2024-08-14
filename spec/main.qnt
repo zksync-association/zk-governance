@@ -668,12 +668,13 @@ module main {
 
     // -------------------------------------------------------------------------
     // Upgradability related invariants
-
     val upgradabilityInv = and {
         upgradeIsExecutedIfApprovedByGuardiansAndSecurityCouncilInv,
         emergencyUpgradeUnfreezesStateInv,
         regularUpgradeDoesnotUnfreezeStateInv,
         emergencyUpgradeMaybeExecutedInFrozenInv,
+        emergencyUpgradeMultisigInv,
+        emergencyUpgradeCannotBeReplayed,
         emergencyUpgradeMustBeExecutedOnce,
         upgradeMustBeExecutedOnce,
         freezesRequireEmergencyUpgradeInv,
@@ -809,10 +810,12 @@ module main {
         })
     }
 
-    // In order to execute an Emergency Upgrade with the Emergency Upgrade Multisig,
-    // all three (3) Emergency Upgrade Signers must each reach the signing threshold on their respective multisig
+    // emergencyUpgradeMultisigInv checks the following invariants:
+    //   1) In order to execute an Emergency Upgrade with the Emergency Upgrade Multisig,
+    //   all three (3) Emergency Upgrade Signers must each reach the signing threshold on their respective multisig
+    //
+    //   2) An Emergency Upgrade may be executed by any user if the it has been approved by Security Council, Guardians, and the ZKsync Foundation.
     val emergencyUpgradeMultisigInv = {
-        val sender = EMERGENCY_UPGRADE_BOARD_ADDR
         val executor = EMERGENCY_UPGRADE_BOARD_ADDR
         CALLS.forall(calls => {
             SALTS.forall(salt => {
@@ -821,13 +824,39 @@ module main {
                         ZK_FOUNDATION_MEMBERS.powerset().forall(foundation => {
                             val proposal = { calls: calls, executor: executor, salt: salt }
                             val proposalId = keccak256_UpgradeProposal(proposal)
-                            val evm2 = evm.externalCall(sender, EMERGENCY_UPGRADE_BOARD_ADDR, FunctionExecuteEmergencyUpgrade)
+                            val evm2 = evm.externalCall(ANY_ADDRESS, EMERGENCY_UPGRADE_BOARD_ADDR, FunctionExecuteEmergencyUpgrade)
                             val result = emergencyUpgradeBoard::ExecuteEmergencyUpgrade(evm2, calls, salt, guardians, council, foundation)
                             
                             isOk(result) implies and {
                                 guardians.size() >= 5,
                                 council.size() >= 9,
                                 foundation.size() >= 5,
+                            }
+                        })
+                    })
+                })
+            })
+        })
+    }
+
+    // Emergency upgrades cannot be replayed.
+    //
+    // This invariant checks that if an external user successfully executes ExecuteEmergencyUpgrade call
+    // and then make the same call with the same arguments, the second call will return an error.
+    val emergencyUpgradeCannotBeReplayed = {
+        val executor = EMERGENCY_UPGRADE_BOARD_ADDR
+        CALLS.forall(calls => {
+            SALTS.forall(salt => {
+                GUARDIAN_MEMBERS.powerset().forall(guardians => {
+                    SECURITY_COUNCIL_MEMBERS.powerset().forall(council => {
+                        ZK_FOUNDATION_MEMBERS.powerset().forall(foundation => {
+                            val proposal = { calls: calls, executor: executor, salt: salt }
+                            val proposalId = keccak256_UpgradeProposal(proposal)
+                            val evm2 = evm.externalCall(ANY_ADDRESS, EMERGENCY_UPGRADE_BOARD_ADDR, FunctionExecuteEmergencyUpgrade)
+                            val result = emergencyUpgradeBoard::ExecuteEmergencyUpgrade(evm2, calls, salt, guardians, council, foundation)
+                            
+                            isOk(result) implies {
+                                isErr(emergencyUpgradeBoard::ExecuteEmergencyUpgrade(result.v, calls, salt, guardians, council, foundation))
                             }
                         })
                     })
