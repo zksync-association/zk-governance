@@ -10,6 +10,16 @@ module state {
     val ZERO_ADDRESS = "0x0"
     val ANY_ADDRESS = "0xAny"
 
+    // a signed digest
+    type Signature = {
+        signer: Address,
+        digest: AbiEncoded,
+    }
+
+    pure def signDigest(signers: Set[Address], digest: AbiEncoded): Set[Signature] = {
+        signers.map(s => { signer: s, digest: digest })
+    }
+
     type L2Transaction = {
         proposeCalldata: AbiEncoded,
     }
@@ -156,7 +166,6 @@ module state {
     type EvmState = {
         blockTimestamp: Uint256,
         protocolUpgradeHandler: ProtocolUpgradeHandlerState,
-        // TODO: in the future, use Address -> SecurityCouncilState
         securityCouncil: SecurityCouncilState,
         guardians: GuardiansState,
         priorityQueue: List[L2Transaction],

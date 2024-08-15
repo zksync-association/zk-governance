@@ -132,7 +132,10 @@ module main {
         nondet id = oneOf(getAllUpgradeIDs(evm).union(WrongUpgradeIDs))
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
+        val digest = _securityCouncilHashTypedDataV4(
+            keccak256(abi_encode2(APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH, id))
+        )
+        val signatures = signDigest(signers, digest)
         val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionApproveUpgradeSecurityCouncil)
         val result = securityCouncil::ApproveUpgradeSecurityCouncil(evm2, id, signers, signatures)
         all {
@@ -148,7 +151,10 @@ module main {
         nondet validUntil = oneOf(TIMESTAMPS)
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
+        val digest = _securityCouncilHashTypedDataV4(
+            keccak256(abi_encode3(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, AbiInt(evm.securityCouncil.softFreezeNonce), AbiInt(validUntil)))
+        )
+        val signatures = signDigest(signers, digest)
         val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionSoftFreeze)
         val result = securityCouncil::SoftFreeze(evm2, validUntil, signers, signatures)
         all {
@@ -164,7 +170,10 @@ module main {
         nondet validUntil = oneOf(TIMESTAMPS)
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
+        val digest = _securityCouncilHashTypedDataV4(
+            keccak256(abi_encode3(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, AbiInt(evm.securityCouncil.hardFreezeNonce), AbiInt(validUntil)))
+        )
+        val signatures = signDigest(signers, digest)
         val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionHardFreeze)
         val result = securityCouncil::HardFreeze(evm2, validUntil, signers, signatures)
         all {
@@ -180,7 +189,10 @@ module main {
         nondet validUntil = oneOf(TIMESTAMPS)
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
+        val digest = _securityCouncilHashTypedDataV4(
+            keccak256(abi_encode3(UNFREEZE_TYPEHASH, AbiInt(evm.securityCouncil.unfreezeNonce), AbiInt(validUntil)))
+        )
+        val signatures = signDigest(signers, digest)
         val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionUnfreeze)
         val result = securityCouncil::Unfreeze(evm2, validUntil, signers, signatures)
         all {
@@ -197,7 +209,10 @@ module main {
         nondet validUntil = oneOf(TIMESTAMPS)
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
+        val digest = _securityCouncilHashTypedDataV4(
+            keccak256(abi_encode4(SET_SOFT_FREEZE_THRESHOLD_TYPEHASH, AbiInt(threshold), AbiInt(evm.securityCouncil.softFreezeThresholdSettingNonce), AbiInt(validUntil)))
+        )
+        val signatures = signDigest(signers, digest)
         val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionSetSoftFreezeThreshold)
         val result = securityCouncil::SetSoftFreezeThreshold(evm2, threshold, validUntil, signers, signatures)
         all {
@@ -473,8 +488,9 @@ module main {
     action Guardians::ExtendLegalVeto = {
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
         nondet _id = oneOf(ids)
+        val digest = _guardiansHashTypedDataV4([EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, AbiInt(_id)])
+        val signatures = signDigest(signers, digest)
         val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionExtendLegalVeto)
         val result = guardians::ExtendLegalVeto(evm2, AbiInt(_id), signers, signatures)
         all {
@@ -489,9 +505,10 @@ module main {
     action Guardians::ApproveUpgradeGuardians = {
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
-        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionApproveUpgradeGuardians)
         nondet _id = oneOf(ids)
+        val digest = _guardiansHashTypedDataV4([APPROVE_UPGRADE_GUARDIANS_TYPEHASH, AbiInt(_id)])
+        val signatures = signDigest(signers, digest)
+        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionApproveUpgradeGuardians)
         val result = guardians::ApproveUpgradeGuardians(evm2, AbiInt(_id), signers, signatures)
         all {
             isOk(result),
@@ -505,10 +522,13 @@ module main {
     action Guardians::ProposeL2GovernorProposal = {
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
-        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionProposeL2GovernorProposal)
         nondet l2Proposal = L2_PROPOSALS.oneOf()
         nondet txRequest = TX_REQUESTS.oneOf()
+        val digest = _guardiansHashTypedDataV4(
+            [ PROPOSE_L2_GOVERNOR_PROPOSAL_TYPEHASH, AbiStr(l2Proposal), AbiStr(txRequest), AbiInt(evm.guardians.nonce) ]
+        )
+        val signatures = signDigest(signers, digest)
+        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionProposeL2GovernorProposal)
         val result = guardians::ProposeL2GovernorProposal(evm2, l2Proposal, txRequest, signers, signatures)
         all {
             isOk(result),
@@ -522,10 +542,13 @@ module main {
     action Guardians::CancelL2GovernorProposal = {
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet signatures = ALL_MEMBERS.powerset().oneOf()
-        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionCancelL2GovernorProposal)
         nondet l2Proposal = L2_PROPOSALS.oneOf()
         nondet txRequest = TX_REQUESTS.oneOf()
+        val digest = _guardiansHashTypedDataV4(
+            [ CANCEL_L2_GOVERNOR_PROPOSAL_TYPEHASH, AbiStr(l2Proposal), AbiStr(txRequest), AbiInt(evm.guardians.nonce) ]
+        )
+        val signatures = signDigest(signers, digest)
+        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionCancelL2GovernorProposal)
         val result = guardians::CancelL2GovernorProposal(evm2, l2Proposal, txRequest, signers, signatures)
         all {
             isOk(result),
@@ -543,9 +566,27 @@ module main {
         val evm2: EvmState = evm.externalCall(sender, EMERGENCY_UPGRADE_BOARD_ADDR, FunctionExecuteEmergencyUpgrade)
         nondet calls = CALLS.oneOf()
         nondet salt = SALTS.oneOf()
-        nondet _guardiansSignatures = ALL_MEMBERS.powerset().oneOf()
-        nondet _securityCouncilSignatures = ALL_MEMBERS.powerset().oneOf()
-        nondet _zkFoundationSignatures = ALL_MEMBERS.powerset().oneOf()
+        nondet _guardians = ALL_MEMBERS.powerset().oneOf()
+        nondet _council = ALL_MEMBERS.powerset().oneOf()
+        nondet _zkFoundation = ALL_MEMBERS.powerset().oneOf()
+        val upgradeProposal: UpgradeProposal = {
+            calls: calls,
+            salt: salt,
+            executor: EMERGENCY_UPGRADE_BOARD_ADDR,
+        }
+        val id = keccak256_UpgradeProposal(upgradeProposal)
+        val securityCouncilDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4( 
+            keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH, id))
+        )
+        val guardiansDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
+            keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH, id))
+        )
+        val zkFoundationDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
+            keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH, id))
+        )
+        val _guardiansSignatures = signDigest(_guardians, guardiansDigest)
+        val _zkFoundationSignatures = signDigest(_zkFoundation, zkFoundationDigest)
+        val _securityCouncilSignatures = signDigest(_council, securityCouncilDigest)
         val result = emergencyUpgradeBoard::ExecuteEmergencyUpgrade(evm2, calls, salt, _guardiansSignatures, _securityCouncilSignatures, _zkFoundationSignatures)
         all {
             isOk(result),
@@ -825,7 +866,20 @@ module main {
                             val proposal = { calls: calls, executor: executor, salt: salt }
                             val proposalId = keccak256_UpgradeProposal(proposal)
                             val evm2 = evm.externalCall(ANY_ADDRESS, EMERGENCY_UPGRADE_BOARD_ADDR, FunctionExecuteEmergencyUpgrade)
-                            val result = emergencyUpgradeBoard::ExecuteEmergencyUpgrade(evm2, calls, salt, guardians, council, foundation)
+                            val securityCouncilDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4( 
+                                keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH, proposalId))
+                            )
+                            val guardiansDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
+                                keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH, proposalId))
+                            )
+                            val zkFoundationDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
+                                keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH, proposalId))
+                            )
+                            val securityCouncilSignatures = signDigest(council, securityCouncilDigest)
+                            val guardiansSignatures = signDigest(guardians, guardiansDigest)
+                            val zkFoundationSignatures = signDigest(foundation, zkFoundationDigest)
+
+                            val result = emergencyUpgradeBoard::ExecuteEmergencyUpgrade(evm2, calls, salt, guardiansSignatures, securityCouncilSignatures, zkFoundationSignatures)
                             
                             isOk(result) implies and {
                                 guardians.size() >= 5,
@@ -852,11 +906,24 @@ module main {
                         ZK_FOUNDATION_MEMBERS.powerset().forall(foundation => {
                             val proposal = { calls: calls, executor: executor, salt: salt }
                             val proposalId = keccak256_UpgradeProposal(proposal)
+                            val securityCouncilDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4( 
+                                keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH, proposalId))
+                            )
+                            val guardiansDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
+                                keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH, proposalId))
+                            )
+                            val zkFoundationDigest = _emergencyUpgradeBoardCouncilHashTypedDataV4(
+                                keccak256(abi_encode2(EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH, proposalId))
+                            )
+                            val securityCouncilSignatures = signDigest(council, securityCouncilDigest)
+                            val guardiansSignatures = signDigest(guardians, guardiansDigest)
+                            val zkFoundationSignatures = signDigest(foundation, zkFoundationDigest)
+
                             val evm2 = evm.externalCall(ANY_ADDRESS, EMERGENCY_UPGRADE_BOARD_ADDR, FunctionExecuteEmergencyUpgrade)
-                            val result = emergencyUpgradeBoard::ExecuteEmergencyUpgrade(evm2, calls, salt, guardians, council, foundation)
+                            val result = emergencyUpgradeBoard::ExecuteEmergencyUpgrade(evm2, calls, salt, guardiansSignatures, securityCouncilSignatures, zkFoundationSignatures)
                             
                             isOk(result) implies {
-                                isErr(emergencyUpgradeBoard::ExecuteEmergencyUpgrade(result.v, calls, salt, guardians, council, foundation))
+                                isErr(emergencyUpgradeBoard::ExecuteEmergencyUpgrade(result.v, calls, salt, guardiansSignatures, securityCouncilSignatures, zkFoundationSignatures))
                             }
                         })
                     })
@@ -1070,6 +1137,10 @@ module main {
             implies strictFreezeOps == []
     }
 
+    val freezeSafetySlowInv = and {
+        securityCouncilMayUnfreezeInv,
+    }
+
     // After a Soft Freeze and/or a Hard Freeze has been initiated, the Security Council may unfreeze (“Unfreeze”)
     // the contracts at their discretion, with the approval of nine (9) Signers on the Security Multisig.
     val securityCouncilMayUnfreezeInv = {
@@ -1077,7 +1148,11 @@ module main {
         SECURITY_COUNCIL_MEMBERS_QUORUM.forall(someMembers => or {
             val freezeStatus = evm.protocolUpgradeHandler.lastFreezeStatusInUpgradeCycle
             freezeStatus != FreezeStatusSoft and freezeStatus != FreezeStatusHard,
-            isOk(securityCouncil::Unfreeze(evm, validUntil, someMembers, someMembers))
+            val digest = _securityCouncilHashTypedDataV4(
+                keccak256(abi_encode3(UNFREEZE_TYPEHASH, AbiInt(evm.securityCouncil.unfreezeNonce), AbiInt(validUntil)))
+            )
+            val signatures = signDigest(someMembers, digest)
+            isOk(securityCouncil::Unfreeze(evm, validUntil, someMembers, signatures))
         })
     }
 
@@ -1089,6 +1164,168 @@ module main {
             freezeStatus.in(Set(FreezeStatusSoft, FreezeStatusHard))
         } implies
             isOk(protocolUpgradeHandler::Unfreeze(evm))
+    }
+
+    // SoftFreeze call cannot be replayed.
+    val softFreezeCannotBeReplayed = {
+        TIMESTAMPS.forall(validUntil => {
+            ALL_SENDERS.forall(sender => {
+                ALL_MEMBERS.powerset().forall(signers => {
+                    val digest = _securityCouncilHashTypedDataV4(
+                        keccak256(abi_encode3(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, AbiInt(evm.securityCouncil.softFreezeNonce), AbiInt(validUntil)))
+                    )
+                    val signatures = signDigest(signers, digest)
+                    val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionSoftFreeze)
+                    val result = securityCouncil::SoftFreeze(evm2, validUntil, signers, signatures)
+                    isOk(result) implies {
+                        isErr(securityCouncil::SoftFreeze(result.v, validUntil, signers, signatures))
+                    }
+                })
+            })
+        })
+    }
+
+    // HardFreeze call cannot be replayed.
+    val hardFreezeCannotBeReplayed = {
+        TIMESTAMPS.forall(validUntil => {
+            ALL_SENDERS.forall(sender => {
+                ALL_MEMBERS.powerset().forall(signers => {
+                    val digest = _securityCouncilHashTypedDataV4(
+                        keccak256(abi_encode3(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, AbiInt(evm.securityCouncil.hardFreezeNonce), AbiInt(validUntil)))
+                    )
+                    val signatures = signDigest(signers, digest)
+                    val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionHardFreeze)
+                    val result = securityCouncil::HardFreeze(evm2, validUntil, signers, signatures)
+                    isOk(result) implies {
+                        isErr(securityCouncil::HardFreeze(result.v, validUntil, signers, signatures))
+                    }
+                })
+            })
+        })
+    }
+
+    // Unfreeze call cannot be replayed.
+    val unfreezeCannotBeReplayed = {
+        TIMESTAMPS.forall(validUntil => {
+            ALL_SENDERS.forall(sender => {
+                ALL_MEMBERS.powerset().forall(signers => {
+                    val digest = _securityCouncilHashTypedDataV4(
+                        keccak256(abi_encode3(UNFREEZE_TYPEHASH, AbiInt(evm.securityCouncil.unfreezeNonce), AbiInt(validUntil)))
+                    )
+                    val signatures = signDigest(signers, digest)
+                    val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionUnfreeze)
+                    val result = securityCouncil::Unfreeze(evm2, validUntil, signers, signatures)
+                    isOk(result) implies {
+                        isErr(securityCouncil::Unfreeze(result.v, validUntil, signers, signatures))
+                    }
+                })
+            })
+        })
+    }
+
+    // ApproveUpgradeSecurityCouncil call cannot be replayed.
+    val approveUpgradeSecurityCouncilCannotBeReplayed = {
+        val IDS = getAllUpgradeIDs(evm)
+        IDS.forall(id=> {
+            ALL_SENDERS.forall(sender => {
+                ALL_MEMBERS.powerset().forall(signers => {
+                    val digest = _securityCouncilHashTypedDataV4(
+                        keccak256(abi_encode2(APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH, id))
+                    )
+                    val signatures = signDigest(signers, digest)
+                    val evm2 = evm.externalCall(sender, SECURITY_COUNCIL_ADDR, FunctionApproveUpgradeSecurityCouncil)
+                    val result = securityCouncil::ApproveUpgradeSecurityCouncil(evm2, id, signers, signatures)
+                    
+                    isOk(result) implies {
+                        isErr(securityCouncil::ApproveUpgradeSecurityCouncil(result.v, id, signers, signatures))
+                    }
+                })
+            })
+        })
+    }
+
+    // Guardians' ApproveUpgradeGuardians call cannot be replayed.
+    val approveUpgradeGuardiansCannotBeReplayed = {
+        val IDS = getAllUpgradeIDs(evm)
+        ids.forall(id => {
+            ALL_SENDERS.forall(sender => {
+                ALL_MEMBERS.powerset().forall(signers => {
+                    val digest = _guardiansHashTypedDataV4([APPROVE_UPGRADE_GUARDIANS_TYPEHASH, AbiInt(id)])
+                    val signatures = signDigest(signers, digest)
+                    val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionApproveUpgradeGuardians)
+                    val result = guardians::ApproveUpgradeGuardians(evm2, AbiInt(id), signers, signatures)
+                    
+                    isOk(result) implies {
+                        isErr(guardians::ApproveUpgradeGuardians(result.v, AbiInt(id), signers, signatures))
+                    }
+                })
+            })
+        })
+    }
+
+    // Guardians' ExtendLegalVeto call cannot be replayed.
+    val extendLegalVetoGuardiansCannotBeReplayed = {
+        val IDS = getAllUpgradeIDs(evm)
+        ids.forall(id => {
+            ALL_SENDERS.forall(sender => {
+                ALL_MEMBERS.powerset().forall(signers => {
+                    val digest = _guardiansHashTypedDataV4([EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, AbiInt(id)])
+                    val signatures = signDigest(signers, digest)
+                    val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionExtendLegalVeto)
+                    val result = guardians::ExtendLegalVeto(evm2, AbiInt(id), signers, signatures)
+                    
+                    isOk(result) implies {
+                        isErr(guardians::ExtendLegalVeto(result.v, AbiInt(id), signers, signatures))
+                    }
+                })
+            })
+        })
+    }
+
+    // ProposeL2GovernorProposal call cannot be replayed.
+    val proposeL2GovernorProposalCannotBeReplayed = {
+        val IDS = getAllUpgradeIDs(evm)
+        L2_PROPOSALS.forall(l2Proposal => {
+            TX_REQUESTS.forall(txRequest => {
+                ALL_SENDERS.forall(sender => {
+                    ALL_MEMBERS.powerset().forall(signers => {
+                        val digest = _guardiansHashTypedDataV4(
+                            [ PROPOSE_L2_GOVERNOR_PROPOSAL_TYPEHASH, AbiStr(l2Proposal), AbiStr(txRequest), AbiInt(evm.guardians.nonce) ]
+                        )
+                        val signatures = signDigest(signers, digest)
+                        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionProposeL2GovernorProposal)
+                        val result = guardians::ProposeL2GovernorProposal(evm2, l2Proposal, txRequest, signers, signatures)
+                        
+                        isOk(result) implies {
+                            isErr(guardians::ProposeL2GovernorProposal(result.v, l2Proposal, txRequest, signers, signatures))
+                        }
+                    })
+                })
+            })    
+        })
+    }
+
+    // CancelL2GovernorProposal call cannot be replayed.
+    val cancelL2GovernorProposalCannotBeReplayed = {
+        val IDS = getAllUpgradeIDs(evm)
+        L2_PROPOSALS.forall(l2Proposal => {
+            TX_REQUESTS.forall(txRequest => {
+                ALL_SENDERS.forall(sender => {
+                    ALL_MEMBERS.powerset().forall(signers => {
+                        val digest = _guardiansHashTypedDataV4(
+                            [ CANCEL_L2_GOVERNOR_PROPOSAL_TYPEHASH, AbiStr(l2Proposal), AbiStr(txRequest), AbiInt(evm.guardians.nonce) ]
+                        )
+                        val signatures = signDigest(signers, digest)
+                        val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionCancelL2GovernorProposal)
+                        val result = guardians::CancelL2GovernorProposal(evm2, l2Proposal, txRequest, signers, signatures)
+                        
+                        isOk(result) implies {
+                            isErr(guardians::CancelL2GovernorProposal(result.v, l2Proposal, txRequest, signers, signatures))
+                        }
+                    })
+                })
+            })    
+        })
     }
 
     val freezeSafetyFastInv = and {
@@ -1105,8 +1342,15 @@ module main {
         zkFrozenUntilWeakInv,
     }
 
-    val freezeSafetySlowInv = and {
-        securityCouncilMayUnfreezeInv
+    val nonReplayableInv = and {
+        softFreezeCannotBeReplayed,
+        hardFreezeCannotBeReplayed,
+        unfreezeCannotBeReplayed,
+        approveUpgradeGuardiansCannotBeReplayed,
+        approveUpgradeSecurityCouncilCannotBeReplayed,
+        extendLegalVetoGuardiansCannotBeReplayed,
+        cancelL2GovernorProposalCannotBeReplayed,
+        proposeL2GovernorProposalCannotBeReplayed
     }
 
     // A weak version of zkFrozenUntilStrongInv:
@@ -1128,7 +1372,8 @@ module main {
         accessControlPolicyInv,
         freezeSafetyFastInv, freezeSafetySlowInv,
         upgradabilityInv,
-        generalInv
+        generalInv,
+        nonReplayableInv
     }
         
     /// -------------------------------------------------------------------------

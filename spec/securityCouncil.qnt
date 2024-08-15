@@ -72,7 +72,7 @@ module securityCouncil {
     /// @param _id Unique identifier of the upgrade proposal to be approved.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the upgrade.
-    pure def securityCouncil::ApproveUpgradeSecurityCouncil(evm: EvmState, _id: AbiElem, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    pure def securityCouncil::ApproveUpgradeSecurityCouncil(evm: EvmState, _id: AbiElem, _signers: Set[Address], _signatures: Set[Signature]): Result[EvmState] = {
         val self = evm.securityCouncil
         val digest = _securityCouncilHashTypedDataV4([_id])
         val e = self.multisig.checkSignatures(digest, _signers, _signatures, APPROVE_UPGRADE_SECURITY_COUNCIL_THRESHOLD)
@@ -86,7 +86,7 @@ module securityCouncil {
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
-    pure def securityCouncil::SoftFreeze(evm: EvmState, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    pure def securityCouncil::SoftFreeze(evm: EvmState, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Signature]): Result[EvmState] = {
         val e = require(evm.blockTimestamp < _validUntil, "Signature expired")
         pure val self = evm.securityCouncil
         if (e != "") err(evm, e) else {
@@ -116,7 +116,7 @@ module securityCouncil {
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
-    pure def securityCouncil::HardFreeze(evm: EvmState, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    pure def securityCouncil::HardFreeze(evm: EvmState, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Signature]): Result[EvmState] = {
         val e = require(evm.blockTimestamp < _validUntil, "Signature expired")
         pure val self = evm.securityCouncil
 
@@ -142,7 +142,7 @@ module securityCouncil {
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the unfreeze.
-    pure def securityCouncil::Unfreeze(evm: EvmState, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    pure def securityCouncil::Unfreeze(evm: EvmState, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Signature]): Result[EvmState] = {
         val e = require(evm.blockTimestamp < _validUntil, "Signature expired")
         pure val self = evm.securityCouncil
 
@@ -169,7 +169,7 @@ module securityCouncil {
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the threshold setting.
-    pure def securityCouncil::SetSoftFreezeThreshold(evm: EvmState, _threshold: Uint256, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Bytes]): Result[EvmState] = {
+    pure def securityCouncil::SetSoftFreezeThreshold(evm: EvmState, _threshold: Uint256, _validUntil: Uint256, _signers: Set[Address], _signatures: Set[Signature]): Result[EvmState] = {
         val e = require(_threshold > 0, "Threshold is too small").
             andRequire(_threshold <= SOFT_FREEZE_CONSERVATIVE_THRESHOLD, "Threshold is too big").
             andRequire(evm.blockTimestamp < _validUntil, "Signature expired");

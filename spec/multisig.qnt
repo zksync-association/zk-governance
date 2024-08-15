@@ -3,7 +3,7 @@ module multisig {
     import hashing.* from "./hashing"
     import state.* from "./state"
     import types.* from "./types"
-    
+ 
     /// -------------------------------------------------------------------------------------------
     /// EIP1271 constants
     /// -------------------------------------------------------------------------------------------
@@ -30,7 +30,7 @@ module multisig {
     // @param _signers An array of signers associated with the signatures.
     // @param _signatures An array of signatures to be validated.
     // @param _threshold The minimum number of valid signatures required to pass the check.
-    pure def checkSignatures(self: MultisigState, _digest: AbiEncoded, _signers: Set[Address], _signatures: Set[Bytes], _threshold: Uint256): Error = {
+    pure def checkSignatures(self: MultisigState, _digest: AbiEncoded, _signers: Set[Address], _signatures: Set[Signature], _threshold: Uint256): Error = {
         // Ensure the total number of signatures meets or exceeds the threshold.
         // In our modeling, we do not check signatures against the digest.
         val signaturesLength = _signatures.size()
@@ -39,16 +39,16 @@ module multisig {
         require(signaturesLength >= _threshold, "Insufficient valid signatures")
             .andRequire(signersLength == signaturesLength, "Inconsistent signers/signatures length")
             // Ensure validity of the signatures and signers, within model
-            .andRequire(_signers == _signatures, "Signature verification failed")
+            .andRequire(_signers == _signatures.map(s => s.signer), "Signature verification failed")
             .andRequire(_signers.subseteq(self.members), "Signer is not a member")
+            .andRequire(_signatures.forall(s => s.digest == _digest), "Digest invalid")
     }
 
     /// @dev The function to check if the provided signatures are valid and meet predefined threshold.
     /// @param _digest The hash of the data being signed.
     /// @param _signature An array of signers and signatures to be validated ABI encoded from `address[], bytes[]` to `abi.decode(data,(address[],bytes[]))`.
-    pure def isValidSignature(self: MultisigState, _digest: AbiEncoded, _signature: Set[Bytes]): Bytes4 = {
-        // TODO: review API of the method, we do not distinguish signer and signature
-        pure val err = self.checkSignatures(_digest, _signature, _signature, self.EIP1271_THRESHOLD)
+    pure def isValidSignature(self: MultisigState, _digest: AbiEncoded, _signature: Set[Signature]): Bytes4 = {
+        pure val err = self.checkSignatures(_digest, _signature.map(s => s.signer), _signature, self.EIP1271_THRESHOLD)
         if (err != "") err
         else EIP1271_MAGICVALUE
     }
@@ -56,7 +56,7 @@ module multisig {
     /// @dev Should return whether the signature provided is valid for the provided data
     /// @param hash      Hash of the data to be signed
     /// @param signature Signature byte array associated with _data
-    pure def isValidSignatureNow(self: MultisigState, _digest: AbiEncoded, _signature: Set[Bytes]): bool = {
+    pure def isValidSignatureNow(self: MultisigState, _digest: AbiEncoded, _signature: Set[Signature]): bool = {
         isValidSignature(self, _digest, _signature) == EIP1271_MAGICVALUE
     }
 }

@@ -34,9 +34,9 @@ module emergencyUpgradeBoard {
         evm: EvmState,
         _calls: UpgradeProposalCallsOpaque,
         _salt: Bytes32,
-        _guardiansSignatures: Set[Bytes],
-        _securityCouncilSignatures: Set[Bytes],
-        _zkFoundationSignatures: Set[Bytes]
+        _guardiansSignatures: Set[Signature],
+        _securityCouncilSignatures: Set[Signature],
+        _zkFoundationSignatures: Set[Signature]
     ) : Result[EvmState] = {
         val upgradeProposal: UpgradeProposal = {
             calls: _calls,
