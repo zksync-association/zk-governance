@@ -626,7 +626,7 @@ module main {
                 implies (e.caller == SECURITY_COUNCIL_ADDR)
         }) 
     
-    val onlySecurityCouncilIsAllowedToCallApproveUpgradeSecurityCouncil =
+    val onlySecurityCouncilIsAllowedToCallApproveUpgradeSecurityCouncilInv =
         evm.ghostCallHistory.calls.indices().forall(i => {
             val e = evm.ghostCallHistory.calls[i]
             (e.callee == PROTOCOL_UPGRADE_HANDLER_ADDR) and (e.method == FunctionApproveUpgradeSecurityCouncil)
@@ -647,28 +647,28 @@ module main {
                 implies (e.caller == GUARDIANS_ADDR)
         })
     
-    val onlyEmergencyUpgradeBoardIsAllowedToCallExecuteEmergencyUpgrade =
+    val onlyEmergencyUpgradeBoardIsAllowedToCallExecuteEmergencyUpgradeInv =
         evm.ghostCallHistory.calls.indices().forall(i => {
             val e = evm.ghostCallHistory.calls[i]
             (e.callee == PROTOCOL_UPGRADE_HANDLER_ADDR) and (e.method == FunctionExecuteEmergencyUpgrade)
                 implies (e.caller == EMERGENCY_UPGRADE_BOARD_ADDR)
         })
 
-    val onlyProtocolUpdateHandlerIsAllowedToCallUpdateSecurityCouncil =
+    val onlyProtocolUpdateHandlerIsAllowedToCallUpdateSecurityCouncilInv =
         evm.ghostCallHistory.calls.indices().forall(i => {
             val e = evm.ghostCallHistory.calls[i]
             (e.callee == PROTOCOL_UPGRADE_HANDLER_ADDR) and (e.method == FunctionUpdateSecurityCouncil)
                 implies (e.caller == PROTOCOL_UPGRADE_HANDLER_ADDR)
         })
     
-    val onlyProtocolUpdateHandlerIsAllowedToCallUpdateGuardians =
+    val onlyProtocolUpdateHandlerIsAllowedToCallUpdateGuardiansInv =
         evm.ghostCallHistory.calls.indices().forall(i => {
             val e = evm.ghostCallHistory.calls[i]
             (e.callee == PROTOCOL_UPGRADE_HANDLER_ADDR) and (e.method == FunctionUpdateGuardians)
                 implies (e.caller == PROTOCOL_UPGRADE_HANDLER_ADDR)
         })
     
-    val onlyProtocolUpdateHandlerIsAllowedToCallUpdateEmergencyUpgradeBoard =
+    val onlyProtocolUpdateHandlerIsAllowedToCallUpdateEmergencyUpgradeBoardInv =
         evm.ghostCallHistory.calls.indices().forall(i => {
             val e = evm.ghostCallHistory.calls[i]
             (e.callee == PROTOCOL_UPGRADE_HANDLER_ADDR) and (e.method == FunctionUpdateEmergencyUpgradeBoard)
@@ -680,17 +680,17 @@ module main {
         // security council
         onlySecurityCouncilIsAllowedToCallSoftFreezeInv,
         onlySecurityCouncilIsAllowedToCallHardFreezeInv,
-        onlySecurityCouncilIsAllowedToCallApproveUpgradeSecurityCouncil,
+        onlySecurityCouncilIsAllowedToCallApproveUpgradeSecurityCouncilInv,
         onlySecurityCouncilIsAllowedToCallUnfreezeInv,
         // guardians
         onlyGuardiansIsAllowedToCallExtendLegalVetoInv,
         onlyGuardiansIsAllowedToCallApproveUpgradeGuardiansInv,
         // protocolUpgradeHandler
-        onlyProtocolUpdateHandlerIsAllowedToCallUpdateSecurityCouncil,
-        onlyProtocolUpdateHandlerIsAllowedToCallUpdateGuardians,
-        onlyProtocolUpdateHandlerIsAllowedToCallUpdateEmergencyUpgradeBoard,
+        onlyProtocolUpdateHandlerIsAllowedToCallUpdateSecurityCouncilInv,
+        onlyProtocolUpdateHandlerIsAllowedToCallUpdateGuardiansInv,
+        onlyProtocolUpdateHandlerIsAllowedToCallUpdateEmergencyUpgradeBoardInv,
         // emergencyUpgradeBoard
-        onlyEmergencyUpgradeBoardIsAllowedToCallExecuteEmergencyUpgrade
+        onlyEmergencyUpgradeBoardIsAllowedToCallExecuteEmergencyUpgradeInv
     }
 
     /// Guardians requires exactly 8 members and
@@ -701,7 +701,7 @@ module main {
     }
 
     // Zero address can't be a member while multisig initialization
-    val noZeroAddrInMultisig = and {
+    val noZeroAddrInMultisigInv = and {
         not(evm.securityCouncil.multisig.members.contains(ZERO_ADDRESS)),
         not(evm.guardians.multisig.members.contains(ZERO_ADDRESS)),
         not(evm.zkFoundation.members.contains(ZERO_ADDRESS))
@@ -897,7 +897,7 @@ module main {
     //
     // This invariant checks that if an external user successfully executes ExecuteEmergencyUpgrade call
     // and then make the same call with the same arguments, the second call will return an error.
-    val emergencyUpgradeCannotBeReplayed = {
+    val emergencyUpgradeCannotBeReplayedInv = {
         val executor = EMERGENCY_UPGRADE_BOARD_ADDR
         CALLS.forall(calls => {
             SALTS.forall(salt => {
@@ -933,7 +933,7 @@ module main {
     }
 
     // An Emergency Upgrade cannot be executed twice: there are no two equal executed emergency upgrades.
-    val emergencyUpgradeMustBeExecutedOnce =
+    val emergencyUpgradeMustBeExecutedOnceInv =
         evm.emittedEvents.indices().forall(i => {
             evm.emittedEvents.indices().forall(j => {
                 match (evm.emittedEvents[i]) {
@@ -951,7 +951,7 @@ module main {
     })
 
     // An Upgrade cannot be executed twice: there are no two equal executed upgrades.
-    val upgradeMustBeExecutedOnce =
+    val upgradeMustBeExecutedOnceInv =
         evm.emittedEvents.indices().forall(i => {
             evm.emittedEvents.indices().forall(j => {
                 match (evm.emittedEvents[i]) {
@@ -1167,7 +1167,7 @@ module main {
     }
 
     // SoftFreeze call cannot be replayed.
-    val softFreezeCannotBeReplayed = {
+    val softFreezeCannotBeReplayedInv = {
         TIMESTAMPS.forall(validUntil => {
             ALL_SENDERS.forall(sender => {
                 ALL_MEMBERS.powerset().forall(signers => {
@@ -1186,7 +1186,7 @@ module main {
     }
 
     // HardFreeze call cannot be replayed.
-    val hardFreezeCannotBeReplayed = {
+    val hardFreezeCannotBeReplayedInv = {
         TIMESTAMPS.forall(validUntil => {
             ALL_SENDERS.forall(sender => {
                 ALL_MEMBERS.powerset().forall(signers => {
@@ -1205,7 +1205,7 @@ module main {
     }
 
     // Unfreeze call cannot be replayed.
-    val unfreezeCannotBeReplayed = {
+    val unfreezeCannotBeReplayedInv = {
         TIMESTAMPS.forall(validUntil => {
             ALL_SENDERS.forall(sender => {
                 ALL_MEMBERS.powerset().forall(signers => {
@@ -1224,7 +1224,7 @@ module main {
     }
 
     // ApproveUpgradeSecurityCouncil call cannot be replayed.
-    val approveUpgradeSecurityCouncilCannotBeReplayed = {
+    val approveUpgradeSecurityCouncilCannotBeReplayedInv = {
         val IDS = getAllUpgradeIDs(evm)
         IDS.forall(id=> {
             ALL_SENDERS.forall(sender => {
@@ -1245,7 +1245,7 @@ module main {
     }
 
     // Guardians' ApproveUpgradeGuardians call cannot be replayed.
-    val approveUpgradeGuardiansCannotBeReplayed = {
+    val approveUpgradeGuardiansCannotBeReplayedInv = {
         val IDS = getAllUpgradeIDs(evm)
         ids.forall(id => {
             ALL_SENDERS.forall(sender => {
@@ -1264,7 +1264,7 @@ module main {
     }
 
     // Guardians' ExtendLegalVeto call cannot be replayed.
-    val extendLegalVetoGuardiansCannotBeReplayed = {
+    val extendLegalVetoGuardiansCannotBeReplayedInv = {
         val IDS = getAllUpgradeIDs(evm)
         ids.forall(id => {
             ALL_SENDERS.forall(sender => {
@@ -1283,7 +1283,7 @@ module main {
     }
 
     // ProposeL2GovernorProposal call cannot be replayed.
-    val proposeL2GovernorProposalCannotBeReplayed = {
+    val proposeL2GovernorProposalCannotBeReplayedInv = {
         val IDS = getAllUpgradeIDs(evm)
         L2_PROPOSALS.forall(l2Proposal => {
             TX_REQUESTS.forall(txRequest => {
@@ -1306,7 +1306,7 @@ module main {
     }
 
     // CancelL2GovernorProposal call cannot be replayed.
-    val cancelL2GovernorProposalCannotBeReplayed = {
+    val cancelL2GovernorProposalCannotBeReplayedInv = {
         val IDS = getAllUpgradeIDs(evm)
         L2_PROPOSALS.forall(l2Proposal => {
             TX_REQUESTS.forall(txRequest => {
@@ -1343,14 +1343,14 @@ module main {
     }
 
     val nonReplayableInv = and {
-        softFreezeCannotBeReplayed,
-        hardFreezeCannotBeReplayed,
-        unfreezeCannotBeReplayed,
-        approveUpgradeGuardiansCannotBeReplayed,
-        approveUpgradeSecurityCouncilCannotBeReplayed,
-        extendLegalVetoGuardiansCannotBeReplayed,
-        cancelL2GovernorProposalCannotBeReplayed,
-        proposeL2GovernorProposalCannotBeReplayed
+        softFreezeCannotBeReplayedInv,
+        hardFreezeCannotBeReplayedInv,
+        unfreezeCannotBeReplayedInv,
+        approveUpgradeGuardiansCannotBeReplayedInv,
+        approveUpgradeSecurityCouncilCannotBeReplayedInv,
+        extendLegalVetoGuardiansCannotBeReplayedInv,
+        cancelL2GovernorProposalCannotBeReplayedInv,
+        proposeL2GovernorProposalCannotBeReplayedInv
     }
 
     // A weak version of zkFrozenUntilStrongInv:
@@ -1363,17 +1363,25 @@ module main {
 
     val generalInv = and {
         softFreezeThresholdNotBiggerThanNineInv,
-        noZeroAddrInMultisig,
+        noZeroAddrInMultisigInv,
         membersNumbersCorrectInv
     }
 
-    // All invariants
-    val allInvariants = and {
+    val slowInvariants = and {
+        freezeSafetySlowInv
+    }
+
+    val fastInvariants = and {
         accessControlPolicyInv,
-        freezeSafetyFastInv, freezeSafetySlowInv,
+        freezeSafetyFastInv,
         upgradabilityInv,
         generalInv,
         nonReplayableInv
+    }
+
+    val allInvariants = and {
+        slowInvariants,
+        fastInvariants
     }
         
     /// -------------------------------------------------------------------------
