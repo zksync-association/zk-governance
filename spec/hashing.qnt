@@ -43,4 +43,18 @@ module hashing {
     pure def _hashTypedDataV4(name: Bytes, version: Bytes, structHash: AbiEncoded): AbiEncoded = {
         [ AbiStr(name), AbiStr(version)].concat(structHash)
     }
+
+    pure def _guardiansHashTypedDataV4(structHash: AbiEncoded): AbiEncoded = {
+        _hashTypedDataV4("guardians", "1", structHash)
+    }
+
+    pure def _securityCouncilHashTypedDataV4(structHash: AbiEncoded): AbiEncoded = {
+        _hashTypedDataV4("SecurityCouncil", "1", structHash)
+    }
+
+    pure def _emergencyUpgradeBoardCouncilHashTypedDataV4(structHash: AbiEncoded): AbiEncoded = {
+        _hashTypedDataV4("EmergencyUpgradeBoard", "1", structHash)
+    }
+
+
 }
