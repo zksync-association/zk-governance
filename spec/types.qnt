@@ -1,6 +1,7 @@
 module types {
 
     type Address = str
+    type ChainID = int
     type Uint256 = int
     type Uint64 = int
     type Uint48 = int
@@ -19,12 +20,13 @@ module types {
     /// @dev This enumeration includes the following states:
     /// @param StateNone Default state, indicating the upgrade has not been set.
     /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.
-    /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Concil.
+    /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security Council.
     /// @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for execution.
     /// @param Ready The upgrade proposal is ready to be executed.
-    /// @param Canceled The upgrade proposal was canceled.
+    /// @param Expired The upgrade proposal was expired.
     /// @param Done The upgrade has been successfully executed.
-    type UpgradeState =  UpgradeStateNone 
+    type UpgradeState =
+        | UpgradeStateNone 
         | UpgradeStateLegalVetoPeriod 
         | UpgradeStateWaiting
         | UpgradeStateExecutionPending
@@ -36,6 +38,8 @@ module types {
     /// @param StatusNone Default state, indicating the freeze has not been happening in this upgrade cycle.
     /// @param Soft The protocol is/was frozen for the short time.
     /// @param Hard The protocol is/was frozen for the long time.
+    /// @param AfterSoftFreeze The protocol was soft frozen, it can be hard frozen in this upgrade cycle.
+    /// @param AfterHardFreeze The protocol was hard frozen, but now it can't be frozen until the upgrade.
     type FreezeStatus = FreezeStatusNone
         | FreezeStatusSoft
         | FreezeStatusHard
@@ -56,6 +60,15 @@ module types {
         executed: bool
     }
 
+    // the value of an uninitialized UpgradeStatus
+    pure val upgradeStatusZero = {
+        creationTimestamp: 0,
+        securityCouncilApprovalTimestamp: 0, 
+        guardiansApproval: false,
+        guardiansExtendedLegalVeto: false, 
+        executed: false
+    }
+
     /// @dev Represents a call to be made during an upgrade.
     /// @param target The address to which the call will be made.
     /// @param value The amount of Ether (in wei) to be sent along with the call.
@@ -71,10 +84,12 @@ module types {
     /// @param calls An array of `Call` structs, each representing a call to be made during the upgrade execution.
     /// @param salt A bytes32 value used for creating unique upgrade proposal hashes.
     type UpgradeProposal = {
-        calls: List[Call],
+        calls: UpgradeProposalCallsOpaque,
         executor: Address,
         salt: Bytes32,
     }
+
+    type UpgradeProposalCallsOpaque = str
 
     /// @dev Struct for L2 governor proposals parameters.
     /// @param targets Array of contract addresses to be called.
@@ -174,6 +189,26 @@ module types {
         match (opt) {
             | None => None
             | Some(e) => Some(mapper(e))
+        }
+    }
+
+    // return true, if a list `l` contains an element that satisfies `pred`
+    pure def has(l: List[a], pred: a => bool): bool = {
+        l.indices().exists(i => pred(l[i]))
+    }
+
+    // return true, if a list `l` contains an element that satisfies `pred`
+    pure def has_elem(l: List[a], e: a): bool = {
+        l.indices().exists(i => l[i] == e)
+    }
+
+    /// Get the map value associated with a key, or the default,
+    /// if the key is not present.
+    pure def getOrElse(__map: a -> b, __key: a, __default: b): b = {
+        if (__map.keys().contains(__key)) {
+            __map.get(__key)
+        } else {
+            __default
         }
     }
 }
