@@ -82,6 +82,7 @@ module main {
             evm' = {
                 ...evm,
                 blockTimestamp: newTimestamp,
+                ghostCallHistory: { lastSender: "", calls: [] },
             },
             freezeOps' = freezeOps,
             strictFreezeOps' = strictFreezeOps,
@@ -612,12 +613,20 @@ module main {
                 implies (e.caller == SECURITY_COUNCIL_ADDR)
         })
 
-    val onlySecurityCouncilIsAllowedToCallUnfreezeInv =
-        evm.ghostCallHistory.calls.indices().forall(i => {
-            val e = evm.ghostCallHistory.calls[i]
-            (e.callee == PROTOCOL_UPGRADE_HANDLER_ADDR) and (e.method == FunctionUnfreeze)
-                implies (e.caller == SECURITY_COUNCIL_ADDR)
-        })
+    temporal onlySecurityCouncilIsAllowedToCallUnfreezeProp =
+        val self = evm.protocolUpgradeHandler
+        val allowedToBeCalledByAnyone =
+            (self.protocolFrozenUntil != 0) and (evm.blockTimestamp > self.protocolFrozenUntil)
+        or {
+            allowedToBeCalledByAnyone,
+            next(evm.ghostCallHistory.calls.indices().forall(i => {
+                val e = evm.ghostCallHistory.calls[i]
+                and {
+                    e.callee == PROTOCOL_UPGRADE_HANDLER_ADDR,
+                    e.method == FunctionUnfreeze,
+                } implies (e.caller == SECURITY_COUNCIL_ADDR)
+            }))
+        }
 
     val onlySecurityCouncilIsAllowedToCallHardFreezeInv =
         evm.ghostCallHistory.calls.indices().forall(i => {
@@ -681,8 +690,6 @@ module main {
         onlySecurityCouncilIsAllowedToCallSoftFreezeInv,
         onlySecurityCouncilIsAllowedToCallHardFreezeInv,
         onlySecurityCouncilIsAllowedToCallApproveUpgradeSecurityCouncilInv,
-        onlySecurityCouncilIsAllowedToCallUnfreezeInv,
-        // guardians
         onlyGuardiansIsAllowedToCallExtendLegalVetoInv,
         onlyGuardiansIsAllowedToCallApproveUpgradeGuardiansInv,
         // protocolUpgradeHandler
@@ -715,9 +722,9 @@ module main {
         regularUpgradeDoesnotUnfreezeStateInv,
         emergencyUpgradeMaybeExecutedInFrozenInv,
         emergencyUpgradeMultisigInv,
-        emergencyUpgradeCannotBeReplayed,
-        emergencyUpgradeMustBeExecutedOnce,
-        upgradeMustBeExecutedOnce,
+        emergencyUpgradeCannotBeReplayedInv,
+        emergencyUpgradeMustBeExecutedOnceInv,
+        upgradeMustBeExecutedOnceInv,
         freezesRequireEmergencyUpgradeInv,
         upgradesAllowedOpsInv,
         updateSecurityCouncilInv,
@@ -1384,6 +1391,12 @@ module main {
         fastInvariants
     }
         
+    // Even though we qualify these properties as temporal, they are actually action invariants.
+    // Hence, we should still use --invariant.
+    temporal allProperties = and {
+        onlySecurityCouncilIsAllowedToCallUnfreezeProp,
+    }
+
     /// -------------------------------------------------------------------------
     // Falsy invariants to check reachability of certain states
     /// -------------------------------------------------------------------------

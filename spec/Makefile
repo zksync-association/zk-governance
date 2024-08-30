@@ -25,3 +25,6 @@ smoke: prepare
 verify: prepare
 	./scripts/test-invariants.sh ./main.qnt ./upgradability.csv 7 20 1 init step
 	./scripts/test-invariants.sh ./main.qnt ./freezeSafetyFastInv.csv 7 20 1 init step
+
+run-benchmarks: prepare
+	./scripts/test-invariants.sh main.qnt experiments/fast.csv 10 30 1
