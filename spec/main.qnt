@@ -1,3 +1,4 @@
+
 // -*- mode: Bluespec; -*-
 module main {
     import emergencyUpgradeBoard.* from "./emergencyUpgradeBoard"
@@ -731,30 +732,23 @@ module main {
         updateGuardiansInv,
         updateUpdateEmergencyUpgradeBoardInv
     }
-    // The invariant should as follows: if there is an upgrade then we have seen ordered approval and execution calls
+    // The invariant should as follows: if an upgrade is executed then we have seen ordered approval and execution calls
     val upgradeIsExecutedIfApprovedByGuardiansAndSecurityCouncilInv = {
         val upgrades = evm.protocolUpgradeHandler.upgradeStatus
         
         upgrades.keys().forall(id => {
             val upgrade = upgrades.get(id)
             upgrade.executed implies ( or {
-                // While the ZKsync protocol is frozen, an upgrade to address the threat may be passed as an Emergency Upgrade.
-    
+                // Either id is an emergency upgrade, and we do not need other approvals,...
+                evm.emittedEvents.indices().exists(i => and {
+                    evm.emittedEvents[i] == EventEmergencyUpgradeExecuted(id),
+                }),
+                // ...or id is a regular upgrade, and we need to see approval by guardians and security council
                 and {
-                    evm.emittedEvents.indices().exists(i => and {
-                        evm.emittedEvents[i] == EventEmergencyUpgradeExecuted(id),
-                    }),
-
-                },
-                // After a Soft Freeze and/or a Hard Freeze has been initiated,
-                // an Emergency Upgrade must be passed before any subsequent freezes may be initiated.
-    
-                and {
-                    not(evm.zkFrozen),
                     evm.emittedEvents.indices().exists(i => and {
                         evm.emittedEvents[i] == EventUpgradeExecuted(id),
 
-                        or {
+                        and {
                             evm.emittedEvents.indices().exists(ii => and {
                                 ii < i,
                                 evm.emittedEvents[ii] == EventUpgradeApprovedBySecurityCouncil(id),
@@ -764,9 +758,7 @@ module main {
                                 evm.emittedEvents[iii] == EventUpgradeApprovedByGuardians(id),
                                 iii < i,
                             })
-
                         },
-
                     }),
                 }
             })
