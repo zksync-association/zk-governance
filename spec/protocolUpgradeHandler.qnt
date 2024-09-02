@@ -258,7 +258,7 @@ module protocolUpgradeHandler {
                     }),
                 }
                 pure val events = evm.emittedEvents.append(EventUpgradeExecuted(id))
-                ok({ ...unfreeze(evm), protocolUpgradeHandler: self2, emittedEvents: events })
+                ok({ ...evm, protocolUpgradeHandler: self2, emittedEvents: events })
             }
         }
     }
