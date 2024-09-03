@@ -5,7 +5,7 @@
 | **Title** | Proposal Title
 | --- | --- |
 | **Proposal Type** | GAP  |
-| **One Sentence Summary:** | 1-sentence summary description of motivation and/or proposed upgrade |
+| **One Sentence Summary:** | 1-sentence summary description |
 | **Proposer** | Team responsible for specification development, along with point of contact (must be an individual). |
 | **Date Created:** | Date submitted onchain [DATE IN YYYY-MM-DD FORMAT] |
 | **Version** | Current version of proposal, add link to previous version(s) if applicable` |
