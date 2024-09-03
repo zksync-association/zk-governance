@@ -748,7 +748,7 @@ module main {
                     evm.emittedEvents.indices().exists(i => and {
                         evm.emittedEvents[i] == EventUpgradeExecuted(id),
 
-                        and {
+                        or {
                             evm.emittedEvents.indices().exists(ii => and {
                                 ii < i,
                                 evm.emittedEvents[ii] == EventUpgradeApprovedBySecurityCouncil(id),
