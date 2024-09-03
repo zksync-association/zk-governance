@@ -1,4 +1,6 @@
-# Token Program Proposal (TPP) Template
+# TPP Template [Token Governor] 
+
+## Token Program Proposal Summary
 
 | Title | Proposal Title |
 | --- | --- |
