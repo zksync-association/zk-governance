@@ -4,6 +4,7 @@
 
 | Title | Proposal Title |
 | --- | --- |
+| **Proposal Type** | TPP  |
 | One Sentence Summary | 1-sentence summary description |
 | Proposer | Team responsible for proposal execution, along with a designated lead (must be an individual). |
 | Date Created | Date of proposal creation |
