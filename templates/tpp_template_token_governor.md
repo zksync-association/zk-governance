@@ -7,7 +7,7 @@
 | **Proposal Type** | TPP  |
 | One Sentence Summary | 1-sentence summary description |
 | Proposer | Team responsible for proposal execution, along with a designated lead (must be an individual). |
-| Date Created | Date of proposal creation |
+| Date Created | Date of proposal creation [DATE IN YYYY-MM-DD FORMAT] |
 | Version | Version of proposal, and link to previous if applicable |
 | Summary of Action | Description of token mechanic and link to code repository, incl. summary of amount request |
 | Link to contracts | Link to relevant repos if applicable |
