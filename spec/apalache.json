@@ -5,7 +5,7 @@
             "search.simulation.maxRun": 100
         },
         "--discard-disabled": true,
-        "--no-deadlock": true,
+        "--no-deadlock": false,
         "--write-intermediate": true
     }
 }
