@@ -1,6 +1,6 @@
 # ZIP Template [Protocol Governor]
 
-## ZKsync Improvement Proposal Summary
+# ZKsync Improvement Proposal Summary
 
 | **Title** | Proposal Title
 | --- | --- |
