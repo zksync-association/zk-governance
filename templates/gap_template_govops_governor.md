@@ -6,15 +6,17 @@
 | --- | --- |
 | **Proposal Type** | GAP  |
 | **One Sentence Summary:** | 1-sentence summary description |
-| **Proposer** | Team responsible for specification development, along with point of contact (must be an individual). |
+| **Proposal Author** | Forum handle and/or Twitter handle of entity or individual. If entity, please also provide handles for an individual best placed to respond to feedback and comments. |
 | **Date Created:** | Date submitted onchain [DATE IN YYYY-MM-DD FORMAT] |
 | **Version** | Current version of proposal, add link to previous version(s) if applicable` |
 | **Summary of Action** | Summary of the proposed action (e.g. ratification, election, other connected onchain action) |
 | **Link to contracts** | Link to relevant repos if applicable |
 
-# **TITLE: [GAP] Proposal Title**
+# **TITLE: [GAP #] Proposal Title**
 
 Follow this template for new Governance Advisory proposals, removing this text and replacing the title with your proposal's own. Proposals can be submitted via Tally or other governance applications supporting ZKsync governance.
+
+> ℹ️ Please check the last GAP on Tally to assign the appropriate number to your proposal.
 
 ## **Simple Summary**
 
@@ -32,7 +34,7 @@ Lastly, make sure to highlight key risks, dependencies, or limitations of the pr
 
 Describe how the proposal will ***impact*** the ZKsync protocol and governance system, and what future vision these changes will contribute to.
 
-Make sure to describe what specific metrics your Token Program will impact, why it will impact them, and how the metrics will change.
+Make sure to describe what specific metrics your proposal will impact, why it will impact them, and how the metrics will change.
 
 ## Advisory Detail
 
@@ -40,7 +42,7 @@ Describe the set of actions that the proposal is advising. If the proposal inclu
 
 ## Accountability Framework
 
-Specify what methods will hold the program, operations, and participants accountable for their commitments. For example, this can include items such as an Accountability Council, Token Streaming Terms, KYC or reputation, staking.
+Specify what methods will hold the program, operations, and participants accountable for their commitments. For example, this can include items such as an Accountability Council, Token Streaming Terms, KYC, reputation, and/or staking.
 
 ## **Plan**
 
