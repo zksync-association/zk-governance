@@ -6,15 +6,17 @@
 | --- | --- |
 | **Proposal Type** | ZIP  |
 | **One Sentence Summary:** | 1-sentence summary description |
-| **Proposer** | Team responsible for specification development, along with point of contact (must be an individual). |
+| **Proposer** | Forum handle and/or Twitter handle of entity or individual.
+If entity, please also provide handles for an individual best placed to respond to feedback and comments. |
 | **Date Created:** | Date submitted onchain [DATE IN YYYY-MM-DD FORMAT] |
 | **Version** | Current version of proposal, add link to previous version(s) if applicable` |
 | **Summary of Action** | Summary of technical specification |
 | **Link to contracts** | Link to relevant repos if applicable |
 
-## **TITLE: [ZIP] Proposal Title**
+## **TITLE: [ZIP #] Proposal Title**
 
 Follow this template for new ZKsync Improvement proposals, removing this text and replacing the title with your proposal's own. Proposals can be submitted via Tally or other governance applications supporting ZKsync governance.
+> ℹ️ Please check the last ZIP on Tally to assign the appropriate number to your proposal.
 
 ## **Simple Summary**
 
@@ -22,7 +24,7 @@ Add a one-sentence summary of the proposal.
 
 ## Abstract
 
-Use this initial section to provide a ~250 word summary of the proposal. This summary should include about up to 2 paragraphs explaining the motivation and impact of the protocol upgrade you are proposing.
+Use this initial section to provide a ~250 word summary of the proposal. This summary should include about 2 paragraphs explaining the motivation and impact of the protocol upgrade you are proposing.
 
 This information should be simple, direct, and in accessible language. Describe the problem that the ZKsync Improvement Proposal addresses, and how it improves or contributes to the ZKsync protocol.
 
@@ -36,7 +38,7 @@ The technical specification should describe the syntax, semantics, and any new c
 
 ## Rationale
 
-Discuss the rationale behind the design decisions and the approach taken. Explain why certain choices were made and describe alternative solutions that were considered, if appropriate.
+Discuss the rationale behind the design decisions and the approach taken. Explain why certain key choices were made and describe alternative solutions that were considered, if appropriate.
 
 ## Backwards Compatibility
 
