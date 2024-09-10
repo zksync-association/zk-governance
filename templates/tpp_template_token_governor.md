@@ -61,7 +61,7 @@ Describe the proposed Token Program structure, operations, timeline, and other d
 
 ## Accountability Framework
 
-Specify what methods will hold the program, operations, and participants accountable for their commitments. For example, this can include items such as an Accountability Council, Token Streaming Terms, KYC or reputation staking.
+Specify what methods will hold the program, operations, and participants accountable for their commitments. For example, this can include items such as an Accountability Council, Token Streaming Terms, KYC, reputation, and/or staking.
 
 Describe what accountability mechanisms guard how ZK Tokens are used, distributed, and returned based on the Token Program’s performance.
 
