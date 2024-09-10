@@ -1,6 +1,6 @@
 # ZIP Template [Protocol Governor]
 
-# ZKsync Improvement Proposal Summary
+## ZKsync Improvement Proposal Summary
 
 | **Title** | Proposal Title
 | --- | --- |
@@ -12,7 +12,7 @@
 | **Summary of Action** | Summary of technical specification |
 | **Link to contracts** | Link to relevant repos if applicable |
 
-## **TITLE: [ZIP #] Proposal Title**
+# **TITLE: [ZIP #] Proposal Title**
 
 Follow this template for new ZKsync Improvement proposals, removing this text and replacing the title with your proposal's own. Proposals can be submitted via Tally or other governance applications supporting ZKsync governance.
 > ℹ️ Please check the last ZIP on Tally to assign the appropriate number to your proposal.
