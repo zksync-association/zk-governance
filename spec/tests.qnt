@@ -11,8 +11,7 @@ module tests {
     run multisig_Test = {
         val m = newMultisig(Set("a", "b", "c", "d"), 2)
         if (isOk(m)) {
-            val magic = m.v.isValidSignature([], Set("a", "b", "c", "d"))
-            assert(magic == EIP1271_MAGICVALUE)
+            assert(m.v.isValidSignature([], Set({signer: "a", digest: [AbiStr("a")]})) != EIP1271_MAGICVALUE)
         } else {
             assert(false)
         }
@@ -22,7 +21,16 @@ module tests {
     run multisig_2_Test = {
         val m = newMultisig(Set("a","b","c","d"), 2)
         if (isOk(m)) {
-            assert(EIP1271_MAGICVALUE == m.v.isValidSignature([], Set("a","b","c", "d")))
+            assert(m.v.isValidSignature([], Set({signer: "a", digest: [AbiStr("a")]})) != EIP1271_MAGICVALUE)
+        } else {
+            assert(false)
+        }
+    }
+
+    run multisig_3_Test = {
+        val m = newMultisig(Set("a", "b", "c", "d"), 2)
+        if (isOk(m)) {
+            assert(EIP1271_MAGICVALUE == m.v.isValidSignature([AbiStr("a"), AbiStr("b")], Set({signer: "a", digest: [AbiStr("a"), AbiStr("b")]}, {signer: "b", digest: [AbiStr("a"), AbiStr("b")]})))
         } else {
             assert(false)
         }
@@ -87,7 +95,12 @@ module tests {
             }
             val nine = Set("a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9")
             val evm2 = evm.externalCall("sender", "SECURITY_COUNCIL_ADDR", FunctionSoftFreeze)
-            val res = securityCouncil::SoftFreeze(evm, 100, nine, nine)
+            val digest = _securityCouncilHashTypedDataV4(
+                keccak256(abi_encode3(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, AbiInt(evm.securityCouncil.softFreezeNonce), AbiInt(100)))
+            )
+            val signers = nine
+            val signatures = signDigest(signers, digest)
+            val res = securityCouncil::SoftFreeze(evm, 100, signers, signatures)
             if (isErr(res)) {
                 assert(false)
             } else {
@@ -202,7 +215,7 @@ module tests {
         } else {
             
             val evm0 = {
-                blockTimestamp: 0,
+                blockTimestamp: 1,
                 securityCouncil: sc.v,
                 guardians: guardians.v,
                 zkFoundation: zkFoundationMultisig.v,
@@ -236,7 +249,7 @@ module tests {
             if (isErr(res1)) {
                 assert(false)
             } else {
-                val evm1 = {...res1.v, blockTimestamp: STANDARD_LEGAL_VETO_PERIOD}.
+                val evm1 = {...res1.v, blockTimestamp: STANDARD_LEGAL_VETO_PERIOD+evm0.blockTimestamp}.
                     externalCall(SECURITY_COUNCIL_ADDR, PROTOCOL_UPGRADE_HANDLER_ADDR, FunctionApproveUpgradeSecurityCouncil)
                 val res2 = protocolUpgradeHandler::ApproveUpgradeSecurityCouncil(evm1, proposalId)
                 if (isErr(res2)) {
