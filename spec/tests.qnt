@@ -215,7 +215,7 @@ module tests {
         } else {
             
             val evm0 = {
-                blockTimestamp: 0,
+                blockTimestamp: 1,
                 securityCouncil: sc.v,
                 guardians: guardians.v,
                 zkFoundation: zkFoundationMultisig.v,
@@ -249,7 +249,7 @@ module tests {
             if (isErr(res1)) {
                 assert(false)
             } else {
-                val evm1 = {...res1.v, blockTimestamp: STANDARD_LEGAL_VETO_PERIOD}.
+                val evm1 = {...res1.v, blockTimestamp: STANDARD_LEGAL_VETO_PERIOD+evm0.blockTimestamp}.
                     externalCall(SECURITY_COUNCIL_ADDR, PROTOCOL_UPGRADE_HANDLER_ADDR, FunctionApproveUpgradeSecurityCouncil)
                 val res2 = protocolUpgradeHandler::ApproveUpgradeSecurityCouncil(evm1, proposalId)
                 if (isErr(res2)) {
