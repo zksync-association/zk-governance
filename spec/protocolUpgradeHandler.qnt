@@ -369,7 +369,7 @@ module protocolUpgradeHandler {
             pure val events = evm.emittedEvents.append(EventReinforceFreezeOneChain(_chainId))
             pure val evm2 = {
                 ...evm,
-                frozenChains: evm.frozenChains.set(_chainId, true),
+                frozenChains: evm.frozenChains.put(_chainId, true),
                 emittedEvents: events
             }
             ok(evm2)
@@ -430,7 +430,7 @@ module protocolUpgradeHandler {
             pure val evm2 = {
                 ...evm,
                 // we do not emulate revert if the target chainID does not exist
-                frozenChains: evm.frozenChains.set(_chainId, false),
+                frozenChains: evm.frozenChains.put(_chainId, false),
                 emittedEvents: events
             }
             ok(evm2)
