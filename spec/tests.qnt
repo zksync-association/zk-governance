@@ -28,9 +28,9 @@ module tests {
     }
 
     run multisig_3_Test = {
-        val m = newMultisig(Set("a","b","c","d"), 2)
+        val m = newMultisig(Set("a", "b", "c", "d"), 2)
         if (isOk(m)) {
-            assert(EIP1271_MAGICVALUE != m.v.isValidSignature([AbiStr("a")], Set({signer: "a", digest: [AbiStr("a")]})))
+            assert(EIP1271_MAGICVALUE == m.v.isValidSignature([AbiStr("a"), AbiStr("b")], Set({signer: "a", digest: [AbiStr("a"), AbiStr("b")]}, {signer: "b", digest: [AbiStr("a"), AbiStr("b")]})))
         } else {
             assert(false)
         }
