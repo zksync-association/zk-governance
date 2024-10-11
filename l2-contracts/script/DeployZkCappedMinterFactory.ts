@@ -5,11 +5,9 @@ import * as hre from "hardhat";
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Read the bytecode hash from ZkCappedMinter.json
-// Verify the zksolc version used to compile the contract, the hash changes with different versions
-const zkCappedMinterPath = path.join(__dirname, '../zkout/ZkCappedMinter.sol/ZkCappedMinter.json');
-const zkCappedMinterJson = JSON.parse(fs.readFileSync(zkCappedMinterPath, 'utf8'));
-const BYTECODE_HASH = '0x' + zkCappedMinterJson.hash;
+// Get the bytecode hash from ZkCappedMinter.json in ./artifacts-zk
+// Verify this bytecode hash before deploying as it can change if the the compilation of the capped minter changes
+const BYTECODE_HASH = "0x010000796655576a236368c33802b0114af403108c937e84b2afa535371ee55c";
 
 async function main() {
   dotEnvConfig();
