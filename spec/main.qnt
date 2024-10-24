@@ -262,6 +262,7 @@ module main {
         val result = protocolUpgradeHandler::ExtendLegalVeto(evm2, proposalId)
         val upg1 = upgradeState(result.v.protocolUpgradeHandler, result.v.blockTimestamp, proposalId)
         all {
+            evm.protocolUpgradeHandler.upgradeStatus.keys().contains(proposalId),
             isOk(result),
             evm' = result.v,
             freezeOps' = freezeOps,
@@ -1450,5 +1451,23 @@ module main {
         ids.forall( id =>
             allowedUpgradeOpsNo.has_elem(upgradeStateMachine.get(id))
         )
+    }
+
+    // an example of an executed upgrade proposal that is not an emergency upgrade
+    val executedExample = {
+        val ids = evm.protocolUpgradeHandler.upgradeStatus.keys()
+        not(ids.exists(id => and {
+            upgradeState(evm.protocolUpgradeHandler, evm.blockTimestamp, id) == UpgradeStateDone,
+            evm.protocolUpgradeHandler.upgradeStatus.get(id).guardiansApproval,
+        }))
+    }
+
+    // an example of an executed upgrade proposal that is not an emergency upgrade
+    val executedEmergencyExample = {
+        val ids = evm.protocolUpgradeHandler.upgradeStatus.keys()
+        not(ids.exists(id => and {
+            upgradeState(evm.protocolUpgradeHandler, evm.blockTimestamp, id) == UpgradeStateDone,
+            not(evm.protocolUpgradeHandler.upgradeStatus.get(id).guardiansApproval),
+        }))
     }
 }
