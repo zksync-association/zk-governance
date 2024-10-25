@@ -28,7 +28,9 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
         IZKsyncEra _ZKsyncEra,
         IStateTransitionManager _stateTransitionManager,
         IPausable _bridgeHub,
-        IPausable _sharedBridge
+        IPausable _l1Nullifier,
+        IPausable _l1AssetRouter,
+        IPausable _l1NativeTokenVault
     )
         ProtocolUpgradeHandler(
             _securityCouncil,
@@ -38,7 +40,9 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
             _ZKsyncEra,
             _stateTransitionManager,
             _bridgeHub,
-            _sharedBridge
+            _l1Nullifier,
+            _l1AssetRouter,
+            _l1NativeTokenVault
         )
     {}
 }

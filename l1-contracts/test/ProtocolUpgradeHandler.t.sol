@@ -32,7 +32,9 @@ contract TestProtocolUpgradeHandler is Test {
     IZKsyncEra zksyncAddress;
     IStateTransitionManager stateTransitionManager;
     IPausable bridgeHub;
-    IPausable sharedBridge;
+    IPausable l1Nullifier;
+    IPausable l1AssetRouter;
+    IPausable l1NativeTokenVault;
 
     ProtocolUpgradeHandler handler;
     uint256[] chainIds;
@@ -74,7 +76,9 @@ contract TestProtocolUpgradeHandler is Test {
             );
         }
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.pause.selector));
-        vm.expectCall(address(sharedBridge), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1Nullifier), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1AssetRouter), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1NativeTokenVault), abi.encodeWithSelector(IPausable.pause.selector));
     }
 
     function _emptyProposal(bytes32 _salt) internal returns (IProtocolUpgradeHandler.UpgradeProposal memory) {
@@ -154,7 +158,9 @@ contract TestProtocolUpgradeHandler is Test {
         stateTransitionManager = IStateTransitionManager(address(new StateTransitionManagerMock(chainIds)));
 
         bridgeHub = IPausable(address(new EmptyContract()));
-        sharedBridge = IPausable(address(new EmptyContract()));
+        l1Nullifier = IPausable(address(new EmptyContract()));
+        l1AssetRouter = IPausable(address(new EmptyContract()));
+        l1NativeTokenVault = IPausable(address(new EmptyContract()));
 
         handler = new ProtocolUpgradeHandler(
             securityCouncil,
@@ -164,7 +170,9 @@ contract TestProtocolUpgradeHandler is Test {
             zksyncAddress,
             stateTransitionManager,
             bridgeHub,
-            sharedBridge
+            l1Nullifier,
+            l1AssetRouter,
+            l1NativeTokenVault
         );
     }
 
@@ -184,7 +192,9 @@ contract TestProtocolUpgradeHandler is Test {
             zksyncAddress,
             stateTransitionManager,
             bridgeHub,
-            sharedBridge
+            l1Nullifier,
+            l1AssetRouter,
+            l1NativeTokenVault
         );
         assertEq(testHandler.securityCouncil(), securityCouncil);
         assertEq(testHandler.guardians(), guardians);
@@ -193,7 +203,9 @@ contract TestProtocolUpgradeHandler is Test {
         assertEq(address(testHandler.ZKSYNC_ERA()), address(zksyncAddress));
         assertEq(address(testHandler.STATE_TRANSITION_MANAGER()), address(stateTransitionManager));
         assertEq(address(testHandler.BRIDGE_HUB()), address(bridgeHub));
-        assertEq(address(testHandler.SHARED_BRIDGE()), address(sharedBridge));
+        assertEq(address(testHandler.L1_NULLIFIER()), address(l1Nullifier));
+        assertEq(address(testHandler.L1_ASSET_ROUTER()), address(l1AssetRouter));
+        assertEq(address(testHandler.L1_NATIVE_TOKEN_VAULT()), address(l1NativeTokenVault));
     }
 
     function test_StateUpgradeIncorrectProof() public {

@@ -72,8 +72,14 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
     IPausable public immutable BRIDGE_HUB;
 
-    /// @dev The shared bridge that is used for all bridging.
-    IPausable public immutable SHARED_BRIDGE;
+    /// @dev The nullifier contract that is used for bridging.
+    IPausable public immutable L1_NULLIFIER;
+
+    /// @dev The asset router contract that is used for bridging.
+    IPausable public immutable L1_ASSET_ROUTER;
+
+    /// @dev Vault holding L1 native ETH and ERC20 tokens bridged into the ZK chains.
+    IPausable public immutable L1_NATIVE_TOKEN_VAULT;
 
     /// @notice The address of the Security Council.
     address public securityCouncil;
@@ -105,7 +111,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         IZKsyncEra _ZKsyncEra,
         IStateTransitionManager _stateTransitionManager,
         IPausable _bridgeHub,
-        IPausable _sharedBridge
+        IPausable _l1Nullifier,
+        IPausable _l1AssetRouter,
+        IPausable _l1NativeTokenVault
     ) {
         // Soft configuration check for contracts that inherit this contract.
         assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
@@ -123,7 +131,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         ZKSYNC_ERA = _ZKsyncEra;
         STATE_TRANSITION_MANAGER = _stateTransitionManager;
         BRIDGE_HUB = _bridgeHub;
-        SHARED_BRIDGE = _sharedBridge;
+        L1_NULLIFIER = _l1Nullifier;
+        L1_ASSET_ROUTER = _l1AssetRouter;
+        L1_NATIVE_TOKEN_VAULT = _l1NativeTokenVault;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -394,7 +404,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         }
 
         try BRIDGE_HUB.pause() {} catch {}
-        try SHARED_BRIDGE.pause() {} catch {}
+        try L1_NULLIFIER.pause() {} catch {}
+        try L1_ASSET_ROUTER.pause() {} catch {}
+        try L1_NATIVE_TOKEN_VAULT.pause() {} catch {}
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
@@ -438,7 +450,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
         }
 
         try BRIDGE_HUB.unpause() {} catch {}
-        try SHARED_BRIDGE.unpause() {} catch {}
+        try L1_NULLIFIER.unpause() {} catch {}
+        try L1_ASSET_ROUTER.unpause() {} catch {}
+        try L1_NATIVE_TOKEN_VAULT.unpause() {} catch {}
     }
 
     /*//////////////////////////////////////////////////////////////
