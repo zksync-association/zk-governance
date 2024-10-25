@@ -979,21 +979,29 @@ module main {
                 }
             })
         }
+        def freezeRequiresEmergencyUpgrade(i, j, kind) = {
+            match (evm.emittedEvents[j]) {
+                | EventSoftFreeze(id2) =>
+                    hasEmergencyUpgrade(evm.emittedEvents.indices().filter(k => i < k and k < j))
+
+                | EventHardFreeze(id2) =>
+                    or {
+                        // it's possible to have a hard freeze right after soft freeze
+                        kind == "soft",
+                        // in other cases, we need to have an emergency upgrade in between
+                        hasEmergencyUpgrade(evm.emittedEvents.indices().filter(k => i < k and k < j))
+                    }
+                    
+
+                | _ => true
+            }
+        }
         evm.emittedEvents.indices().forall(i => {
             evm.emittedEvents.indices().forall(j => or {
                 j <= i,
                 match (evm.emittedEvents[i]) {
-                | EventHardFreeze(id1) =>
-                    match (evm.emittedEvents[j]) {
-                        | EventSoftFreeze(id2) =>
-                            hasEmergencyUpgrade(evm.emittedEvents.indices().filter(k => i < k and k < j))
-
-                        | EventHardFreeze(id2) =>
-                            hasEmergencyUpgrade(evm.emittedEvents.indices().filter(k => i < k and k < j))
-
-                        | _ => true
-                    }
-
+                | EventHardFreeze(id1) => freezeRequiresEmergencyUpgrade(i, j, "hard")
+                | EventSoftFreeze(id1) => freezeRequiresEmergencyUpgrade(i, j, "soft")
                 | _ => true    
                 }
         })
