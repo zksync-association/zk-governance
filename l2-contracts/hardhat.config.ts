@@ -42,7 +42,8 @@ const config: HardhatUserConfig = {
     zkSyncEra: {
       zksync: true,
       ethNetwork: "mainnet",
-      url: "https://zksync-mainnet.g.alchemy.com/v2/SECRET",
+      url: "https://mainnet.era.zksync.io",
+      verifyURL: "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
     },
     zkSyncTestnet: {
       zksync: true,
