@@ -157,7 +157,8 @@ module protocolUpgradeHandler {
         if (e != "") {
             err(evm, e)
         } else {
-            val e1 = require(not(self.upgradeStatus.get(_id).guardiansExtendedLegalVeto), "Legal veto period is already extended")
+            // Access map's element according to the Solidity's semantics
+            val e1 = require(not(self.upgradeStatus.getOrElse(_id, upgradeStatusZero).guardiansExtendedLegalVeto), "Legal veto period is already extended")
             if (e1 != "") {
                 err(evm, e1)
             } else {
