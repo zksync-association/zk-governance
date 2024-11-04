@@ -29,7 +29,6 @@ module main {
     pure val WrongUpgradeIDs = Set(AbiStr("nid1"), AbiStr("nid2"))
     pure val THRESHOLD=1.to(30)
     pure val hyperchainIds=1.to(3)
-    pure val ids = 1.to(100)
     var evm: EvmState
 
     var freezeOps: List[Function]
@@ -491,11 +490,11 @@ module main {
     action Guardians::ExtendLegalVeto = {
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet _id = oneOf(ids)
-        val digest = _guardiansHashTypedDataV4([EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, AbiInt(_id)])
+        nondet id = oneOf(getAllUpgradeIDs(evm).union(WrongUpgradeIDs))
+        val digest = _guardiansHashTypedDataV4([EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, id])
         val signatures = signDigest(signers, digest)
         val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionExtendLegalVeto)
-        val result = guardians::ExtendLegalVeto(evm2, AbiInt(_id), signers, signatures)
+        val result = guardians::ExtendLegalVeto(evm2, id, signers, signatures)
         all {
             isOk(result),
             evm' = result.v,
@@ -508,11 +507,11 @@ module main {
     action Guardians::ApproveUpgradeGuardians = {
         nondet sender = ALL_SENDERS.oneOf()
         nondet signers = ALL_MEMBERS.powerset().oneOf()
-        nondet _id = oneOf(ids)
-        val digest = _guardiansHashTypedDataV4([APPROVE_UPGRADE_GUARDIANS_TYPEHASH, AbiInt(_id)])
+        nondet id = oneOf(getAllUpgradeIDs(evm).union(WrongUpgradeIDs))
+        val digest = _guardiansHashTypedDataV4([APPROVE_UPGRADE_GUARDIANS_TYPEHASH, id])
         val signatures = signDigest(signers, digest)
         val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionApproveUpgradeGuardians)
-        val result = guardians::ApproveUpgradeGuardians(evm2, AbiInt(_id), signers, signatures)
+        val result = guardians::ApproveUpgradeGuardians(evm2, id, signers, signatures)
         all {
             isOk(result),
             evm' = result.v,
@@ -1233,8 +1232,8 @@ module main {
 
     // ApproveUpgradeSecurityCouncil call cannot be replayed.
     val approveUpgradeSecurityCouncilCannotBeReplayedInv = {
-        val IDS = getAllUpgradeIDs(evm)
-        IDS.forall(id=> {
+        val upgradeIDs = getAllUpgradeIDs(evm)
+        upgradeIDs.forall(id=> {
             ALL_SENDERS.forall(sender => {
                 ALL_MEMBERS.powerset().forall(signers => {
                     val digest = _securityCouncilHashTypedDataV4(
@@ -1254,17 +1253,17 @@ module main {
 
     // Guardians' ApproveUpgradeGuardians call cannot be replayed.
     val approveUpgradeGuardiansCannotBeReplayedInv = {
-        val IDS = getAllUpgradeIDs(evm)
-        ids.forall(id => {
+        val upgradeIDs = getAllUpgradeIDs(evm)
+        upgradeIDs.forall(id => {
             ALL_SENDERS.forall(sender => {
                 ALL_MEMBERS.powerset().forall(signers => {
-                    val digest = _guardiansHashTypedDataV4([APPROVE_UPGRADE_GUARDIANS_TYPEHASH, AbiInt(id)])
+                    val digest = _guardiansHashTypedDataV4([APPROVE_UPGRADE_GUARDIANS_TYPEHASH, id])
                     val signatures = signDigest(signers, digest)
                     val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionApproveUpgradeGuardians)
-                    val result = guardians::ApproveUpgradeGuardians(evm2, AbiInt(id), signers, signatures)
+                    val result = guardians::ApproveUpgradeGuardians(evm2, id, signers, signatures)
                     
                     isOk(result) implies {
-                        isErr(guardians::ApproveUpgradeGuardians(result.v, AbiInt(id), signers, signatures))
+                        isErr(guardians::ApproveUpgradeGuardians(result.v, id, signers, signatures))
                     }
                 })
             })
@@ -1273,17 +1272,17 @@ module main {
 
     // Guardians' ExtendLegalVeto call cannot be replayed.
     val extendLegalVetoGuardiansCannotBeReplayedInv = {
-        val IDS = getAllUpgradeIDs(evm)
-        ids.forall(id => {
+        val upgradeIDs = getAllUpgradeIDs(evm)
+        upgradeIDs.forall(id => {
             ALL_SENDERS.forall(sender => {
                 ALL_MEMBERS.powerset().forall(signers => {
-                    val digest = _guardiansHashTypedDataV4([EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, AbiInt(id)])
+                    val digest = _guardiansHashTypedDataV4([EXTEND_LEGAL_VETO_PERIOD_TYPEHASH, id])
                     val signatures = signDigest(signers, digest)
                     val evm2: EvmState = evm.externalCall(sender, GUARDIANS_ADDR, FunctionExtendLegalVeto)
-                    val result = guardians::ExtendLegalVeto(evm2, AbiInt(id), signers, signatures)
+                    val result = guardians::ExtendLegalVeto(evm2, id, signers, signatures)
                     
                     isOk(result) implies {
-                        isErr(guardians::ExtendLegalVeto(result.v, AbiInt(id), signers, signatures))
+                        isErr(guardians::ExtendLegalVeto(result.v, id, signers, signatures))
                     }
                 })
             })
@@ -1292,7 +1291,6 @@ module main {
 
     // ProposeL2GovernorProposal call cannot be replayed.
     val proposeL2GovernorProposalCannotBeReplayedInv = {
-        val IDS = getAllUpgradeIDs(evm)
         L2_PROPOSALS.forall(l2Proposal => {
             TX_REQUESTS.forall(txRequest => {
                 ALL_SENDERS.forall(sender => {
@@ -1315,7 +1313,6 @@ module main {
 
     // CancelL2GovernorProposal call cannot be replayed.
     val cancelL2GovernorProposalCannotBeReplayedInv = {
-        val IDS = getAllUpgradeIDs(evm)
         L2_PROPOSALS.forall(l2Proposal => {
             TX_REQUESTS.forall(txRequest => {
                 ALL_SENDERS.forall(sender => {
