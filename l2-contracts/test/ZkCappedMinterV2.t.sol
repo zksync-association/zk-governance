@@ -178,15 +178,18 @@ contract Pause is ZkCappedMinterV2Test {
     cappedMinter.mint(_receiver, _amount);
   }
 
-  function testFuzz_RevertIf_NonAdminAttemptsToPause(address _admin, address _nonAdmin, uint256 _cap) public {
+  function testFuzz_RevertIf_NotPauserRole(address _admin, uint256 _cap) public {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
     vm.assume(_admin != address(0));
-    vm.assume(_nonAdmin != address(0) && _nonAdmin != _admin);
 
     ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
 
-    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _nonAdmin));
-    vm.prank(_nonAdmin);
+    // Remove PAUSER_ROLE from admin
+    vm.prank(_admin);
+    cappedMinter.revokeRole(PAUSER_ROLE, _admin);
+
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _admin));
+    vm.prank(_admin);
     cappedMinter.pause();
   }
 }
@@ -222,18 +225,22 @@ contract Unpause is ZkCappedMinterV2Test {
     assertEq(token.balanceOf(_receiver), _amount);
   }
 
-  function testFuzz_RevertIf_NonAdminAttemptsToUnpause(address _admin, address _nonAdmin, uint256 _cap) public {
-    _cap = bound(_cap, 1, MAX_MINT_SUPPLY);
+  function testFuzz_RevertIf_NotPauserRole(address _admin, uint256 _cap) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
     vm.assume(_admin != address(0));
-    vm.assume(_nonAdmin != address(0) && _nonAdmin != _admin);
 
     ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
 
+    // Pause first (while admin still has PAUSER_ROLE)
     vm.prank(_admin);
     cappedMinter.pause();
 
-    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _nonAdmin));
-    vm.prank(_nonAdmin);
+    // Remove PAUSER_ROLE from admin
+    vm.prank(_admin);
+    cappedMinter.revokeRole(PAUSER_ROLE, _admin);
+
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _admin));
+    vm.prank(_admin);
     cappedMinter.unpause();
   }
 }
