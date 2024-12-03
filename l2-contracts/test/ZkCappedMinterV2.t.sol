@@ -40,6 +40,7 @@ contract Mint is ZkCappedMinterV2Test {
     uint256 _amount
   ) public {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
     _amount = bound(_amount, 1, MAX_MINT_SUPPLY);
     vm.assume(_cap > _amount);
     vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
@@ -65,6 +66,7 @@ contract Mint is ZkCappedMinterV2Test {
     uint256 _amount2
   ) public {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
     vm.assume(_amount1 < MAX_MINT_SUPPLY / 2);
     vm.assume(_amount2 < MAX_MINT_SUPPLY / 2);
     vm.assume(_amount1 + _amount2 < _cap);
@@ -129,6 +131,7 @@ contract Mint is ZkCappedMinterV2Test {
     public
   {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
     _amount = bound(_amount, 1, _cap);
     vm.assume(_admin != address(0));
     vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
