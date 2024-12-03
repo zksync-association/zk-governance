@@ -124,4 +124,17 @@ contract Mint is ZkCappedMinterV2Test {
     vm.prank(_minter);
     cappedMinter.mint(_receiver, _cap);
   }
+
+  function testFuzz_AdminCannotMintByDefault(address _admin, address _receiver, uint256 _cap, uint256 _amount) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    _amount = bound(_amount, 1, _cap);
+    vm.assume(_admin != address(0));
+    vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
+
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
+
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _admin));
+    vm.prank(_admin);
+    cappedMinter.mint(_receiver, _amount);
+  }
 }
