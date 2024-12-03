@@ -125,7 +125,9 @@ contract Mint is ZkCappedMinterV2Test {
     cappedMinter.mint(_receiver, _cap);
   }
 
-  function testFuzz_AdminCannotMintByDefault(address _admin, address _receiver, uint256 _cap, uint256 _amount) public {
+  function testFuzz_RevertIf_AdminMintsByDefault(address _admin, address _receiver, uint256 _cap, uint256 _amount)
+    public
+  {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
     _amount = bound(_amount, 1, _cap);
     vm.assume(_admin != address(0));
