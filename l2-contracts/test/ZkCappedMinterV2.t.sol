@@ -140,3 +140,97 @@ contract Mint is ZkCappedMinterV2Test {
     cappedMinter.mint(_receiver, _amount);
   }
 }
+
+contract Pause is ZkCappedMinterV2Test {
+  function testFuzz_CorrectlyPreventsNewMintsWhenPaused(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount
+  ) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
+    _amount = bound(_amount, 1, _cap);
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0) && _minter != _admin);
+    vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
+
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
+
+    // Grant minter role and verify minting works
+    vm.prank(_admin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+    assertEq(token.balanceOf(_receiver), _amount);
+
+    // Pause and verify minting fails
+    vm.prank(_admin);
+    cappedMinter.pause();
+
+    vm.expectRevert("Pausable: paused");
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+  }
+
+  function testFuzz_RevertIf_NonAdminAttemptsToPause(address _admin, address _nonAdmin, uint256 _cap) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_admin != address(0));
+    vm.assume(_nonAdmin != address(0) && _nonAdmin != _admin);
+
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
+
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _nonAdmin));
+    vm.prank(_nonAdmin);
+    cappedMinter.pause();
+  }
+}
+
+contract Unpause is ZkCappedMinterV2Test {
+  function testFuzz_CorrectlyAllowsNewMintsWhenUnpaused(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount
+  ) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
+    _amount = bound(_amount, 1, _cap);
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0) && _minter != _admin);
+    vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
+
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
+
+    vm.prank(_admin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+
+    vm.prank(_admin);
+    cappedMinter.pause();
+
+    vm.prank(_admin);
+    cappedMinter.unpause();
+
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+    assertEq(token.balanceOf(_receiver), _amount);
+  }
+
+  function testFuzz_RevertIf_NonAdminAttemptsToUnpause(address _admin, address _nonAdmin, uint256 _cap) public {
+    _cap = bound(_cap, 1, MAX_MINT_SUPPLY);
+    vm.assume(_admin != address(0));
+    vm.assume(_nonAdmin != address(0) && _nonAdmin != _admin);
+
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
+
+    vm.prank(_admin);
+    cappedMinter.pause();
+
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _nonAdmin));
+    vm.prank(_nonAdmin);
+    cappedMinter.unpause();
+  }
+}
