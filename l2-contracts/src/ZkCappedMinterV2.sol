@@ -24,6 +24,8 @@ contract ZkCappedMinterV2 is AccessControl {
   /// @notice Error for when the account is unauthorized.
   error ZkCappedMinterV2__Unauthorized(address account);
 
+  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
   /// @notice Constructor for a new ZkCappedMinter contract
   /// @param _token The token contract where tokens will be minted.
   /// @param _admin The address that will be granted the admin role.
@@ -47,7 +49,7 @@ contract ZkCappedMinterV2 is AccessControl {
 
   /// @notice Reverts if the account is unauthorized.
   function _revertIfUnauthorized() internal view {
-    if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+    if (!hasRole(MINTER_ROLE, msg.sender)) {
       revert ZkCappedMinterV2__Unauthorized(msg.sender);
     }
   }
