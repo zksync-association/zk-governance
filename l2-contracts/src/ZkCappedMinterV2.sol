@@ -18,13 +18,13 @@ contract ZkCappedMinterV2 is AccessControl {
   /// @notice The cumulative number of tokens that have been minted by the ZkCappedMinter.
   uint256 public minted = 0;
 
+  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
   /// @notice Error for when the account is unauthorized.
   error ZkCappedMinterV2__Unauthorized(address account);
-
-  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
   /// @notice Constructor for a new ZkCappedMinter contract
   /// @param _token The token contract where tokens will be minted.
