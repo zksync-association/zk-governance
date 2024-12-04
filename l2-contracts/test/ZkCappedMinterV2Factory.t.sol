@@ -44,7 +44,7 @@ contract CreateCappedMinter is ZkCappedMinterV2FactoryTest {
 
     ZkCappedMinterV2 minter = ZkCappedMinterV2(minterAddress);
     assertEq(address(minter.TOKEN()), address(token));
-    assertEq(minter.ADMIN(), _cappedMinterAdmin);
+    assertEq(minter.hasRole(DEFAULT_ADMIN_ROLE, _cappedMinterAdmin), true);
     assertEq(minter.CAP(), _cap);
   }
 
