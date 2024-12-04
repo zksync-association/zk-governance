@@ -29,7 +29,7 @@ contract ZkCappedMinterV2Test is ZkTokenTest {
   {
     // Using uint32 for time controls to prevent overflows in the ZkToken contract regarding block numbers needing to be
     // casted to uint32.
-    _startTime = bound(_startTime, vm.getBlockTimestamp() + 1, type(uint32).max - 1);
+    _startTime = bound(_startTime, vm.getBlockTimestamp(), type(uint32).max - 1);
     _expirationTime = bound(_expirationTime, _startTime + 1, type(uint32).max);
     return (_startTime, _expirationTime);
   }
@@ -241,7 +241,7 @@ contract Mint is ZkCappedMinterV2Test {
     cappedMinter.mint(_receiver, _amount);
   }
 
-  function testFuzz_RevertIf_MintAfterExpiration(
+  function testFuzz_RevertIf_MintAtOrAfterExpiration(
     address _admin,
     address _minter,
     address _receiver,
@@ -263,7 +263,15 @@ contract Mint is ZkCappedMinterV2Test {
     vm.prank(_admin);
     cappedMinter.grantRole(MINTER_ROLE, _minter);
 
+    // Warp to expiration time
     vm.warp(_expirationTime);
+
+    vm.expectRevert(ZkCappedMinterV2.ZkCappedMinterV2__Expired.selector);
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+
+    // Warp to expiration time + 1
+    vm.warp(_expirationTime + 1);
 
     vm.expectRevert(ZkCappedMinterV2.ZkCappedMinterV2__Expired.selector);
     vm.prank(_minter);
