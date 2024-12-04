@@ -245,3 +245,44 @@ contract Unpause is ZkCappedMinterV2Test {
     cappedMinter.unpause();
   }
 }
+
+contract Close is ZkCappedMinterV2Test {
+  function testFuzz_CorrectlyPermanentlyBlocksMinting(
+    address _cappedMinterAdmin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount
+  ) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
+    _amount = bound(_amount, 1, _cap);
+    vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
+
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_cappedMinterAdmin, _cap);
+    vm.prank(_cappedMinterAdmin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+
+    vm.prank(_cappedMinterAdmin);
+    cappedMinter.close();
+
+    vm.expectRevert(ZkCappedMinterV2.ZkCappedMinterV2__ContractClosed.selector);
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+
+    // Try to unpause (should fail)
+    vm.expectRevert(ZkCappedMinterV2.ZkCappedMinterV2__ContractClosed.selector);
+    vm.prank(_cappedMinterAdmin);
+    cappedMinter.unpause();
+  }
+
+  function testFuzz_RevertIf_NotPauserRoleCloses(address _cappedMinterAdmin, address _nonPauser, uint256 _cap) public {
+    vm.assume(_nonPauser != _cappedMinterAdmin);
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_cappedMinterAdmin, _cap);
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotPauser.selector, _nonPauser));
+    vm.prank(_nonPauser);
+    cappedMinter.close();
+  }
+}
