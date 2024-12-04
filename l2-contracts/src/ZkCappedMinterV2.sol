@@ -102,9 +102,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice Permanently closes the contract, preventing any future minting.
   function close() external {
-    if (!hasRole(PAUSER_ROLE, msg.sender)) {
-      revert ZkCappedMinterV2__NotPauser(msg.sender);
-    }
+    _revertIfNotPauser(msg.sender);
     closed = true;
     _pause();
   }
