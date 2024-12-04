@@ -22,6 +22,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
   bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
+  /// @notice Whether the contract has been permanently closed.
+  bool public closed;
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
@@ -30,6 +33,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice Error for when the account does not have pauser role.
   error ZkCappedMinterV2__NotPauser(address account);
+
+  /// @notice Error for when the contract is closed.
+  error ZkCappedMinterV2__ContractClosed();
 
   /// @notice Constructor for a new ZkCappedMinter contract
   /// @param _token The token contract where tokens will be minted.
@@ -52,6 +58,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Unpauses token minting
   function unpause() external {
     _revertIfNotPauser(msg.sender);
+    if (closed) {
+      revert ZkCappedMinterV2__ContractClosed();
+    }
     _unpause();
   }
 
@@ -59,6 +68,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @param _to The address that will receive the new tokens.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   function mint(address _to, uint256 _amount) external {
+    if (closed) {
+      revert ZkCappedMinterV2__ContractClosed();
+    }
     _requireNotPaused();
     _revertIfNotMinter(msg.sender);
     _revertIfCapExceeded(_amount);
@@ -86,5 +98,14 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     if (minted + _amount > CAP) {
       revert ZkCappedMinterV2__CapExceeded(msg.sender, _amount);
     }
+  }
+
+  /// @notice Permanently closes the contract, preventing any future minting.
+  function close() external {
+    if (!hasRole(PAUSER_ROLE, msg.sender)) {
+      revert ZkCappedMinterV2__NotPauser(msg.sender);
+    }
+    closed = true;
+    _pause();
   }
 }
