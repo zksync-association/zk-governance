@@ -22,8 +22,11 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
-  /// @notice Error for when the account is unauthorized.
-  error ZkCappedMinterV2__Unauthorized(address account);
+  /// @notice Error for when the account does not have minter role.
+  error ZkCappedMinterV2__NotMinter(address account);
+
+  /// @notice Error for when the account does not have pauser role.
+  error ZkCappedMinterV2__NotPauser(address account);
 
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
   bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -43,7 +46,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Pauses token minting
   function pause() external {
     if (!hasRole(PAUSER_ROLE, msg.sender)) {
-      revert ZkCappedMinterV2__Unauthorized(msg.sender);
+      revert ZkCappedMinterV2__NotPauser(msg.sender);
     }
     _pause();
   }
@@ -51,7 +54,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Unpauses token minting
   function unpause() external {
     if (!hasRole(PAUSER_ROLE, msg.sender)) {
-      revert ZkCappedMinterV2__Unauthorized(msg.sender);
+      revert ZkCappedMinterV2__NotPauser(msg.sender);
     }
     _unpause();
   }
@@ -61,16 +64,16 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   function mint(address _to, uint256 _amount) external {
     _requireNotPaused();
-    _revertIfUnauthorized();
+    _revertIfNotMinter(msg.sender);
     _revertIfCapExceeded(_amount);
     minted += _amount;
     TOKEN.mint(_to, _amount);
   }
 
-  /// @notice Reverts if the account is unauthorized.
-  function _revertIfUnauthorized() internal view {
-    if (!hasRole(MINTER_ROLE, msg.sender)) {
-      revert ZkCappedMinterV2__Unauthorized(msg.sender);
+  /// @notice Reverts if the account does not have minter role.
+  function _revertIfNotMinter(address account) internal view {
+    if (!hasRole(MINTER_ROLE, account)) {
+      revert ZkCappedMinterV2__NotMinter(account);
     }
   }
 

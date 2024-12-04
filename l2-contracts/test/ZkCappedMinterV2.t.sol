@@ -89,16 +89,14 @@ contract Mint is ZkCappedMinterV2Test {
     assertEq(token.balanceOf(_receiver2), _amount2);
   }
 
-  function testFuzz_RevertIf_MintAttemptedByNonMinter(address _cappedMinterAdmin, address _nonMinter, uint256 _cap)
-    public
-  {
+  function testFuzz_RevertIf_MintAttemptedByNonMinter(address _admin, address _nonMinter, uint256 _cap) public {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
-    ZkCappedMinterV2 cappedMinter = createCappedMinter(_cappedMinterAdmin, _cap);
+    vm.assume(_admin != address(0));
+    vm.assume(_nonMinter != address(0) && _nonMinter != _admin);
 
-    vm.assume(_nonMinter != address(0));
-    vm.assume(!cappedMinter.hasRole(MINTER_ROLE, _nonMinter));
+    ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
 
-    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _nonMinter));
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotMinter.selector, _nonMinter));
     vm.prank(_nonMinter);
     cappedMinter.mint(_nonMinter, _cap);
   }
@@ -127,9 +125,12 @@ contract Mint is ZkCappedMinterV2Test {
     cappedMinter.mint(_receiver, _cap);
   }
 
-  function testFuzz_RevertIf_AdminMintsByDefault(address _admin, address _receiver, uint256 _cap, uint256 _amount)
-    public
-  {
+  function testFuzz_RevertIf_AdminAttemptsToMintByDefault(
+    address _admin,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount
+  ) public {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
     vm.assume(_cap > 0);
     _amount = bound(_amount, 1, _cap);
@@ -138,7 +139,7 @@ contract Mint is ZkCappedMinterV2Test {
 
     ZkCappedMinterV2 cappedMinter = createCappedMinter(_admin, _cap);
 
-    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _admin));
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotMinter.selector, _admin));
     vm.prank(_admin);
     cappedMinter.mint(_receiver, _amount);
   }
@@ -178,7 +179,7 @@ contract Pause is ZkCappedMinterV2Test {
     cappedMinter.mint(_receiver, _amount);
   }
 
-  function testFuzz_RevertIf_NotPauserRole(address _admin, uint256 _cap) public {
+  function testFuzz_RevertIf_NotPauserRolePauses(address _admin, uint256 _cap) public {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
     vm.assume(_admin != address(0));
 
@@ -188,7 +189,7 @@ contract Pause is ZkCappedMinterV2Test {
     vm.prank(_admin);
     cappedMinter.revokeRole(PAUSER_ROLE, _admin);
 
-    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _admin));
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotPauser.selector, _admin));
     vm.prank(_admin);
     cappedMinter.pause();
   }
@@ -225,7 +226,7 @@ contract Unpause is ZkCappedMinterV2Test {
     assertEq(token.balanceOf(_receiver), _amount);
   }
 
-  function testFuzz_RevertIf_NotPauserRole(address _admin, uint256 _cap) public {
+  function testFuzz_RevertIf_NotPauserRoleUnpauses(address _admin, uint256 _cap) public {
     _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
     vm.assume(_admin != address(0));
 
@@ -239,7 +240,7 @@ contract Unpause is ZkCappedMinterV2Test {
     vm.prank(_admin);
     cappedMinter.revokeRole(PAUSER_ROLE, _admin);
 
-    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__Unauthorized.selector, _admin));
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotPauser.selector, _admin));
     vm.prank(_admin);
     cappedMinter.unpause();
   }
