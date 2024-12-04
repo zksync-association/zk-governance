@@ -49,7 +49,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice The timestamp when minting can begin.
   uint256 public immutable START_TIME;
 
-  /// @notice The timestamp after which minting is no longer allowed.
+  /// @notice The timestamp at or after which minting is no longer allowed.
   uint256 public immutable EXPIRATION_TIME;
 
   /// @notice Constructor for a new ZkCappedMinter contract
