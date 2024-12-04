@@ -40,6 +40,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Error for when the start time is greater than or equal to expiration time, or start time is in the past.
   error ZkCappedMinterV2__InvalidTime();
 
+  /// @notice Error for when a non-admin tries to set the metadata URI
+  error ZkCappedMinterV2__NotAdmin(address account);
+
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
   bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -51,6 +54,12 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice The timestamp after which minting is no longer allowed (inclusive).
   uint256 public immutable EXPIRATION_TIME;
+
+  /// @notice The metadata URI for this minter
+  string public metadataURI;
+
+  /// @notice Event emitted when the metadata URI is set
+  event MetadataURISet(string uri);
 
   /// @notice Constructor for a new ZkCappedMinter contract
   /// @param _token The token contract where tokens will be minted.
@@ -145,5 +154,15 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     _revertIfNotPauser(msg.sender);
     closed = true;
     _pause();
+  }
+
+  /// @notice Sets the metadata URI for this contract
+  /// @param _uri The new metadata URI
+  function setMetadataURI(string memory _uri) external {
+    if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+      revert ZkCappedMinterV2__NotAdmin(msg.sender);
+    }
+    metadataURI = _uri;
+    emit MetadataURISet(_uri);
   }
 }
