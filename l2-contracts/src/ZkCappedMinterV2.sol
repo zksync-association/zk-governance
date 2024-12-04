@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 
 /// @title ZkCappedMinterV2
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A contract to allow a permissioned entity to mint ZK tokens up to a given amount (the cap).
 /// @custom:security-contact security@zksync.io
-contract ZkCappedMinterV2 {
+contract ZkCappedMinterV2 is AccessControl {
   /// @notice The contract where the tokens will be minted by an authorized minter.
   IMintableAndDelegatable public immutable TOKEN;
-
-  /// @notice The address that is allowed to mint tokens.
-  address public immutable ADMIN;
 
   /// @notice The maximum number of tokens that may be minted by the ZkCappedMinter.
   uint256 public immutable CAP;
@@ -23,17 +21,18 @@ contract ZkCappedMinterV2 {
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
-  /// @notice Error for when the caller is not the admin.
+  /// @notice Error for when the account is unauthorized.
   error ZkCappedMinterV2__Unauthorized(address account);
 
   /// @notice Constructor for a new ZkCappedMinter contract
   /// @param _token The token contract where tokens will be minted.
-  /// @param _admin The address that is allowed to mint tokens.
+  /// @param _admin The address that will be granted the admin role.
   /// @param _cap The maximum number of tokens that may be minted by the ZkCappedMinter.
   constructor(IMintableAndDelegatable _token, address _admin, uint256 _cap) {
     TOKEN = _token;
-    ADMIN = _admin;
     CAP = _cap;
+
+    _grantRole(DEFAULT_ADMIN_ROLE, _admin);
   }
 
   /// @notice Mints a given amount of tokens to a given address, so long as the cap is not exceeded.
@@ -46,9 +45,9 @@ contract ZkCappedMinterV2 {
     TOKEN.mint(_to, _amount);
   }
 
-  /// @notice Reverts if msg.sender is not the contract admin.
+  /// @notice Reverts if the account is unauthorized.
   function _revertIfUnauthorized() internal view {
-    if (msg.sender != ADMIN) {
+    if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
       revert ZkCappedMinterV2__Unauthorized(msg.sender);
     }
   }
