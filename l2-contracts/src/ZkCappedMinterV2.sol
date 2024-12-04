@@ -45,17 +45,13 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice Pauses token minting
   function pause() external {
-    if (!hasRole(PAUSER_ROLE, msg.sender)) {
-      revert ZkCappedMinterV2__NotPauser(msg.sender);
-    }
+    _revertIfNotPauser(msg.sender);
     _pause();
   }
 
   /// @notice Unpauses token minting
   function unpause() external {
-    if (!hasRole(PAUSER_ROLE, msg.sender)) {
-      revert ZkCappedMinterV2__NotPauser(msg.sender);
-    }
+    _revertIfNotPauser(msg.sender);
     _unpause();
   }
 
@@ -74,6 +70,13 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   function _revertIfNotMinter(address account) internal view {
     if (!hasRole(MINTER_ROLE, account)) {
       revert ZkCappedMinterV2__NotMinter(account);
+    }
+  }
+
+  /// @notice Reverts if the account does not have pauser role.
+  function _revertIfNotPauser(address account) internal view {
+    if (!hasRole(PAUSER_ROLE, account)) {
+      revert ZkCappedMinterV2__NotPauser(account);
     }
   }
 
