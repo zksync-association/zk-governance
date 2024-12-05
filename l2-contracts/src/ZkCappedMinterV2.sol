@@ -158,6 +158,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice Sets the metadata URI for this contract
   /// @param _uri The new metadata URI
+  /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE
   function setMetadataURI(string memory _uri) external {
     if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
       revert ZkCappedMinterV2__NotAdmin(msg.sender);
