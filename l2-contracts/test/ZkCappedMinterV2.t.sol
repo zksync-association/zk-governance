@@ -522,3 +522,66 @@ contract Close is ZkCappedMinterV2Test {
     cappedMinter.close();
   }
 }
+
+contract SetMetadataURI is ZkCappedMinterV2Test {
+  function testFuzz_InitialMetadataURIIsEmpty(address _admin, uint256 _cap, uint256 _startTime, uint256 _expirationTime)
+    public
+  {
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+    assertEq(cappedMinter.metadataURI(), "");
+  }
+
+  function testFuzz_AdminCanSetMetadataURI(
+    address _admin,
+    uint256 _cap,
+    uint256 _startTime,
+    uint256 _expirationTime,
+    string memory _uri
+  ) public {
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+
+    vm.prank(_admin);
+    cappedMinter.setMetadataURI(_uri);
+
+    assertEq(cappedMinter.metadataURI(), _uri);
+  }
+
+  function testFuzz_EmitsMetadataURISetEvent(
+    address _admin,
+    uint256 _cap,
+    uint256 _startTime,
+    uint256 _expirationTime,
+    string memory _uri
+  ) public {
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+
+    vm.prank(_admin);
+    vm.expectEmit();
+    emit ZkCappedMinterV2.MetadataURISet(_uri);
+    cappedMinter.setMetadataURI(_uri);
+  }
+
+  function testFuzz_RevertIf_NonAdminSetsMetadataURI(
+    address _admin,
+    address _nonAdmin,
+    uint256 _cap,
+    uint256 _startTime,
+    uint256 _expirationTime,
+    string memory _uri
+  ) public {
+    vm.assume(_admin != _nonAdmin);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+
+    vm.prank(_nonAdmin);
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotAdmin.selector, _nonAdmin));
+    cappedMinter.setMetadataURI(_uri);
+  }
+}
