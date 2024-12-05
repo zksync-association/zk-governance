@@ -19,6 +19,24 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice The cumulative number of tokens that have been minted by the ZkCappedMinter.
   uint256 public minted = 0;
 
+  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+  bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
+  /// @notice Whether the contract has been permanently closed.
+  bool public closed;
+
+  /// @notice The timestamp when minting can begin.
+  uint256 public immutable START_TIME;
+
+  /// @notice The timestamp after which minting is no longer allowed (inclusive).
+  uint256 public immutable EXPIRATION_TIME;
+
+  /// @notice The metadata URI for this minter
+  string public metadataURI;
+
+  /// @notice Event emitted when the metadata URI is set
+  event MetadataURISet(string uri);
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
@@ -42,24 +60,6 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice Error for when a non-admin tries to set the metadata URI
   error ZkCappedMinterV2__NotAdmin(address account);
-
-  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-  bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-
-  /// @notice Whether the contract has been permanently closed.
-  bool public closed;
-
-  /// @notice The timestamp when minting can begin.
-  uint256 public immutable START_TIME;
-
-  /// @notice The timestamp after which minting is no longer allowed (inclusive).
-  uint256 public immutable EXPIRATION_TIME;
-
-  /// @notice The metadata URI for this minter
-  string public metadataURI;
-
-  /// @notice Event emitted when the metadata URI is set
-  event MetadataURISet(string uri);
 
   /// @notice Constructor for a new ZkCappedMinter contract
   /// @param _token The token contract where tokens will be minted.
