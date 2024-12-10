@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
+import {IMintHook} from "src/interfaces/IMintHook.sol";
 
 /// @title ZkCappedMinterV2
 /// @author [ScopeLift](https://scopelift.co)
@@ -18,6 +19,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice The cumulative number of tokens that have been minted by the ZkCappedMinter.
   uint256 public minted = 0;
+
+  /// @notice Optional hook to be called before minting
+  IMintHook public mintHook;
 
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
   bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -36,6 +40,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice Event emitted when the metadata URI is set
   event MetadataURISet(string uri);
+
+  /// @notice Event emitted when the mint hook is set
+  event MintHookSet(address indexed hook);
 
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
@@ -60,6 +67,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
 
   /// @notice Error for when a non-admin tries to set the metadata URI
   error ZkCappedMinterV2__NotAdmin(address account);
+
+  /// @notice Error for when the mint hook reverts
+  error ZkCappedMinterV2__HookFailed();
 
   /// @notice Constructor for a new ZkCappedMinter contract
   /// @param _token The token contract where tokens will be minted.
@@ -90,6 +100,17 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     _grantRole(PAUSER_ROLE, _admin);
   }
 
+  /// @notice Sets the mint hook contract
+  /// @param _hook The new hook contract address, or address(0) to remove the hook
+  /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE
+  function setMintHook(IMintHook _hook) external {
+    if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+      revert ZkCappedMinterV2__NotAdmin(msg.sender);
+    }
+    mintHook = _hook;
+    emit MintHookSet(address(_hook));
+  }
+
   /// @notice Pauses token minting
   function pause() external {
     _revertIfNotPauser(msg.sender);
@@ -118,6 +139,12 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     _requireNotPaused();
     _revertIfNotMinter(msg.sender);
     _revertIfCapExceeded(_amount);
+
+    // Execute hook if it exists
+    if (address(mintHook) != address(0)) {
+      mintHook.beforeMint(msg.sender, _to, _amount);
+    }
+
     minted += _amount;
     TOKEN.mint(_to, _amount);
   }
