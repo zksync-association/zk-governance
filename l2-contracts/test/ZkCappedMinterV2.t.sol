@@ -5,10 +5,15 @@ import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
 import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 import {ZkCappedMinterV2} from "src/ZkCappedMinterV2.sol";
 import {console2} from "forge-std/Test.sol";
+import {MockMintHook} from "test/mocks/MockMintHook.sol";
 
 contract ZkCappedMinterV2Test is ZkTokenTest {
+  MockMintHook public hook;
+  uint256 constant HOOK_MAX_AMOUNT = 100e18;
+
   function setUp() public virtual override {
     super.setUp();
+    hook = new MockMintHook(HOOK_MAX_AMOUNT);
   }
 
   function _createCappedMinter(address _admin, uint256 _cap, uint256 _startTime, uint256 _expirationTime)
@@ -219,6 +224,41 @@ contract Mint is ZkCappedMinterV2Test {
     assertEq(token.balanceOf(_receiver), _cap);
   }
 
+  function testFuzz_AllowsMintWhenHookSucceeds(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount,
+    uint256 _startTime,
+    uint256 _expirationTime
+  ) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
+    _amount = bound(_amount, 1, HOOK_MAX_AMOUNT > _cap ? _cap : HOOK_MAX_AMOUNT);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+    vm.warp(_startTime);
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0));
+    vm.assume(_receiver != address(0));
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+    vm.prank(_admin);
+    cappedMinter.setMintHook(hook);
+
+    vm.prank(_admin);
+    hook.setAllowed(_receiver, true);
+
+    vm.startPrank(_admin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+    vm.stopPrank();
+
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+
+    assertEq(token.balanceOf(_receiver), _amount);
+  }
+
   function testFuzz_RevertIf_MintAttemptedByNonMinter(
     address _admin,
     address _nonMinter,
@@ -340,6 +380,67 @@ contract Mint is ZkCappedMinterV2Test {
     vm.warp(_expirationTime + 1);
 
     vm.expectRevert(ZkCappedMinterV2.ZkCappedMinterV2__Expired.selector);
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+  }
+
+  function testFuzz_RevertIf_HookRejectsAmount(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount,
+    uint256 _startTime,
+    uint256 _expirationTime
+  ) public {
+    _cap = bound(_cap, HOOK_MAX_AMOUNT + 1, MAX_MINT_SUPPLY);
+    _amount = bound(_amount, HOOK_MAX_AMOUNT + 1, _cap);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+    vm.warp(_startTime);
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0));
+    vm.assume(_receiver != address(0));
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+    vm.prank(_admin);
+    cappedMinter.setMintHook(hook);
+
+    vm.startPrank(_admin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+    vm.stopPrank();
+
+    vm.expectRevert(abi.encodeWithSelector(MockMintHook.MockMintHook__AmountTooHigh.selector, _amount, HOOK_MAX_AMOUNT));
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+  }
+
+  function testFuzz_RevertIf_HookRejectsReceiver(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount,
+    uint256 _startTime,
+    uint256 _expirationTime
+  ) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
+    _amount = bound(_amount, 0, HOOK_MAX_AMOUNT > _cap ? _cap : HOOK_MAX_AMOUNT);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+    vm.warp(_startTime);
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0));
+    vm.assume(_receiver != address(0));
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+    vm.prank(_admin);
+    cappedMinter.setMintHook(hook);
+
+    vm.startPrank(_admin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+    vm.stopPrank();
+
+    vm.expectRevert(abi.encodeWithSelector(MockMintHook.MockMintHook__ReceiverNotAllowed.selector, _receiver));
     vm.prank(_minter);
     cappedMinter.mint(_receiver, _amount);
   }
@@ -583,5 +684,75 @@ contract SetMetadataURI is ZkCappedMinterV2Test {
     vm.prank(_nonAdmin);
     vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotAdmin.selector, _nonAdmin));
     cappedMinter.setMetadataURI(_uri);
+  }
+}
+
+contract SetMintHook is ZkCappedMinterV2Test {
+  function testFuzz_CorrectlySetsMintHook(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount,
+    uint256 _startTime,
+    uint256 _expirationTime
+  ) public {
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0));
+    vm.assume(_receiver != address(0));
+    vm.assume(_cap > 0);
+    vm.assume(_amount > 0);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+    vm.warp(_startTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+
+    vm.prank(_admin);
+    cappedMinter.setMintHook(hook);
+
+    assertEq(address(cappedMinter.mintHook()), address(hook));
+  }
+
+  function testFuzz_EmitsMintHookSetEvent(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount,
+    uint256 _startTime,
+    uint256 _expirationTime
+  ) public {
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0));
+    vm.assume(_receiver != address(0));
+    vm.assume(_cap > 0);
+    vm.assume(_amount > 0);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+    vm.warp(_startTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+
+    vm.prank(_admin);
+    vm.expectEmit();
+    emit ZkCappedMinterV2.MintHookSet(address(hook));
+    cappedMinter.setMintHook(hook);
+  }
+
+  function testFuzz_RevertIf_NonAdminSetsMintHook(
+    address _admin,
+    address _nonAdmin,
+    uint256 _cap,
+    uint256 _startTime,
+    uint256 _expirationTime
+  ) public {
+    vm.assume(_admin != _nonAdmin);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+    vm.warp(_startTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+
+    vm.prank(_nonAdmin);
+    vm.expectRevert(abi.encodeWithSelector(ZkCappedMinterV2.ZkCappedMinterV2__NotAdmin.selector, _nonAdmin));
+    cappedMinter.setMintHook(hook);
   }
 }
