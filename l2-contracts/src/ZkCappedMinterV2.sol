@@ -58,9 +58,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Unpauses token minting
   function unpause() external {
     _revertIfNotPauser(msg.sender);
-    if (closed) {
-      revert ZkCappedMinterV2__ContractClosed();
-    }
+    _revertIfClosed();
     _unpause();
   }
 
@@ -68,9 +66,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @param _to The address that will receive the new tokens.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   function mint(address _to, uint256 _amount) external {
-    if (closed) {
-      revert ZkCappedMinterV2__ContractClosed();
-    }
+    _revertIfClosed();
     _requireNotPaused();
     _revertIfNotMinter(msg.sender);
     _revertIfCapExceeded(_amount);
@@ -97,6 +93,13 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   function _revertIfCapExceeded(uint256 _amount) internal view {
     if (minted + _amount > CAP) {
       revert ZkCappedMinterV2__CapExceeded(msg.sender, _amount);
+    }
+  }
+
+  /// @notice Reverts if the contract is closed.
+  function _revertIfClosed() internal view {
+    if (closed) {
+      revert ZkCappedMinterV2__ContractClosed();
     }
   }
 
