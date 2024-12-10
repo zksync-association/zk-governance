@@ -444,6 +444,40 @@ contract Mint is ZkCappedMinterV2Test {
     vm.prank(_minter);
     cappedMinter.mint(_receiver, _amount);
   }
+
+  function testFuzz_RevertIf_HookRejectsAlwaysReverts(
+    address _admin,
+    address _minter,
+    address _receiver,
+    uint256 _cap,
+    uint256 _amount,
+    uint256 _startTime,
+    uint256 _expirationTime
+  ) public {
+    _cap = bound(_cap, 0, MAX_MINT_SUPPLY);
+    vm.assume(_cap > 0);
+    _amount = bound(_amount, 1, HOOK_MAX_AMOUNT > _cap ? _cap : HOOK_MAX_AMOUNT);
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+    vm.warp(_startTime);
+    vm.assume(_admin != address(0));
+    vm.assume(_minter != address(0));
+    vm.assume(_receiver != address(0));
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+
+    vm.prank(_admin);
+    cappedMinter.setMintHook(hook);
+
+    vm.startPrank(_admin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+    vm.stopPrank();
+
+    hook.setShouldAlwaysRevert(true);
+
+    vm.expectRevert("MockMintHook: always revert");
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+  }
 }
 
 contract Pause is ZkCappedMinterV2Test {
