@@ -2,13 +2,14 @@
 pragma solidity 0.8.24;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 
 /// @title ZkCappedMinterV2
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A contract to allow a permissioned entity to mint ZK tokens up to a given amount (the cap).
 /// @custom:security-contact security@zksync.io
-contract ZkCappedMinterV2 is AccessControl {
+contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice The contract where the tokens will be minted by an authorized minter.
   IMintableAndDelegatable public immutable TOKEN;
 
@@ -19,6 +20,7 @@ contract ZkCappedMinterV2 is AccessControl {
   uint256 public minted = 0;
 
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+  bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
@@ -32,12 +34,26 @@ contract ZkCappedMinterV2 is AccessControl {
     CAP = _cap;
 
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+    _grantRole(PAUSER_ROLE, _admin);
+  }
+
+  /// @notice Pauses token minting
+  function pause() external {
+    _checkRole(PAUSER_ROLE, msg.sender);
+    _pause();
+  }
+
+  /// @notice Unpauses token minting
+  function unpause() external {
+    _checkRole(PAUSER_ROLE, msg.sender);
+    _unpause();
   }
 
   /// @notice Mints a given amount of tokens to a given address, so long as the cap is not exceeded.
   /// @param _to The address that will receive the new tokens.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   function mint(address _to, uint256 _amount) external {
+    _requireNotPaused();
     _checkRole(MINTER_ROLE, msg.sender);
     _revertIfCapExceeded(_amount);
     minted += _amount;
