@@ -22,8 +22,14 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
   bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
+  /// @notice Whether the contract has been permanently closed.
+  bool public closed;
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
+
+  /// @notice Thrown when a mint action is taken while the contract is closed.
+  error ZkCappedMinterV2__ContractClosed();
 
   /// @notice Constructor for a new ZkCappedMinterV2 contract
   /// @param _token The token contract where tokens will be minted.
@@ -53,6 +59,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @param _to The address that will receive the new tokens.
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   function mint(address _to, uint256 _amount) external {
+    _revertIfClosed();
     _requireNotPaused();
     _checkRole(MINTER_ROLE, msg.sender);
     _revertIfCapExceeded(_amount);
@@ -66,5 +73,20 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     if (minted + _amount > CAP) {
       revert ZkCappedMinterV2__CapExceeded(msg.sender, _amount);
     }
+  }
+
+  /// @notice Reverts if the contract is closed.
+  function _revertIfClosed() internal view {
+    if (closed) {
+      revert ZkCappedMinterV2__ContractClosed();
+    }
+  }
+
+  /// @notice Permanently closes the contract, preventing any future minting.
+  /// @dev Once closed, the contract cannot be reopened and all minting operations will be permanently blocked.
+  /// @dev Only callable by the admin.
+  function close() external {
+    _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    closed = true;
   }
 }

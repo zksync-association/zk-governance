@@ -36,7 +36,7 @@ contract ZkCappedMinterV2Test is ZkTokenTest {
         "AccessControl: account ",
         Strings.toHexString(uint160(account), 20),
         " is missing role ",
-        Strings.toHexString(uint256(role))
+        Strings.toHexString(uint256(role), 32)
       )
     );
   }
@@ -56,7 +56,6 @@ contract Constructor is ZkCappedMinterV2Test {
 
 contract Mint is ZkCappedMinterV2Test {
   function testFuzz_MintsNewTokensWhenTheAmountRequestedIsBelowTheCap(
-    address _cappedMinterAdmin,
     address _minter,
     address _receiver,
     uint256 _amount
@@ -66,13 +65,14 @@ contract Mint is ZkCappedMinterV2Test {
 
     _grantMinterRole(cappedMinter, cappedMinterAdmin, _minter);
 
+    uint256 balanceBefore = token.balanceOf(_receiver);
+
     vm.prank(_minter);
     cappedMinter.mint(_receiver, _amount);
-    assertEq(token.balanceOf(_receiver), _amount);
+    assertEq(token.balanceOf(_receiver), balanceBefore + _amount);
   }
 
   function testFuzz_MintsNewTokensInSuccessionToDifferentAccountsWhileRemainingBelowCap(
-    address _cappedMinterAdmin,
     address _minter,
     address _receiver1,
     address _receiver2,
@@ -87,13 +87,16 @@ contract Mint is ZkCappedMinterV2Test {
 
     _grantMinterRole(cappedMinter, cappedMinterAdmin, _minter);
 
+    uint256 balanceBefore1 = token.balanceOf(_receiver1);
+    uint256 balanceBefore2 = token.balanceOf(_receiver2);
+
     vm.startPrank(_minter);
     cappedMinter.mint(_receiver1, _amount1);
     cappedMinter.mint(_receiver2, _amount2);
     vm.stopPrank();
 
-    assertEq(token.balanceOf(_receiver1), _amount1);
-    assertEq(token.balanceOf(_receiver2), _amount2);
+    assertEq(token.balanceOf(_receiver1), balanceBefore1 + _amount1);
+    assertEq(token.balanceOf(_receiver2), balanceBefore2 + _amount2);
   }
 
   function testFuzz_RevertIf_MintAttemptedByNonMinter(address _nonMinter, uint256 _amount) public {
@@ -123,6 +126,21 @@ contract Mint is ZkCappedMinterV2Test {
     vm.prank(cappedMinterAdmin);
     cappedMinter.mint(_receiver, _amount);
   }
+
+  function testFuzz_CorrectlyPermanentlyBlocksMinting(address _minter, address _receiver, uint256 _amount) public {
+    _amount = bound(_amount, 1, DEFAULT_CAP);
+    vm.assume(_receiver != address(0));
+
+    vm.prank(cappedMinterAdmin);
+    cappedMinter.grantRole(MINTER_ROLE, _minter);
+
+    vm.prank(cappedMinterAdmin);
+    cappedMinter.close();
+
+    vm.expectRevert(ZkCappedMinterV2.ZkCappedMinterV2__ContractClosed.selector);
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+  }
 }
 
 contract Pause is ZkCappedMinterV2Test {
@@ -133,9 +151,11 @@ contract Pause is ZkCappedMinterV2Test {
     // Grant minter role and verify minting works
     _grantMinterRole(cappedMinter, cappedMinterAdmin, _minter);
 
+    uint256 balanceBefore = token.balanceOf(_receiver);
+
     vm.prank(_minter);
     cappedMinter.mint(_receiver, _amount);
-    assertEq(token.balanceOf(_receiver), _amount);
+    assertEq(token.balanceOf(_receiver), balanceBefore + _amount);
 
     // Pause and verify minting fails
     vm.prank(cappedMinterAdmin);
@@ -207,5 +227,22 @@ contract Unpause is ZkCappedMinterV2Test {
     vm.expectRevert(_formatAccessControlError(cappedMinterAdmin, PAUSER_ROLE));
     vm.prank(cappedMinterAdmin);
     cappedMinter.unpause();
+  }
+}
+
+contract Close is ZkCappedMinterV2Test {
+  function test_CorrectlyChangesClosedVarWhenCalledByAdmin() public {
+    assertEq(cappedMinter.closed(), false);
+
+    vm.prank(cappedMinterAdmin);
+    cappedMinter.close();
+    assertEq(cappedMinter.closed(), true);
+  }
+
+  function testFuzz_RevertIf_NotAdminCloses(address _nonAdmin) public {
+    vm.assume(_nonAdmin != cappedMinterAdmin);
+    vm.expectRevert(_formatAccessControlError(_nonAdmin, DEFAULT_ADMIN_ROLE));
+    vm.prank(_nonAdmin);
+    cappedMinter.close();
   }
 }
