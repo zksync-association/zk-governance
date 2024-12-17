@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
-import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
+import {IMintable} from "src/interfaces/IMintable.sol";
 
 /// @title ZkCappedMinterV2
 /// @author [ScopeLift](https://scopelift.co)
@@ -11,7 +11,7 @@ import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.so
 /// @custom:security-contact security@zksync.io
 contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice The contract where the tokens will be minted by an authorized minter.
-  IMintableAndDelegatable public immutable TOKEN;
+  IMintable public immutable MINTABLE;
 
   /// @notice The maximum number of tokens that may be minted by the ZkCappedMinter.
   uint256 public immutable CAP;
@@ -53,12 +53,12 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   error ZkCappedMinterV2__InvalidTime();
 
   /// @notice Constructor for a new ZkCappedMinterV2 contract
-  /// @param _token The token contract where tokens will be minted.
+  /// @param _mintable The contract where tokens will be minted.
   /// @param _admin The address that will be granted the admin role.
   /// @param _cap The maximum number of tokens that may be minted by the ZkCappedMinter.
   /// @param _startTime The timestamp when minting can begin.
   /// @param _expirationTime The timestamp after which minting is no longer allowed (inclusive).
-  constructor(IMintableAndDelegatable _token, address _admin, uint256 _cap, uint48 _startTime, uint48 _expirationTime) {
+  constructor(IMintable _mintable, address _admin, uint256 _cap, uint48 _startTime, uint48 _expirationTime) {
     if (_startTime > _expirationTime) {
       revert ZkCappedMinterV2__InvalidTime();
     }
@@ -66,7 +66,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
       revert ZkCappedMinterV2__InvalidTime();
     }
 
-    TOKEN = _token;
+    MINTABLE = _mintable;
     CAP = _cap;
     START_TIME = _startTime;
     EXPIRATION_TIME = _expirationTime;
@@ -102,8 +102,10 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     _requireNotPaused();
     _checkRole(MINTER_ROLE, msg.sender);
     _revertIfCapExceeded(_amount);
+
     minted += _amount;
-    TOKEN.mint(_to, _amount);
+
+    MINTABLE.mint(_to, _amount);
   }
 
   /// @notice Reverts if the amount of new tokens will increase the minted tokens beyond the mint cap.
