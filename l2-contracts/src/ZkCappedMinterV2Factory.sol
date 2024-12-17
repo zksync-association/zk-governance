@@ -22,41 +22,61 @@ contract ZkCappedMinterV2Factory {
   /// @param token The token contract where tokens will be minted.
   /// @param admin The address authorized to mint tokens.
   /// @param cap The maximum number of tokens that may be minted.
-  event CappedMinterV2Created(address indexed minterAddress, IMintableAndDelegatable token, address admin, uint256 cap);
+  /// @param startTime The timestamp when minting can begin.
+  /// @param expirationTime The timestamp after which minting is no longer allowed.
+  event CappedMinterV2Created(
+    address indexed minterAddress,
+    IMintableAndDelegatable token,
+    address admin,
+    uint256 cap,
+    uint48 startTime,
+    uint48 expirationTime
+  );
 
   /// @notice Deploys a new ZkCappedMinterV2 contract using CREATE2.
   /// @param _token The token contract where tokens will be minted.
   /// @param _admin The address authorized to mint tokens.
   /// @param _cap The maximum number of tokens that may be minted.
+  /// @param _startTime The timestamp when minting can begin.
+  /// @param _expirationTime The timestamp after which minting is no longer allowed.
   /// @param _saltNonce A user-provided nonce for salt calculation.
   /// @return minterAddress The address of the newly deployed ZkCappedMinterV2.
-  function createCappedMinter(IMintableAndDelegatable _token, address _admin, uint256 _cap, uint256 _saltNonce)
-    external
-    returns (address minterAddress)
-  {
-    bytes memory saltArgs = abi.encode(_token, _admin, _cap);
+  function createCappedMinter(
+    IMintableAndDelegatable _token,
+    address _admin,
+    uint256 _cap,
+    uint48 _startTime,
+    uint48 _expirationTime,
+    uint256 _saltNonce
+  ) external returns (address minterAddress) {
+    bytes memory saltArgs = abi.encode(_token, _admin, _cap, _startTime, _expirationTime);
     bytes32 salt = _calculateSalt(saltArgs, _saltNonce);
-    ZkCappedMinterV2 instance = new ZkCappedMinterV2{salt: salt}(_token, _admin, _cap);
+    ZkCappedMinterV2 instance = new ZkCappedMinterV2{salt: salt}(_token, _admin, _cap, _startTime, _expirationTime);
     minterAddress = address(instance);
 
-    emit CappedMinterV2Created(minterAddress, _token, _admin, _cap);
+    emit CappedMinterV2Created(minterAddress, _token, _admin, _cap, _startTime, _expirationTime);
   }
 
   /// @notice Computes the address of a ZkCappedMinterV2 deployed via this factory.
   /// @param _token The token contract where tokens will be minted.
   /// @param _admin The address authorized to mint tokens.
   /// @param _cap The maximum number of tokens that may be minted.
+  /// @param _startTime The timestamp when minting can begin.
+  /// @param _expirationTime The timestamp after which minting is no longer allowed.
   /// @param _saltNonce The nonce used for salt calculation.
   /// @return addr The address of the ZkCappedMinterV2.
-  function getMinter(IMintableAndDelegatable _token, address _admin, uint256 _cap, uint256 _saltNonce)
-    external
-    view
-    returns (address addr)
-  {
-    bytes memory saltArgs = abi.encode(_token, _admin, _cap);
+  function getMinter(
+    IMintableAndDelegatable _token,
+    address _admin,
+    uint256 _cap,
+    uint48 _startTime,
+    uint48 _expirationTime,
+    uint256 _saltNonce
+  ) external view returns (address addr) {
+    bytes memory saltArgs = abi.encode(_token, _admin, _cap, _startTime, _expirationTime);
     bytes32 salt = _calculateSalt(saltArgs, _saltNonce);
     addr = L2ContractHelper.computeCreate2Address(
-      address(this), salt, BYTECODE_HASH, keccak256(abi.encode(_token, _admin, _cap))
+      address(this), salt, BYTECODE_HASH, keccak256(abi.encode(_token, _admin, _cap, _startTime, _expirationTime))
     );
   }
 

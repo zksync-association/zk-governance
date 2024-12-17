@@ -25,19 +25,45 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Whether the contract has been permanently closed.
   bool public closed;
 
+  /// @notice The timestamp when minting can begin.
+  uint48 public immutable START_TIME;
+
+  /// @notice The timestamp after which minting is no longer allowed (inclusive).
+  uint48 public immutable EXPIRATION_TIME;
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
   /// @notice Thrown when a mint action is taken while the contract is closed.
   error ZkCappedMinterV2__ContractClosed();
 
+  /// @notice Error for when minting is attempted before the start time.
+  error ZkCappedMinterV2__NotStarted();
+
+  /// @notice Error for when minting is attempted after expiration.
+  error ZkCappedMinterV2__Expired();
+
+  /// @notice Error for when the start time is greater than or equal to expiration time, or start time is in the past.
+  error ZkCappedMinterV2__InvalidTime();
+
   /// @notice Constructor for a new ZkCappedMinterV2 contract
   /// @param _token The token contract where tokens will be minted.
   /// @param _admin The address that will be granted the admin role.
   /// @param _cap The maximum number of tokens that may be minted by the ZkCappedMinter.
-  constructor(IMintableAndDelegatable _token, address _admin, uint256 _cap) {
+  /// @param _startTime The timestamp when minting can begin.
+  /// @param _expirationTime The timestamp after which minting is no longer allowed (inclusive).
+  constructor(IMintableAndDelegatable _token, address _admin, uint256 _cap, uint48 _startTime, uint48 _expirationTime) {
+    if (_startTime > _expirationTime) {
+      revert ZkCappedMinterV2__InvalidTime();
+    }
+    if (_startTime < block.timestamp) {
+      revert ZkCappedMinterV2__InvalidTime();
+    }
+
     TOKEN = _token;
     CAP = _cap;
+    START_TIME = _startTime;
+    EXPIRATION_TIME = _expirationTime;
 
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(PAUSER_ROLE, _admin);
@@ -60,6 +86,13 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @param _amount The quantity of tokens, in raw decimals, that will be created.
   function mint(address _to, uint256 _amount) external {
     _revertIfClosed();
+
+    if (block.timestamp < START_TIME) {
+      revert ZkCappedMinterV2__NotStarted();
+    }
+    if (block.timestamp > EXPIRATION_TIME) {
+      revert ZkCappedMinterV2__Expired();
+    }
     _requireNotPaused();
     _checkRole(MINTER_ROLE, msg.sender);
     _revertIfCapExceeded(_amount);
