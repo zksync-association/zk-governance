@@ -31,6 +31,12 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice The timestamp after which minting is no longer allowed (inclusive).
   uint48 public immutable EXPIRATION_TIME;
 
+  /// @notice The metadata URI for this minter.
+  bytes32 public metadataURI;
+
+  /// @notice Emitted when the metadata URI is set.
+  event MetadataURISet(bytes32 uri);
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
@@ -121,5 +127,14 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   function close() external {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
     closed = true;
+  }
+
+  /// @notice Sets the metadata URI for this contract
+  /// @param _uri The new metadata URI
+  /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE
+  function setMetadataURI(bytes32 _uri) external {
+    _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    metadataURI = _uri;
+    emit MetadataURISet(_uri);
   }
 }

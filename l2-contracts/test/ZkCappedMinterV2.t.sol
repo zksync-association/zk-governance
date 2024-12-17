@@ -126,9 +126,7 @@ contract Mint is ZkCappedMinterV2Test {
     address _receiver1,
     address _receiver2,
     uint256 _amount1,
-    uint256 _amount2,
-    uint256 _startTime,
-    uint256 _expirationTime
+    uint256 _amount2
   ) public {
     _amount1 = bound(_amount1, 1, DEFAULT_CAP / 2);
     _amount2 = bound(_amount2, 1, DEFAULT_CAP / 2);
@@ -335,5 +333,38 @@ contract Close is ZkCappedMinterV2Test {
     vm.expectRevert(_formatAccessControlError(_nonAdmin, DEFAULT_ADMIN_ROLE));
     vm.prank(_nonAdmin);
     cappedMinter.close();
+  }
+}
+
+contract SetMetadataURI is ZkCappedMinterV2Test {
+  function testFuzz_InitialMetadataURIIsEmpty(address _admin, uint256 _cap, uint48 _startTime, uint48 _expirationTime)
+    public
+  {
+    (_startTime, _expirationTime) = _boundToValidTimeControls(_startTime, _expirationTime);
+
+    ZkCappedMinterV2 cappedMinter = _createCappedMinter(_admin, _cap, _startTime, _expirationTime);
+    assertEq(cappedMinter.metadataURI(), bytes32(0));
+  }
+
+  function testFuzz_AdminCanSetMetadataURI(bytes32 _uri) public {
+    vm.prank(cappedMinterAdmin);
+    cappedMinter.setMetadataURI(_uri);
+
+    assertEq(cappedMinter.metadataURI(), _uri);
+  }
+
+  function testFuzz_EmitsMetadataURISetEvent(bytes32 _uri) public {
+    vm.prank(cappedMinterAdmin);
+    vm.expectEmit();
+    emit ZkCappedMinterV2.MetadataURISet(_uri);
+    cappedMinter.setMetadataURI(_uri);
+  }
+
+  function testFuzz_RevertIf_NonAdminSetsMetadataURI(address _nonAdmin, bytes32 _uri) public {
+    vm.assume(cappedMinterAdmin != _nonAdmin);
+
+    vm.prank(_nonAdmin);
+    vm.expectRevert(_formatAccessControlError(_nonAdmin, DEFAULT_ADMIN_ROLE));
+    cappedMinter.setMetadataURI(_uri);
   }
 }
