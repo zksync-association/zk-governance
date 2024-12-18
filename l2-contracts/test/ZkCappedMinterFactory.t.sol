@@ -15,7 +15,7 @@ contract ZkCappedMinterFactoryTest is ZkTokenTest {
 
   function setUp() public virtual override {
     super.setUp();
-    
+
     // Read the bytecode hash from the JSON file
     string memory root = vm.projectRoot();
     string memory path = string.concat(root, "/zkout/ZkCappedMinter.sol/ZkCappedMinter.json");
