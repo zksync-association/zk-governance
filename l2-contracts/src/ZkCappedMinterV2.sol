@@ -114,6 +114,15 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     MINTABLE.mint(_to, _amount);
     emit Minted(msg.sender, _to, _amount);
   }
+  /// @inheritdoc AccessControl
+  /// @notice The admin can no longer create other admins.
+  /// @dev This implementation was modeled off of code that can be found
+  /// [here](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/contracts/access/AccessControlDefaultAdminRules.sol#L82).
+
+  function grantRole(bytes32 role, address account) public virtual override {
+    require(role != DEFAULT_ADMIN_ROLE, "AccessControl: can't directly grant default admin role");
+    AccessControl.grantRole(role, account);
+  }
 
   /// @notice Reverts if the amount of new tokens will increase the minted tokens beyond the mint cap.
   /// @param _amount The quantity of tokens, in raw decimals, that will checked against the cap.
