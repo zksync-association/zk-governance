@@ -276,6 +276,18 @@ contract Mint is ZkCappedMinterV2Test {
     assertEq(parentMinter.minted(), _amount);
   }
 
+  function testFuzz_EmitsMintedEvent(address _minter, address _receiver, uint256 _amount) public {
+    _amount = bound(_amount, 1, DEFAULT_CAP);
+    vm.assume(_receiver != address(0));
+
+    _grantMinterRole(cappedMinter, cappedMinterAdmin, _minter);
+
+    vm.expectEmit();
+    emit ZkCappedMinterV2.Minted(_minter, _receiver, _amount);
+    vm.prank(_minter);
+    cappedMinter.mint(_receiver, _amount);
+  }
+
   function testFuzz_RevertIf_MintAttemptedByNonMinter(address _nonMinter, uint256 _amount) public {
     _amount = bound(_amount, 1, DEFAULT_CAP);
 

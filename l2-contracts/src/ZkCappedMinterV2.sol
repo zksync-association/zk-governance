@@ -37,6 +37,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Emitted when the metadata URI is set.
   event MetadataURISet(bytes32 uri);
 
+  /// @notice Emitted when tokens are minted.
+  event Minted(address indexed minter, address indexed to, uint256 amount);
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
@@ -106,6 +109,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     minted += _amount;
 
     MINTABLE.mint(_to, _amount);
+    emit Minted(msg.sender, _to, _amount);
   }
 
   /// @notice Reverts if the amount of new tokens will increase the minted tokens beyond the mint cap.
