@@ -32,10 +32,10 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   uint48 public immutable EXPIRATION_TIME;
 
   /// @notice The metadata URI for this minter.
-  bytes32 public metadataURI;
+  string public metadataURI;
 
   /// @notice Emitted when the metadata URI is set.
-  event MetadataURISet(bytes32 uri);
+  event MetadataURISet(string uri);
 
   /// @notice Emitted when tokens are minted.
   event Minted(address indexed minter, address indexed to, uint256 amount);
@@ -151,7 +151,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Sets the metadata URI for this contract
   /// @param _uri The new metadata URI
   /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE
-  function setMetadataURI(bytes32 _uri) external {
+  function setMetadataURI(string memory _uri) external {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
     metadataURI = _uri;
     emit MetadataURISet(_uri);
