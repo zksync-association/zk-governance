@@ -494,6 +494,13 @@ contract Close is ZkCappedMinterV2Test {
     assertEq(cappedMinter.closed(), true);
   }
 
+  function testFuzz_EmitsClosedEvent() public {
+    vm.prank(cappedMinterAdmin);
+    vm.expectEmit();
+    emit ZkCappedMinterV2.Closed(cappedMinterAdmin);
+    cappedMinter.close();
+  }
+
   function testFuzz_RevertIf_NotAdminCloses(address _nonAdmin) public {
     vm.assume(_nonAdmin != cappedMinterAdmin);
     vm.expectRevert(_formatAccessControlError(_nonAdmin, DEFAULT_ADMIN_ROLE));

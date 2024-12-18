@@ -40,6 +40,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Emitted when tokens are minted.
   event Minted(address indexed minter, address indexed to, uint256 amount);
 
+  /// @notice Emitted when the contract is closed.
+  event Closed(address _closer);
+
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
@@ -133,6 +136,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   function close() external {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
     closed = true;
+    emit Closed(msg.sender);
   }
 
   /// @notice Sets the metadata URI for this contract
