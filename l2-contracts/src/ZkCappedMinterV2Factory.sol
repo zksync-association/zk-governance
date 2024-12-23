@@ -8,6 +8,7 @@ import {IMintable} from "src/interfaces/IMintable.sol";
 /// @title ZkCappedMinterV2Factory
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice Factory contract to deploy ZkCappedMinterV2 contracts using CREATE2.
+/// @custom:security-contact security@matterlabs.dev
 contract ZkCappedMinterV2Factory {
   /// @dev Bytecode hash should be updated with the correct value from
   /// ./zkout/ZkCappedMinterV2.sol/ZkCappedMinterV2.json.

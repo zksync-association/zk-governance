@@ -8,7 +8,7 @@ import {IMintable} from "src/interfaces/IMintable.sol";
 /// @title ZkCappedMinterV2
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A contract to allow a permissioned entity to mint ZK tokens up to a given amount (the cap).
-/// @custom:security-contact security@zksync.io
+/// @custom:security-contact security@matterlabs.dev
 contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice The contract where the tokens will be minted by an authorized minter.
   IMintable public immutable MINTABLE;

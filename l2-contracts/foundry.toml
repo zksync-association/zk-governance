@@ -14,8 +14,8 @@
   verbosity = 3
 
 [profile.ci]
-  fuzz = { runs = 1000 }
-  invariant = { runs = 500 }
+  fuzz = { runs = 2500 }
+  invariant = { runs = 1000 }
 
 [profile.lite]
   fuzz = { runs = 50 }
