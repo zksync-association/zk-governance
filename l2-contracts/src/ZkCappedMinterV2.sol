@@ -46,6 +46,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @notice Error for when the cap is exceeded.
   error ZkCappedMinterV2__CapExceeded(address minter, uint256 amount);
 
+  /// @notice Thrown when default admin tries to grant role to another address.
+  error ZkCappedMinterV2__CannotGrantDefaultAdmin();
+
   /// @notice Thrown when a mint action is taken while the contract is closed.
   error ZkCappedMinterV2__ContractClosed();
 
@@ -120,7 +123,9 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// [here](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/contracts/access/AccessControlDefaultAdminRules.sol#L82).
 
   function grantRole(bytes32 role, address account) public virtual override {
-    require(role != DEFAULT_ADMIN_ROLE, "AccessControl: can't directly grant default admin role");
+    if (role == DEFAULT_ADMIN_ROLE) {
+      revert ZkCappedMinterV2__CannotGrantDefaultAdmin();
+    }
     AccessControl.grantRole(role, account);
   }
 
