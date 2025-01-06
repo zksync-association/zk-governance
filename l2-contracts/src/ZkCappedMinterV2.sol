@@ -118,7 +118,7 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
     emit Minted(msg.sender, _to, _amount);
   }
   /// @inheritdoc AccessControl
-  /// @notice The admin can no longer create other admins.
+  /// @notice The admin can no longer create other admins and the admin role cannot be transferred.
   /// @dev This implementation was modeled off of code that can be found
   /// [here](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/contracts/access/AccessControlDefaultAdminRules.sol#L82).
 
