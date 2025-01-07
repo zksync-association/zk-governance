@@ -3,10 +3,10 @@
   "license": "MIT",
   "scripts": {
     "clean": "forge clean && npx hardhat clean",
-    "compile": "forge build && npx hardhat compile",
+    "compile": "forge build --zksync && npx hardhat compile",
     "local-node": "npx hardhat node-zksync",
     "script": "node script/RunScript.js",
-    "foundry-test": "forge test --no-match-path .integration.t.sol",
+    "foundry-test": "forge test --no-match-path 'test/*.integration.t.sol' --zksync",
     "test": "forge test  && npx hardhat test",
     "lint": "scopelint check",
     "lint:fix": "scopelint fmt"
