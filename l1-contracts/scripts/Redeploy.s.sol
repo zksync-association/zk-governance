@@ -17,6 +17,7 @@ import "../src/Multisig.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol"; 
+import {TestnetProtocolUpgradeHandler} from "../src/TestnetProtocolUpgradeHandler.sol"; 
 
 struct DeployedContracts {
     address protocolUpgradeHandlerImpl;
@@ -40,6 +41,10 @@ contract Redeploy is Script {
         address[] securityCouncilMembers;
         address[] guardiansMembers;
         address zkFoundationSafe;
+        address zksyncEra;
+        address stateTransitionManager;
+        address bridgehub;
+        address sharedBridge;
     }
 
     // Holds the addresses that were deployed. It is only needed for testing purposes for 
@@ -67,10 +72,16 @@ contract Redeploy is Script {
         }
     }
 
+    // To reduce a chance for error, we just copy as much data as possible from the existing protocol upgrade handler.
     function extractDataFromProtocolUpgradeHandler(ProtocolUpgradeHandler _currentProtocolUpgradeHandler) internal view returns (CurrentSystemParams memory) {
         address securityCouncil = _currentProtocolUpgradeHandler.securityCouncil();
         address guardians = _currentProtocolUpgradeHandler.guardians();
         EmergencyUpgradeBoard emergencyUpgradeBoard = EmergencyUpgradeBoard(_currentProtocolUpgradeHandler.emergencyUpgradeBoard());
+
+        address zksyncEra = address(_currentProtocolUpgradeHandler.ZKSYNC_ERA());
+        address stateTransitionManager = address(_currentProtocolUpgradeHandler.STATE_TRANSITION_MANAGER());
+        address bridgehub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
+        address sharedBridge = address(_currentProtocolUpgradeHandler.SHARED_BRIDGE());
 
         // A small cross check for consistency
         require(emergencyUpgradeBoard.SECURITY_COUNCIL() == securityCouncil, "incorrect security council");
@@ -80,21 +91,22 @@ contract Redeploy is Script {
         return CurrentSystemParams({
             securityCouncilMembers: readMembers(securityCouncil),
             guardiansMembers: readMembers(guardians),
-            zkFoundationSafe: emergencyUpgradeBoard.ZK_FOUNDATION_SAFE()
+            zkFoundationSafe: emergencyUpgradeBoard.ZK_FOUNDATION_SAFE(),
+            zksyncEra: zksyncEra,
+            stateTransitionManager: stateTransitionManager,
+            bridgehub: bridgehub,
+            sharedBridge: sharedBridge
         });
     }
 
     function runRedeploy(
         address _currentHandler,
-        address _zkSyncEra,
-        address _stateTransitionManagerAddr,
-        address _bridgehub,
-        address _sharedBridge,
-        bytes memory _protocolUpgradeHandlerBytecode
+        bool _useTestnetUpgradeHandler
     ) public {
         // To ensure that all the data is the same as before, we fetch what it is now
         // and then we will use it to deploy our contracts.
-        CurrentSystemParams memory info = extractDataFromProtocolUpgradeHandler(ProtocolUpgradeHandler(payable(_currentHandler)));
+        ProtocolUpgradeHandler currentHandler = ProtocolUpgradeHandler(payable(_currentHandler));
+        CurrentSystemParams memory info = extractDataFromProtocolUpgradeHandler(currentHandler);
         
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         Vm.Wallet memory deployerWallet = vm.createWallet(deployerPrivateKey);
@@ -105,8 +117,14 @@ contract Redeploy is Script {
 
         // Firstly, we deploy the implementation
         {
-            bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(addresses.securityCouncil, addresses.guardians, addresses.emergencyUpgradeBoard, l2ProtocolGovernor, _zkSyncEra, _stateTransitionManagerAddr, _bridgehub, _sharedBridge);
-            bytes memory protocolUpgradeHandlerCreationCode = abi.encodePacked(_protocolUpgradeHandlerBytecode, protocolUpgradeHandlerConstructorArgs);
+            bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(addresses.securityCouncil, addresses.guardians, addresses.emergencyUpgradeBoard, l2ProtocolGovernor, info.zksyncEra, info.stateTransitionManager, info.bridgehub, info.sharedBridge);
+            bytes memory protocolUpgradeHandlerBytecode;
+            if (!_useTestnetUpgradeHandler) {
+                protocolUpgradeHandlerBytecode = type(TestnetProtocolUpgradeHandler).creationCode;
+            } else {
+                protocolUpgradeHandlerBytecode = type(ProtocolUpgradeHandler).creationCode;
+            }
+            bytes memory protocolUpgradeHandlerCreationCode = abi.encodePacked(protocolUpgradeHandlerBytecode, protocolUpgradeHandlerConstructorArgs);
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(PROTOCOL_UPGRADE_HANDLER_IMPL_SALT, protocolUpgradeHandlerCreationCode);
             vm.stopBroadcast();
@@ -127,7 +145,7 @@ contract Redeploy is Script {
         
         // Deploying guardians
         {
-            bytes memory guardiansConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, _zkSyncEra, info.guardiansMembers);
+            bytes memory guardiansConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.zksyncEra, info.guardiansMembers);
             bytes memory guardiansCreationCode = abi.encodePacked(type(Guardians).creationCode, guardiansConstructorArgs);   
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(GUARDIANS_SALT, guardiansCreationCode);
