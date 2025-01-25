@@ -6,6 +6,7 @@ import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /// @title Protocol Upgrade Handler
 /// @author Matter Labs
@@ -29,7 +30,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 ///
 /// The contract implements the state machine that represents the logic of moving upgrade from each
 /// stage by time changes and Guardians/Security Council actions.
-contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
+contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Duration of the standard legal veto period.
     /// Note: this value should not exceed EXTENDED_LEGAL_VETO_PERIOD.
     function STANDARD_LEGAL_VETO_PERIOD() internal pure virtual returns (uint256) {
@@ -472,4 +473,23 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev Contract might receive/hold ETH as part of the maintenance process.
     receive() external payable {}
+
+    /*//////////////////////////////////////////////////////////////
+                        PROXY INITIALIZER
+    //////////////////////////////////////////////////////////////*/
+    function initialize(
+        address _securityCouncil,
+        address _guardians,
+        address _emergencyUpgradeBoard
+    ) external initializer() {
+        securityCouncil = _securityCouncil;
+        emit ChangeSecurityCouncil(address(0), _securityCouncil);
+
+        guardians = _guardians;
+        emit ChangeGuardians(address(0), _guardians);
+
+        emergencyUpgradeBoard = _emergencyUpgradeBoard;
+        emit ChangeEmergencyUpgradeBoard(address(0), _emergencyUpgradeBoard);
+
+    }
 }
