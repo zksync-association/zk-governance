@@ -18,6 +18,14 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol"; 
 
+struct DeployedContracts {
+    address protocolUpgradeHandlerImpl;
+    address protocolUpgradeHandlerProxy;
+    address guardians;
+    address securityCouncil;
+    address emergencyUpgradeBoard;
+}
+
 // A common redeploy script that can be used for both mainnet and testnet scripts
 contract Redeploy is Script {
     ICREATE3Factory constant CREATE3_FACTORY = ICREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
@@ -32,6 +40,14 @@ contract Redeploy is Script {
         address[] securityCouncilMembers;
         address[] guardiansMembers;
         address zkFoundationSafe;
+    }
+
+    // Holds the addresses that were deployed. It is only needed for testing purposes for 
+    // making the fork-testing easier.
+    DeployedContracts internal deployedAddresses;
+
+    function getDeployedAddresses() public view returns (DeployedContracts memory contracts) {
+        contracts = deployedAddresses;
     }
 
     function readMembers(address _multisig) internal view returns (address[] memory members) {
@@ -91,7 +107,7 @@ contract Redeploy is Script {
         {
             bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(addresses.securityCouncil, addresses.guardians, addresses.emergencyUpgradeBoard, l2ProtocolGovernor, _zkSyncEra, _stateTransitionManagerAddr, _bridgehub, _sharedBridge);
             bytes memory protocolUpgradeHandlerCreationCode = abi.encodePacked(_protocolUpgradeHandlerBytecode, protocolUpgradeHandlerConstructorArgs);
-            vm.startBroadcast();
+            vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(PROTOCOL_UPGRADE_HANDLER_IMPL_SALT, protocolUpgradeHandlerCreationCode);
             vm.stopBroadcast();
         }
@@ -104,7 +120,7 @@ contract Redeploy is Script {
             bytes memory proxyConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerImpl, addresses.protocolUpgradeHandlerProxy, initdata);
             bytes memory proxyCreationCode = abi.encodePacked(type(TransparentUpgradeableProxy).creationCode, proxyConstructorArgs);
 
-            vm.startBroadcast();
+            vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(PROTOCOL_UPGRADE_HANDLER_PROXY_SALT, proxyCreationCode);
             vm.stopBroadcast();
         }
@@ -113,7 +129,7 @@ contract Redeploy is Script {
         {
             bytes memory guardiansConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, _zkSyncEra, info.guardiansMembers);
             bytes memory guardiansCreationCode = abi.encodePacked(type(Guardians).creationCode, guardiansConstructorArgs);   
-            vm.startBroadcast();
+            vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(GUARDIANS_SALT, guardiansCreationCode);
             vm.stopBroadcast();
         }
@@ -123,7 +139,7 @@ contract Redeploy is Script {
             bytes memory securityCouncilConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.securityCouncilMembers);
             bytes memory securityCouncilCreationCode = abi.encodePacked(type(SecurityCouncil).creationCode, securityCouncilConstructorArgs);
             
-            vm.startBroadcast();
+            vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(SECURITY_COUNCIL_SALT, securityCouncilCreationCode);
             vm.stopBroadcast();   
         }
@@ -133,18 +149,13 @@ contract Redeploy is Script {
             bytes memory emergencyUpgradeBoardConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, addresses.securityCouncil, addresses.guardians, info.zkFoundationSafe);
             bytes memory emergencyUpgradeBoardCreationCode = abi.encodePacked(type(EmergencyUpgradeBoard).creationCode, emergencyUpgradeBoardConstructorArgs);
             
-            vm.startBroadcast();
+            vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(EMERGENCY_UPGRADE_BOARD_SALT, emergencyUpgradeBoardCreationCode);
             vm.stopBroadcast();
         }
-    }
 
-    struct DeployedContracts {
-        address protocolUpgradeHandlerImpl;
-        address protocolUpgradeHandlerProxy;
-        address guardians;
-        address securityCouncil;
-        address emergencyUpgradeBoard;
+        // We store it inside the script for testing purposes.
+        deployedAddresses = addresses;
     }
 
     function predictAddresses(address deployerWallet) public returns(DeployedContracts memory deployedContracts) {
