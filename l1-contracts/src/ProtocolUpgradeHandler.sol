@@ -6,7 +6,7 @@ import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @title Protocol Upgrade Handler
 /// @author Matter Labs
