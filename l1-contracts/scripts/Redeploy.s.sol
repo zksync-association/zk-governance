@@ -119,7 +119,7 @@ contract Redeploy is Script {
         {
             bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(addresses.securityCouncil, addresses.guardians, addresses.emergencyUpgradeBoard, l2ProtocolGovernor, info.zksyncEra, info.stateTransitionManager, info.bridgehub, info.sharedBridge);
             bytes memory protocolUpgradeHandlerBytecode;
-            if (!_useTestnetUpgradeHandler) {
+            if (_useTestnetUpgradeHandler) {
                 protocolUpgradeHandlerBytecode = type(TestnetProtocolUpgradeHandler).creationCode;
             } else {
                 protocolUpgradeHandlerBytecode = type(ProtocolUpgradeHandler).creationCode;

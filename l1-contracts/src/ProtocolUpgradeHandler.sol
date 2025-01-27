@@ -490,6 +490,5 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
         emergencyUpgradeBoard = _emergencyUpgradeBoard;
         emit ChangeEmergencyUpgradeBoard(address(0), _emergencyUpgradeBoard);
-
     }
 }
