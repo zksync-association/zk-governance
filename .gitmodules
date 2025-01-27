@@ -19,6 +19,3 @@
 [submodule "l2-contracts/lib/flexible-voting"]
 	path = l2-contracts/lib/flexible-voting
 	url = https://github.com/ScopeLift/flexible-voting
-[submodule "l1-contracts/lib/openzeppelin-contracts-upgradeable"]
-	path = l1-contracts/lib/openzeppelin-contracts-upgradeable
-	url = https://github.com/Openzeppelin/openzeppelin-contracts-upgradeable
