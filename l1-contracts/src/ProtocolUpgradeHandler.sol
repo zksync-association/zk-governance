@@ -6,6 +6,7 @@ import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @title Protocol Upgrade Handler
 /// @author Matter Labs
@@ -29,7 +30,7 @@ import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol"
 ///
 /// The contract implements the state machine that represents the logic of moving upgrade from each
 /// stage by time changes and Guardians/Security Council actions.
-contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
+contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Duration of the standard legal veto period.
     /// Note: this value should not exceed EXTENDED_LEGAL_VETO_PERIOD.
     function STANDARD_LEGAL_VETO_PERIOD() internal pure virtual returns (uint256) {
@@ -42,7 +43,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     /// @dev The mandatory delay period before an upgrade can be executed.
     /// This period is intended to provide a buffer after an upgrade's final approval and before its execution,
     /// allowing for final reviews and preparations for devs and users.
-    uint256 internal constant UPGRADE_DELAY_PERIOD = 1 days;
+    function UPGRADE_DELAY_PERIOD() internal pure virtual returns (uint256) {
+        return 1 days;
+    }
 
     /// @dev Time limit for an upgrade proposal to be approved by guardians or expire, and the waiting period for execution post-guardians approval.
     /// If the Security Council approves, the upgrade can proceed immediately; otherwise,
@@ -94,30 +97,22 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
     uint256 public protocolFrozenUntil;
 
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
-    /// @param _securityCouncil The address to be assigned as the Security Council of the contract.
-    /// @param _guardians The address to be assigned as the guardians of the contract.
     /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
+    /// @param _ZKsyncEra The address of the zkSync Era chain, on top of which the `_l2ProtocolGovernor` is deployed.
+    /// @param _stateTransitionManager The address of the state transition manager.
+    /// @param _bridgeHub The address of the bridgehub.
+    /// @param _sharedBridge The address of the shared bridge.
     constructor(
-        address _securityCouncil,
-        address _guardians,
-        address _emergencyUpgradeBoard,
         address _l2ProtocolGovernor,
         IZKsyncEra _ZKsyncEra,
         IStateTransitionManager _stateTransitionManager,
         IPausable _bridgeHub,
         IPausable _sharedBridge
     ) {
+        _disableInitializers();
+
         // Soft configuration check for contracts that inherit this contract.
         assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
-
-        securityCouncil = _securityCouncil;
-        emit ChangeSecurityCouncil(address(0), _securityCouncil);
-
-        guardians = _guardians;
-        emit ChangeGuardians(address(0), _guardians);
-
-        emergencyUpgradeBoard = _emergencyUpgradeBoard;
-        emit ChangeEmergencyUpgradeBoard(address(0), _emergencyUpgradeBoard);
 
         L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
         ZKSYNC_ERA = _ZKsyncEra;
@@ -186,7 +181,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
         // Security council approval case
         if (upg.securityCouncilApprovalTimestamp != 0) {
-            uint256 readyWithSecurityCouncilTimestamp = upg.securityCouncilApprovalTimestamp + UPGRADE_DELAY_PERIOD;
+            uint256 readyWithSecurityCouncilTimestamp = upg.securityCouncilApprovalTimestamp + UPGRADE_DELAY_PERIOD();
             return block.timestamp >= readyWithSecurityCouncilTimestamp
                 ? UpgradeState.Ready
                 : UpgradeState.ExecutionPending;
@@ -198,7 +193,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
                 return UpgradeState.Expired;
             }
 
-            uint256 readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD;
+            uint256 readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD();
             return block.timestamp >= readyWithGuardiansTimestamp ? UpgradeState.Ready : UpgradeState.ExecutionPending;
         }
 
@@ -472,4 +467,22 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler {
 
     /// @dev Contract might receive/hold ETH as part of the maintenance process.
     receive() external payable {}
+
+    /*//////////////////////////////////////////////////////////////
+                        PROXY INITIALIZER
+    //////////////////////////////////////////////////////////////*/
+    function initialize(
+        address _securityCouncil,
+        address _guardians,
+        address _emergencyUpgradeBoard
+    ) external initializer() {
+        securityCouncil = _securityCouncil;
+        emit ChangeSecurityCouncil(address(0), _securityCouncil);
+
+        guardians = _guardians;
+        emit ChangeGuardians(address(0), _guardians);
+
+        emergencyUpgradeBoard = _emergencyUpgradeBoard;
+        emit ChangeEmergencyUpgradeBoard(address(0), _emergencyUpgradeBoard);
+    }
 }
