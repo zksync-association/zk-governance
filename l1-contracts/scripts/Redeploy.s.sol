@@ -117,7 +117,7 @@ contract Redeploy is Script {
 
         // Firstly, we deploy the implementation
         {
-            bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(addresses.securityCouncil, addresses.guardians, addresses.emergencyUpgradeBoard, l2ProtocolGovernor, info.zksyncEra, info.stateTransitionManager, info.bridgehub, info.sharedBridge);
+            bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(l2ProtocolGovernor, info.zksyncEra, info.stateTransitionManager, info.bridgehub, info.sharedBridge);
             bytes memory protocolUpgradeHandlerBytecode;
             if (_useTestnetUpgradeHandler) {
                 protocolUpgradeHandlerBytecode = type(TestnetProtocolUpgradeHandler).creationCode;
