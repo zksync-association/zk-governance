@@ -11,5 +11,5 @@ interface IStateTransitionManager {
 
     function getAllHyperchainChainIDs() external view returns (uint256[] memory);
 
-    function validatorTimelokc() external view returns (address);
+    function validatorTimelock() external view returns (address);
 }

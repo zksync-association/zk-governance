@@ -34,11 +34,11 @@ struct DeployedContracts {
 contract Redeploy is Script {
     ICREATE3Factory constant CREATE3_FACTORY = ICREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
 
-    bytes32 PROTOCOL_UPGRADE_HANDLER_PROXY_SALT = keccak256("ProtocolUpgradeHandlerProxy"); 
-    bytes32 PROTOCOL_UPGRADE_HANDLER_IMPL_SALT = keccak256("ProtocolUpgradeHandlerImpl");
-    bytes32 GUARDIANS_SALT = keccak256("Guardians");
-    bytes32 SECURITY_COUNCIL_SALT = keccak256("SecurityCouncil");
-    bytes32 EMERGENCY_UPGRADE_BOARD_SALT = keccak256("EmergencyUpgradeBoard");
+    bytes32 PROTOCOL_UPGRADE_HANDLER_PROXY_SALT = keccak256("ProtocolUpgradeHandlerProxy2"); 
+    bytes32 PROTOCOL_UPGRADE_HANDLER_IMPL_SALT = keccak256("ProtocolUpgradeHandlerImpl2");
+    bytes32 GUARDIANS_SALT = keccak256("Guardians2");
+    bytes32 SECURITY_COUNCIL_SALT = keccak256("SecurityCouncil2");
+    bytes32 EMERGENCY_UPGRADE_BOARD_SALT = keccak256("EmergencyUpgradeBoard2");
 
     struct CurrentSystemParams {
         address[] securityCouncilMembers;
@@ -88,7 +88,7 @@ contract Redeploy is Script {
         address bridgehub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
         address sharedBridge = address(_currentProtocolUpgradeHandler.SHARED_BRIDGE());
 
-        address validatorTimelock = IStateTransitionManager(stateTransitionManager).validatorTimelokc();
+        address validatorTimelock = IStateTransitionManager(stateTransitionManager).validatorTimelock();
         address l1Erc20Bridge = IL1SharedBridge(sharedBridge).legacyBridge();
 
         // A small cross check for consistency
@@ -134,6 +134,8 @@ contract Redeploy is Script {
             } else {
                 protocolUpgradeHandlerBytecode = type(ProtocolUpgradeHandler).creationCode;
             }
+            console2.log("ProtocolUpgradeHandler impl constructor params: ");
+            console2.logBytes(protocolUpgradeHandlerConstructorArgs);
             bytes memory protocolUpgradeHandlerCreationCode = abi.encodePacked(protocolUpgradeHandlerBytecode, protocolUpgradeHandlerConstructorArgs);
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(PROTOCOL_UPGRADE_HANDLER_IMPL_SALT, protocolUpgradeHandlerCreationCode);
@@ -146,8 +148,10 @@ contract Redeploy is Script {
             // the TransparentUpgradeableProxy automatically creates a ProxyAdmin instance. 
             bytes memory initdata = abi.encodeCall(ProtocolUpgradeHandler.initialize, (addresses.securityCouncil, addresses.guardians, addresses.emergencyUpgradeBoard));
             bytes memory proxyConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerImpl, addresses.protocolUpgradeHandlerProxy, initdata);
-            bytes memory proxyCreationCode = abi.encodePacked(type(TransparentUpgradeableProxy).creationCode, proxyConstructorArgs);
+            console2.log("ProtocolUpgradeHandler proxy constructor params: ");
+            console2.logBytes(proxyConstructorArgs);
 
+            bytes memory proxyCreationCode = abi.encodePacked(type(TransparentUpgradeableProxy).creationCode, proxyConstructorArgs);
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(PROTOCOL_UPGRADE_HANDLER_PROXY_SALT, proxyCreationCode);
             vm.stopBroadcast();
@@ -156,6 +160,9 @@ contract Redeploy is Script {
         // Deploying guardians
         {
             bytes memory guardiansConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.zksyncEra, info.guardiansMembers);
+            console2.log("Guardians constructor params: ");
+            console2.logBytes(guardiansConstructorArgs);
+
             bytes memory guardiansCreationCode = abi.encodePacked(type(Guardians).creationCode, guardiansConstructorArgs);   
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(GUARDIANS_SALT, guardiansCreationCode);
@@ -165,8 +172,10 @@ contract Redeploy is Script {
         // Deploying security council
         {
             bytes memory securityCouncilConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.securityCouncilMembers);
+            console2.log("Security council constructor params: ");
+            console2.logBytes(securityCouncilConstructorArgs);
+
             bytes memory securityCouncilCreationCode = abi.encodePacked(type(SecurityCouncil).creationCode, securityCouncilConstructorArgs);
-            
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(SECURITY_COUNCIL_SALT, securityCouncilCreationCode);
             vm.stopBroadcast();   
@@ -175,8 +184,10 @@ contract Redeploy is Script {
         // Deploying emergency upgrade board
         {
             bytes memory emergencyUpgradeBoardConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, addresses.securityCouncil, addresses.guardians, info.zkFoundationSafe);
+            console2.log("Emergency upgrde board constructor params: ");
+            console2.logBytes(emergencyUpgradeBoardConstructorArgs);
+
             bytes memory emergencyUpgradeBoardCreationCode = abi.encodePacked(type(EmergencyUpgradeBoard).creationCode, emergencyUpgradeBoardConstructorArgs);
-            
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(EMERGENCY_UPGRADE_BOARD_SALT, emergencyUpgradeBoardCreationCode);
             vm.stopBroadcast();

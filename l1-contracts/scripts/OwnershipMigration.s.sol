@@ -109,7 +109,7 @@ contract OwnershipMigration is Redeploy {
 
         bytes memory transferOwnershipData;
 
-        IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](9);
+        IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](11);
         calls[0] = getTransferProxyOwnershipCall(systemParams.bridgehub, address(_newProtocolUpgradeHandler));
         calls[1] = getTransferOwnershipCall(systemParams.bridgehub, address(_newProtocolUpgradeHandler));
         
