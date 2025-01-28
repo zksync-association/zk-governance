@@ -10,4 +10,6 @@ interface IStateTransitionManager {
     function unfreezeChain(uint256 _chainId) external;
 
     function getAllHyperchainChainIDs() external view returns (uint256[] memory);
+
+    function validatorTimelokc() external view returns (address);
 }

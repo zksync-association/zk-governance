@@ -19,6 +19,9 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol"; 
 import {TestnetProtocolUpgradeHandler} from "../src/TestnetProtocolUpgradeHandler.sol"; 
 
+import {IStateTransitionManager} from "../src/interfaces/IStateTransitionManager.sol";
+import {IL1SharedBridge} from "../src/interfaces/IL1SharedBridge.sol";
+
 struct DeployedContracts {
     address protocolUpgradeHandlerImpl;
     address protocolUpgradeHandlerProxy;
@@ -45,6 +48,8 @@ contract Redeploy is Script {
         address stateTransitionManager;
         address bridgehub;
         address sharedBridge;
+        address validatorTimelock;
+        address l1Erc20Bridge;
     }
 
     // Holds the addresses that were deployed. It is only needed for testing purposes for 
@@ -83,6 +88,9 @@ contract Redeploy is Script {
         address bridgehub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
         address sharedBridge = address(_currentProtocolUpgradeHandler.SHARED_BRIDGE());
 
+        address validatorTimelock = IStateTransitionManager(stateTransitionManager).validatorTimelokc();
+        address l1Erc20Bridge = IL1SharedBridge(sharedBridge).legacyBridge();
+
         // A small cross check for consistency
         require(emergencyUpgradeBoard.SECURITY_COUNCIL() == securityCouncil, "incorrect security council");
         require(emergencyUpgradeBoard.GUARDIANS() == guardians, "incorrect guardians");
@@ -95,7 +103,9 @@ contract Redeploy is Script {
             zksyncEra: zksyncEra,
             stateTransitionManager: stateTransitionManager,
             bridgehub: bridgehub,
-            sharedBridge: sharedBridge
+            sharedBridge: sharedBridge,
+            validatorTimelock: validatorTimelock,
+            l1Erc20Bridge: l1Erc20Bridge
         });
     }
 
