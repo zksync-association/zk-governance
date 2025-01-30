@@ -2,15 +2,11 @@
 
 pragma solidity 0.8.24;
 
-contract StateTransitionManagerMock {
+contract ChainTypeManagerMock {
     uint256[] chainIds;
 
     constructor(uint256[] memory _chainIds) {
         chainIds = _chainIds;
-    }
-
-    function getAllHyperchainChainIDs() external view returns (uint256[] memory) {
-        return chainIds;
     }
 
     function freezeChain(uint256 _chainId) external {

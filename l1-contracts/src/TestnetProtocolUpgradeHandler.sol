@@ -4,7 +4,8 @@ pragma solidity 0.8.24;
 
 import {ProtocolUpgradeHandler} from "./ProtocolUpgradeHandler.sol";
 import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
-import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
+import {IChainTypeManager} from "./interfaces/IChainTypeManager.sol";
+import {IBridgeHub} from "./interfaces/IBridgeHub.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
 
 /// @title Testnet Protocol Upgrade Handler
@@ -30,16 +31,20 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
     constructor(
         address _l2ProtocolGovernor,
         IZKsyncEra _ZKsyncEra,
-        IStateTransitionManager _stateTransitionManager,
-        IPausable _bridgeHub,
-        IPausable _sharedBridge
+        IChainTypeManager _stateTransitionManager,
+        IBridgeHub _bridgeHub,
+        IPausable _l1Nullifier,
+        IPausable _l1AssetRouter,
+        IPausable _l1NativeTokenVault
     )
         ProtocolUpgradeHandler(
             _l2ProtocolGovernor,
             _ZKsyncEra,
             _stateTransitionManager,
             _bridgeHub,
-            _sharedBridge
+            _l1Nullifier,
+            _l1AssetRouter,
+            _l1NativeTokenVault
         )
     {}
 }
