@@ -55,4 +55,15 @@ interface IZKsyncEra {
         bytes[] calldata _factoryDeps,
         address _refundRecipient
     ) external payable;
+
+    /// @notice Estimates the cost in Ether of requesting execution of an L2 transaction from L1
+    /// @param _gasPrice expected L1 gas price at which the user requests the transaction execution
+    /// @param _l2GasLimit Maximum amount of L2 gas that transaction can consume during execution on L2
+    /// @param _l2GasPerPubdataByteLimit The maximum amount of L2 gas that the operator may charge the user for a single byte of pubdata.
+    /// @return The estimated ETH spent on L2 gas for the transaction
+    function l2TransactionBaseCost(
+        uint256 _gasPrice,
+        uint256 _l2GasLimit,
+        uint256 _l2GasPerPubdataByteLimit
+    ) external view returns (uint256);
 }

@@ -15,6 +15,7 @@ contract ZkTokenTest is Test {
   // Placed here for convenience in tests. Must match the constants in the implementation.
   bytes32 public DEFAULT_ADMIN_ROLE = 0x00;
   bytes32 public MINTER_ROLE = keccak256("MINTER_ROLE");
+  bytes32 public PAUSER_ROLE = keccak256("PAUSER_ROLE");
   bytes32 public BURNER_ROLE = keccak256("BURNER_ROLE");
   bytes32 public MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
   bytes32 public BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");

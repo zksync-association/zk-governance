@@ -17,14 +17,18 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
         return 0 days;
     }
 
+    /// @dev Duration of the standard ugprade delay period.
+    function UPGRADE_DELAY_PERIOD() internal pure override returns (uint256) {
+        return 0 days;
+    }
+
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
-    /// @param _securityCouncil The address to be assigned as the Security Council of the contract.
-    /// @param _guardians The address to be assigned as the guardians of the contract.
     /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
+    /// @param _ZKsyncEra The address of the zkSync Era chain, on top of which the `_l2ProtocolGovernor` is deployed.
+    /// @param _stateTransitionManager The address of the state transition manager.
+    /// @param _bridgeHub The address of the bridgehub.
+    /// @param _sharedBridge The address of the shared bridge.
     constructor(
-        address _securityCouncil,
-        address _guardians,
-        address _emergencyUpgradeBoard,
         address _l2ProtocolGovernor,
         IZKsyncEra _ZKsyncEra,
         IChainTypeManager _stateTransitionManager,
@@ -34,9 +38,6 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
         IPausable _l1NativeTokenVault
     )
         ProtocolUpgradeHandler(
-            _securityCouncil,
-            _guardians,
-            _emergencyUpgradeBoard,
             _l2ProtocolGovernor,
             _ZKsyncEra,
             _stateTransitionManager,

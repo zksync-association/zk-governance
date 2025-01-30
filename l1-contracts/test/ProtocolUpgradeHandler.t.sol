@@ -16,6 +16,8 @@ import {IBridgeHub} from "../../src/interfaces/IBridgeHub.sol";
 import {IPausable} from "../../src/interfaces/IPausable.sol";
 
 import {ProtocolUpgradeHandler} from "../../src/ProtocolUpgradeHandler.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
 
 struct ZkSyncProofData {
     uint256 _l2BatchNumber;
@@ -163,7 +165,7 @@ contract TestProtocolUpgradeHandler is Test {
         l1AssetRouter = IPausable(address(new EmptyContract()));
         l1NativeTokenVault = IPausable(address(new EmptyContract()));
 
-        handler = new ProtocolUpgradeHandler(
+        handler = _deployProtocolUpgradeHanlder(
             securityCouncil,
             guardians,
             emergencyUpgradeBoard,
@@ -177,6 +179,33 @@ contract TestProtocolUpgradeHandler is Test {
         );
     }
 
+    function _deployProtocolUpgradeHanlder(
+        address securityCouncil,
+        address guardians,
+        address emergencyUpgradeBoard,
+        address l2ProtocolGovernor,
+        IZKsyncEra zksyncAddress,
+        IStateTransitionManager stateTransitionManager,
+        IPausable bridgeHub,
+        IPausable sharedBridge
+    ) internal returns (ProtocolUpgradeHandler handler) {
+        ProtocolUpgradeHandler impl = new ProtocolUpgradeHandler(
+            l2ProtocolGovernor,
+            zksyncAddress,
+            stateTransitionManager,
+            bridgeHub,
+            sharedBridge
+        );
+
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(impl),
+            makeAddr("handlerOwner"),
+            abi.encodeCall(ProtocolUpgradeHandler.initialize, (securityCouncil, guardians, emergencyUpgradeBoard))
+        );
+
+        handler = ProtocolUpgradeHandler(payable(proxy));
+    }
+
     function test_constructorEvents() public {
         vm.expectEmit(true, false, false, true);
         emit IProtocolUpgradeHandler.ChangeSecurityCouncil(address(0), securityCouncil);
@@ -185,7 +214,7 @@ contract TestProtocolUpgradeHandler is Test {
         vm.expectEmit(true, false, false, true);
         emit IProtocolUpgradeHandler.ChangeEmergencyUpgradeBoard(address(0), emergencyUpgradeBoard);
 
-        ProtocolUpgradeHandler testHandler = new ProtocolUpgradeHandler(
+        ProtocolUpgradeHandler testHandler = _deployProtocolUpgradeHanlder(
             securityCouncil,
             guardians,
             emergencyUpgradeBoard,

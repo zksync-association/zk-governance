@@ -8,4 +8,6 @@ interface IChainTypeManager {
     function freezeChain(uint256 _chainId) external;
 
     function unfreezeChain(uint256 _chainId) external;
+
+    function validatorTimelock() external view returns (address);
 }

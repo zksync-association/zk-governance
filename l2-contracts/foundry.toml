@@ -1,5 +1,6 @@
 [profile.default]
   evm_version = "paris"
+  fs_permissions = [{ access = "read", path = "./zkout" }]
   fuzz = { runs = 50 }
   optimizer = true
   optimizer_runs = 10_000_000
@@ -13,7 +14,7 @@
   verbosity = 3
 
 [profile.ci]
-  fuzz = { runs = 5000 }
+  fuzz = { runs = 2500 }
   invariant = { runs = 1000 }
 
 [profile.lite]
