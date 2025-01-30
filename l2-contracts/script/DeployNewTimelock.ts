@@ -7,7 +7,7 @@ import * as hre from "hardhat";
 // to. The values used in the script at the time of deployment can be checked in along with the deployment artifacts
 // produced by running the scripts.
 const contractName = "ZkProtocolGovernor";
-const contractAddress = "0x08c18e8359C3c6aA600A3726BA6dCC100e222021";
+const contractAddress = "0x5a6862ee581b6cDb517D24f0a69237f9D900C23C";
 
 async function main() {
   dotEnvConfig();

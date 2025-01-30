@@ -34,6 +34,10 @@ interface Ownable2Step {
 // Outputs calldata needed to migrate the ownership to contracts to the new protocol upgrade handler.
 contract OwnershipMigration is Redeploy {
 
+    function getProxyAdmin(address _proxyAddr) internal view returns (address proxyAdmin) {
+        proxyAdmin = address(uint160(uint256(vm.load(_proxyAddr, bytes32(0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103)))));
+    }
+
     function getTransferProxyOwnershipCall(address _proxyAddr, address _newOwner) internal view returns (IProtocolUpgradeHandler.Call memory call) {
         // Proxy admin slot
         address proxyAdmin = address(uint160(uint256(vm.load(_proxyAddr, bytes32(0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103)))));
@@ -109,27 +113,29 @@ contract OwnershipMigration is Redeploy {
 
         bytes memory transferOwnershipData;
 
-        IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](11);
+        IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](7);
         calls[0] = getTransferProxyOwnershipCall(systemParams.bridgehub, address(_newProtocolUpgradeHandler));
         calls[1] = getTransferOwnershipCall(systemParams.bridgehub, address(_newProtocolUpgradeHandler));
-        
-        calls[2] = getTransferProxyOwnershipCall(systemParams.stateTransitionManager, address(_newProtocolUpgradeHandler));
-        calls[3] = getTransferOwnershipCall(systemParams.stateTransitionManager, address(_newProtocolUpgradeHandler));
 
-        calls[4] = getTransferProxyOwnershipCall(systemParams.l1Erc20Bridge, address(_newProtocolUpgradeHandler));
-        calls[5] = getTransferOwnershipCall(systemParams.l1Erc20Bridge, address(_newProtocolUpgradeHandler));
+        address bridgehubProxyAdmin = getProxyAdmin(systemParams.bridgehub);
 
-        calls[6] = getTransferProxyOwnershipCall(systemParams.sharedBridge, address(_newProtocolUpgradeHandler));
-        calls[7] = getTransferOwnershipCall(systemParams.sharedBridge, address(_newProtocolUpgradeHandler));
+        require(getProxyAdmin(systemParams.stateTransitionManager) == bridgehubProxyAdmin);
+        calls[2] = getTransferOwnershipCall(systemParams.stateTransitionManager, address(_newProtocolUpgradeHandler));
+
+
+        require(getProxyAdmin(systemParams.l1Erc20Bridge) == bridgehubProxyAdmin);
+
+        require(getProxyAdmin(systemParams.sharedBridge) == bridgehubProxyAdmin);
+        calls[3] = getTransferOwnershipCall(systemParams.sharedBridge, address(_newProtocolUpgradeHandler));
  
-        calls[8] = getTransferOwnershipCall(systemParams.validatorTimelock, address(_newProtocolUpgradeHandler));
+        calls[4] = getTransferOwnershipCall(systemParams.validatorTimelock, address(_newProtocolUpgradeHandler));
 
-        calls[9] = getL1ToL2Tx(
+        calls[5] = getL1ToL2Tx(
             systemParams.zksyncEra,
             _zkTokenAddr,
             abi.encodeCall(AccessControlUpgradeable.grantRole, (DEFAULT_ADMIN_ROLE, AddressAliasHelper.applyL1ToL2Alias(address(_newProtocolUpgradeHandler))))
         );
-        calls[10] = getL1ToL2Tx(
+        calls[6] = getL1ToL2Tx(
             systemParams.zksyncEra,
             _zkTokenAddr,
             abi.encodeCall(AccessControlUpgradeable.renounceRole, (DEFAULT_ADMIN_ROLE, AddressAliasHelper.applyL1ToL2Alias(address(_currentProtocolUpgradeHandler))))
@@ -156,9 +162,8 @@ contract OwnershipMigration is Redeploy {
         IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](5);
         calls[0] = getAcceptOwnershipCall(systemParams.bridgehub);
         calls[1] = getAcceptOwnershipCall(systemParams.stateTransitionManager);
-        calls[2] = getAcceptOwnershipCall(systemParams.l1Erc20Bridge);
-        calls[3] = getAcceptOwnershipCall(systemParams.sharedBridge);
-        calls[4] = getAcceptOwnershipCall(systemParams.validatorTimelock);
+        calls[2] = getAcceptOwnershipCall(systemParams.sharedBridge);
+        calls[3] = getAcceptOwnershipCall(systemParams.validatorTimelock);
 
         // We now compile the data needed to transfer ownership to the new PUH
         IProtocolUpgradeHandler.UpgradeProposal memory proposal = IProtocolUpgradeHandler.UpgradeProposal({

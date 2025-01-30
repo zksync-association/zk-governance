@@ -34,11 +34,11 @@ struct DeployedContracts {
 contract Redeploy is Script {
     ICREATE3Factory constant CREATE3_FACTORY = ICREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
 
-    bytes32 PROTOCOL_UPGRADE_HANDLER_PROXY_SALT = keccak256("ProtocolUpgradeHandlerProxy2"); 
-    bytes32 PROTOCOL_UPGRADE_HANDLER_IMPL_SALT = keccak256("ProtocolUpgradeHandlerImpl2");
-    bytes32 GUARDIANS_SALT = keccak256("Guardians2");
-    bytes32 SECURITY_COUNCIL_SALT = keccak256("SecurityCouncil2");
-    bytes32 EMERGENCY_UPGRADE_BOARD_SALT = keccak256("EmergencyUpgradeBoard2");
+    bytes32 PROTOCOL_UPGRADE_HANDLER_PROXY_SALT = keccak256("ProtocolUpgradeHandlerProxy3"); 
+    bytes32 PROTOCOL_UPGRADE_HANDLER_IMPL_SALT = keccak256("ProtocolUpgradeHandlerImpl3");
+    bytes32 GUARDIANS_SALT = keccak256("Guardians3");
+    bytes32 SECURITY_COUNCIL_SALT = keccak256("SecurityCouncil3");
+    bytes32 EMERGENCY_UPGRADE_BOARD_SALT = keccak256("EmergencyUpgradeBoard3");
 
     struct CurrentSystemParams {
         address[] securityCouncilMembers;
