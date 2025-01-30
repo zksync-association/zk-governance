@@ -185,16 +185,20 @@ contract TestProtocolUpgradeHandler is Test {
         address emergencyUpgradeBoard,
         address l2ProtocolGovernor,
         IZKsyncEra zksyncAddress,
-        IStateTransitionManager stateTransitionManager,
-        IPausable bridgeHub,
-        IPausable sharedBridge
+        IChainTypeManager stateTransitionManager,
+        IBridgeHub bridgeHub,
+        IPausable l1Nullifier,
+        IPausable l1AssetRouter,
+        IPausable l1NativeTokenVault
     ) internal returns (ProtocolUpgradeHandler handler) {
         ProtocolUpgradeHandler impl = new ProtocolUpgradeHandler(
             l2ProtocolGovernor,
             zksyncAddress,
             stateTransitionManager,
             bridgeHub,
-            sharedBridge
+            l1Nullifier,
+            l1AssetRouter,
+            l1NativeTokenVault
         );
 
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
