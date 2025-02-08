@@ -32,8 +32,17 @@ async function main() {
   const adminAddress = await zkWallet.getAddress();
   const timelockConstructorArgs = [0, [], [], adminAddress];
   const timelock = await deployer.deploy(timelockContract, timelockConstructorArgs);
+  console.log('Verifying contract...')
+
   const timeLockAddress = await timelock.getAddress();
   console.log(`${contractName} Governor TimelockController contract was deployed to ${timeLockAddress}`);
+  const verificationId = await hre.run("verify:verify", {
+    address: timeLockAddress,
+    contract: "TimelockController",
+    constructorArguments: timelockConstructorArgs
+  });  
+
+  console.log('Verification id: ', verificationId);
 
   console.log("Deploying " + contractName + "...");
 
@@ -53,6 +62,14 @@ async function main() {
 
   const contractAddress = await govOpsGovernor.getAddress();
   console.log(`${contractName} was deployed to ${contractAddress}`);
+  const govOpsVerificationId = await hre.run("verify:verify", {
+    address: contractAddress,
+    contract: "ZkGovOpsGovernor",
+    constructorArguments: constructorArgs
+  });  
+
+  console.log('Verification id: ', govOpsVerificationId);
+
 
   const theToken = await govOpsGovernor.token();
   console.log(`The Token is set to: ${theToken}`);

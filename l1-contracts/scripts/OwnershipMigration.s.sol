@@ -31,6 +31,10 @@ interface Ownable2Step {
     function acceptOwnership() external;
 }
 
+// Can be verified here: https://explorer.zksync.io/address/0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E
+bytes32 constant MINTER_ADMIN_ROLE = bytes32(0x70480ee89cb38eff00b7d23da25713d52ce19c6ed428691d22c58b2f615e3d67);
+bytes32 constant MINTER_ROLE = bytes32(0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6);
+
 // Outputs calldata needed to migrate the ownership to contracts to the new protocol upgrade handler.
 contract OwnershipMigration is Redeploy {
 
@@ -107,13 +111,15 @@ contract OwnershipMigration is Redeploy {
     function runMoveOwnership(
         address _zkTokenAddr,
         ProtocolUpgradeHandler _currentProtocolUpgradeHandler,
-        ProtocolUpgradeHandler _newProtocolUpgradeHandler
+        ProtocolUpgradeHandler _newProtocolUpgradeHandler,
+        address _previousZkTokenGovernor,
+        address _newZkTokenGovernor
     ) external {
         CurrentSystemParams memory systemParams = extractDataFromProtocolUpgradeHandler(_currentProtocolUpgradeHandler);
 
         bytes memory transferOwnershipData;
 
-        IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](7);
+        IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](13);
         calls[0] = getTransferProxyOwnershipCall(systemParams.bridgehub, address(_newProtocolUpgradeHandler));
         calls[1] = getTransferOwnershipCall(systemParams.bridgehub, address(_newProtocolUpgradeHandler));
 
@@ -135,7 +141,54 @@ contract OwnershipMigration is Redeploy {
             _zkTokenAddr,
             abi.encodeCall(AccessControlUpgradeable.grantRole, (DEFAULT_ADMIN_ROLE, AddressAliasHelper.applyL1ToL2Alias(address(_newProtocolUpgradeHandler))))
         );
+
+        // We need to transfer MINTER_ROLE and MINTER_ADMIN_ROLE to the new ZkTokenGovernor
+        // and revoke it from the old one.
+        // 
+        // We will firstly give out new roles
+        // Remove MINTER_ADMIN from the old contract + give out the to the new one.
+        // Temporarily claim the MINTER_ADMIN role.
+        // Use it remove teh MINTER role from the previous owner.
+        // Renounce MINTER_ADMIN role. 
+
         calls[6] = getL1ToL2Tx(
+            systemParams.zksyncEra, 
+            _zkTokenAddr, 
+            abi.encodeCall(AccessControlUpgradeable.grantRole, (MINTER_ADMIN_ROLE, _newZkTokenGovernor))
+        );
+    
+        calls[7] = getL1ToL2Tx(
+            systemParams.zksyncEra, 
+            _zkTokenAddr, 
+            abi.encodeCall(AccessControlUpgradeable.revokeRole, (MINTER_ADMIN_ROLE, _previousZkTokenGovernor))
+        );
+
+        // This is temporary and we'll renounce the role later.
+        calls[8] = getL1ToL2Tx(
+            systemParams.zksyncEra, 
+            _zkTokenAddr, 
+            abi.encodeCall(AccessControlUpgradeable.grantRole, (MINTER_ADMIN_ROLE, AddressAliasHelper.applyL1ToL2Alias(address(_currentProtocolUpgradeHandler))))
+        );
+
+        calls[9] = getL1ToL2Tx(
+            systemParams.zksyncEra, 
+            _zkTokenAddr, 
+            abi.encodeCall(AccessControlUpgradeable.grantRole, (MINTER_ROLE, _newZkTokenGovernor))
+        );
+
+        calls[10] = getL1ToL2Tx(
+            systemParams.zksyncEra, 
+            _zkTokenAddr, 
+            abi.encodeCall(AccessControlUpgradeable.revokeRole, (MINTER_ROLE, _previousZkTokenGovernor))
+        );
+
+        calls[11] = getL1ToL2Tx(
+            systemParams.zksyncEra, 
+            _zkTokenAddr, 
+            abi.encodeCall(AccessControlUpgradeable.renounceRole, (MINTER_ADMIN_ROLE, AddressAliasHelper.applyL1ToL2Alias(address(_currentProtocolUpgradeHandler))))
+        );
+
+        calls[12] = getL1ToL2Tx(
             systemParams.zksyncEra,
             _zkTokenAddr,
             abi.encodeCall(AccessControlUpgradeable.renounceRole, (DEFAULT_ADMIN_ROLE, AddressAliasHelper.applyL1ToL2Alias(address(_currentProtocolUpgradeHandler))))
