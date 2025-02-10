@@ -50,6 +50,12 @@ const config: HardhatUserConfig = {
       url: "https://sepolia.era.zksync.dev",
       verifyURL: "https://explorer.sepolia.era.zksync.dev/contract_verification",
     },
+    zkSyncStage: {
+      zksync: true,
+      ethNetwork: "sepolia",
+      url: "https://z2-dev-api.zksync.dev/",
+      verifyURL: "https://z2-dev-api-explorer.zksync.dev/contract_verification",
+    },
   },
   defaultNetwork: "zkSyncLocal",
 };

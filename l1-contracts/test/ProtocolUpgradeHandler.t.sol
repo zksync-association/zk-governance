@@ -6,11 +6,13 @@ import {Test, stdStorage, StdStorage} from "forge-std/Test.sol";
 
 import {Callee} from "./utils/Callee.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
-import {StateTransitionManagerMock} from "./mocks/StateTransitionManagerMock.t.sol";
+import {ChainTypeManagerMock} from "./mocks/ChainTypeManagerMock.t.sol";
+import {BridgeHubMock} from "./mocks/BridgeHubMock.t.sol";
 
 import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
 import {IZKsyncEra} from "../../src/interfaces/IZKsyncEra.sol";
-import {IStateTransitionManager} from "../../src/interfaces/IStateTransitionManager.sol";
+import {IChainTypeManager} from "../../src/interfaces/IChainTypeManager.sol";
+import {IBridgeHub} from "../../src/interfaces/IBridgeHub.sol";
 import {IPausable} from "../../src/interfaces/IPausable.sol";
 
 import {ProtocolUpgradeHandler} from "../../src/ProtocolUpgradeHandler.sol";
@@ -32,9 +34,11 @@ contract TestProtocolUpgradeHandler is Test {
     address emergencyUpgradeBoard;
     address l2ProtocolGovernor;
     IZKsyncEra zksyncAddress;
-    IStateTransitionManager stateTransitionManager;
-    IPausable bridgeHub;
-    IPausable sharedBridge;
+    IChainTypeManager chainTypeManager;
+    IBridgeHub bridgeHub;
+    IPausable l1Nullifier;
+    IPausable l1AssetRouter;
+    IPausable l1NativeTokenVault;
 
     ProtocolUpgradeHandler handler;
     uint256[] chainIds;
@@ -71,12 +75,13 @@ contract TestProtocolUpgradeHandler is Test {
     function _expectFreezeAttempt() internal {
         for (uint256 i = 0; i < chainIds.length; i++) {
             vm.expectCall(
-                address(stateTransitionManager),
-                abi.encodeWithSelector(IStateTransitionManager.freezeChain.selector, (chainIds[i]))
+                address(chainTypeManager), abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, (chainIds[i]))
             );
         }
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.pause.selector));
-        vm.expectCall(address(sharedBridge), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1Nullifier), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1AssetRouter), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1NativeTokenVault), abi.encodeWithSelector(IPausable.pause.selector));
     }
 
     function _emptyProposal(bytes32 _salt) internal returns (IProtocolUpgradeHandler.UpgradeProposal memory) {
@@ -153,10 +158,12 @@ contract TestProtocolUpgradeHandler is Test {
         emergencyUpgradeBoard = makeAddr("emergencyUpgradeBoard");
         l2ProtocolGovernor = makeAddr("l2ProtocolGovernor");
         zksyncAddress = IZKsyncEra(address(new EmptyContract()));
-        stateTransitionManager = IStateTransitionManager(address(new StateTransitionManagerMock(chainIds)));
+        chainTypeManager = IChainTypeManager(address(new ChainTypeManagerMock(chainIds)));
 
-        bridgeHub = IPausable(address(new EmptyContract()));
-        sharedBridge = IPausable(address(new EmptyContract()));
+        bridgeHub = IBridgeHub(address(new BridgeHubMock(chainIds)));
+        l1Nullifier = IPausable(address(new EmptyContract()));
+        l1AssetRouter = IPausable(address(new EmptyContract()));
+        l1NativeTokenVault = IPausable(address(new EmptyContract()));
 
         handler = _deployProtocolUpgradeHanlder(
             securityCouncil,
@@ -164,9 +171,11 @@ contract TestProtocolUpgradeHandler is Test {
             emergencyUpgradeBoard,
             l2ProtocolGovernor,
             zksyncAddress,
-            stateTransitionManager,
+            chainTypeManager,
             bridgeHub,
-            sharedBridge
+            l1Nullifier,
+            l1AssetRouter,
+            l1NativeTokenVault
         );
     }
 
@@ -176,16 +185,20 @@ contract TestProtocolUpgradeHandler is Test {
         address emergencyUpgradeBoard,
         address l2ProtocolGovernor,
         IZKsyncEra zksyncAddress,
-        IStateTransitionManager stateTransitionManager,
-        IPausable bridgeHub,
-        IPausable sharedBridge
+        IChainTypeManager stateTransitionManager,
+        IBridgeHub bridgeHub,
+        IPausable l1Nullifier,
+        IPausable l1AssetRouter,
+        IPausable l1NativeTokenVault
     ) internal returns (ProtocolUpgradeHandler handler) {
         ProtocolUpgradeHandler impl = new ProtocolUpgradeHandler(
             l2ProtocolGovernor,
             zksyncAddress,
             stateTransitionManager,
             bridgeHub,
-            sharedBridge
+            l1Nullifier,
+            l1AssetRouter,
+            l1NativeTokenVault
         );
 
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
@@ -211,18 +224,22 @@ contract TestProtocolUpgradeHandler is Test {
             emergencyUpgradeBoard,
             l2ProtocolGovernor,
             zksyncAddress,
-            stateTransitionManager,
+            chainTypeManager,
             bridgeHub,
-            sharedBridge
+            l1Nullifier,
+            l1AssetRouter,
+            l1NativeTokenVault
         );
         assertEq(testHandler.securityCouncil(), securityCouncil);
         assertEq(testHandler.guardians(), guardians);
         assertEq(testHandler.emergencyUpgradeBoard(), emergencyUpgradeBoard);
         assertEq(testHandler.L2_PROTOCOL_GOVERNOR(), l2ProtocolGovernor);
         assertEq(address(testHandler.ZKSYNC_ERA()), address(zksyncAddress));
-        assertEq(address(testHandler.STATE_TRANSITION_MANAGER()), address(stateTransitionManager));
+        assertEq(address(testHandler.CHAIN_TYPE_MANAGER()), address(chainTypeManager));
         assertEq(address(testHandler.BRIDGE_HUB()), address(bridgeHub));
-        assertEq(address(testHandler.SHARED_BRIDGE()), address(sharedBridge));
+        assertEq(address(testHandler.L1_NULLIFIER()), address(l1Nullifier));
+        assertEq(address(testHandler.L1_ASSET_ROUTER()), address(l1AssetRouter));
+        assertEq(address(testHandler.L1_NATIVE_TOKEN_VAULT()), address(l1NativeTokenVault));
     }
 
     function test_StateUpgradeIncorrectProof() public {

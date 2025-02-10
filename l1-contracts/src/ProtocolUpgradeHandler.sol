@@ -3,7 +3,8 @@
 pragma solidity 0.8.24;
 
 import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
-import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
+import {IChainTypeManager} from "./interfaces/IChainTypeManager.sol";
+import {IBridgeHub} from "./interfaces/IBridgeHub.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -69,14 +70,20 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev ZKsync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
     IZKsyncEra public immutable ZKSYNC_ERA;
 
-    /// @dev ZKsync smart contract that is responsible for creating new hyperchains and changing parameters in existent.
-    IStateTransitionManager public immutable STATE_TRANSITION_MANAGER;
+    /// @dev ZKsync smart contract that is responsible for creating new ZK Chains and changing parameters in existent.
+    IChainTypeManager public immutable CHAIN_TYPE_MANAGER;
 
     /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IPausable public immutable BRIDGE_HUB;
+    IBridgeHub public immutable BRIDGE_HUB;
 
-    /// @dev The shared bridge that is used for all bridging.
-    IPausable public immutable SHARED_BRIDGE;
+    /// @dev The nullifier contract that is used for bridging.
+    IPausable public immutable L1_NULLIFIER;
+
+    /// @dev The asset router contract that is used for bridging.
+    IPausable public immutable L1_ASSET_ROUTER;
+
+    /// @dev Vault holding L1 native ETH and ERC20 tokens bridged into the ZK chains.
+    IPausable public immutable L1_NATIVE_TOKEN_VAULT;
 
     /// @notice The address of the Security Council.
     address public securityCouncil;
@@ -99,15 +106,19 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
     /// @param _ZKsyncEra The address of the zkSync Era chain, on top of which the `_l2ProtocolGovernor` is deployed.
-    /// @param _stateTransitionManager The address of the state transition manager.
+    /// @param _chainTypeManager The address of the state transition manager.
     /// @param _bridgeHub The address of the bridgehub.
-    /// @param _sharedBridge The address of the shared bridge.
+    /// @param _l1Nullifier The address of the nullifier
+    /// @param _l1AssetRouter The address of the L1 asset router.
+    /// @param _l1NativeTokenVault The address of the L1 native token vault.
     constructor(
         address _l2ProtocolGovernor,
         IZKsyncEra _ZKsyncEra,
-        IStateTransitionManager _stateTransitionManager,
-        IPausable _bridgeHub,
-        IPausable _sharedBridge
+        IChainTypeManager _chainTypeManager,
+        IBridgeHub _bridgeHub,
+        IPausable _l1Nullifier,
+        IPausable _l1AssetRouter,
+        IPausable _l1NativeTokenVault
     ) {
         _disableInitializers();
 
@@ -116,9 +127,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
         L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
         ZKSYNC_ERA = _ZKsyncEra;
-        STATE_TRANSITION_MANAGER = _stateTransitionManager;
+        CHAIN_TYPE_MANAGER = _chainTypeManager;
         BRIDGE_HUB = _bridgeHub;
-        SHARED_BRIDGE = _sharedBridge;
+        L1_NULLIFIER = _l1Nullifier;
+        L1_ASSET_ROUTER = _l1AssetRouter;
+        L1_NATIVE_TOKEN_VAULT = _l1NativeTokenVault;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -376,20 +389,22 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
     function reinforceFreezeOneChain(uint256 _chainId) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
-        STATE_TRANSITION_MANAGER.freezeChain(_chainId);
+        CHAIN_TYPE_MANAGER.freezeChain(_chainId);
         emit ReinforceFreezeOneChain(_chainId);
     }
 
-    /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.
+    /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all ZK Chains.
     function _freeze() internal {
-        uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
-        uint256 len = hyperchainIds.length;
+        uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
+        uint256 len = zkChainIds.length;
         for (uint256 i = 0; i < len; ++i) {
-            try STATE_TRANSITION_MANAGER.freezeChain(hyperchainIds[i]) {} catch {}
+            try CHAIN_TYPE_MANAGER.freezeChain(zkChainIds[i]) {} catch {}
         }
 
         try BRIDGE_HUB.pause() {} catch {}
-        try SHARED_BRIDGE.pause() {} catch {}
+        try L1_NULLIFIER.pause() {} catch {}
+        try L1_ASSET_ROUTER.pause() {} catch {}
+        try L1_NATIVE_TOKEN_VAULT.pause() {} catch {}
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
@@ -420,20 +435,22 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
     function reinforceUnfreezeOneChain(uint256 _chainId) external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
-        STATE_TRANSITION_MANAGER.unfreezeChain(_chainId);
+        CHAIN_TYPE_MANAGER.unfreezeChain(_chainId);
         emit ReinforceUnfreezeOneChain(_chainId);
     }
 
-    /// @dev Unfreeze all ZKsync contracts, including bridges, state transition managers and all hyperchains.
+    /// @dev Unfreeze all ZKsync contracts, including bridges, state transition managers and all ZK Chains.
     function _unfreeze() internal {
-        uint256[] memory hyperchainIds = STATE_TRANSITION_MANAGER.getAllHyperchainChainIDs();
-        uint256 len = hyperchainIds.length;
+        uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
+        uint256 len = zkChainIds.length;
         for (uint256 i = 0; i < len; ++i) {
-            try STATE_TRANSITION_MANAGER.unfreezeChain(hyperchainIds[i]) {} catch {}
+            try CHAIN_TYPE_MANAGER.unfreezeChain(zkChainIds[i]) {} catch {}
         }
 
         try BRIDGE_HUB.unpause() {} catch {}
-        try SHARED_BRIDGE.unpause() {} catch {}
+        try L1_NULLIFIER.unpause() {} catch {}
+        try L1_ASSET_ROUTER.unpause() {} catch {}
+        try L1_NATIVE_TOKEN_VAULT.unpause() {} catch {}
     }
 
     /*//////////////////////////////////////////////////////////////
