@@ -166,7 +166,7 @@ contract Mint is ZkMinterRateLimiterV1Test {
   function testFuzz_RevertIf_CalledByNonMinter(address _minter, address _nonMinter, address _to, uint256 _amount)
     public
   {
-    vm.assume(_nonMinter != _minter);
+    vm.assume(_nonMinter != _minter && _nonMinter != admin);
     _grantRateLimiterMinterRole(_minter);
 
     vm.prank(_nonMinter);
