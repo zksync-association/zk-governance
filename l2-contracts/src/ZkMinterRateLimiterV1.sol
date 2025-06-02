@@ -79,6 +79,7 @@ contract ZkMinterRateLimiterV1 is IMintable, AccessControl, Pausable {
   }
 
   /// @notice Mints a given amount of tokens to a given address, so long as the rate limit is not exceeded.
+  /// @dev Users that have minter role can collectively mint a fixed amount for each mint rate limit window.
   /// @param _to The address that will receive the new tokens.
   /// @param _amount The quantity of tokens that will be minted.
   function mint(address _to, uint256 _amount) external {

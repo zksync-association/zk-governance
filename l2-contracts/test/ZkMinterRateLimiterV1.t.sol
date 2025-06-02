@@ -80,6 +80,20 @@ contract Mint is ZkMinterRateLimiterV1Test {
     minterRateLimiter.mint(_to, _amount);
   }
 
+  function testFuzz_MintTwiceInTheSameWindow(address _to, uint256 _amount1, uint256 _amount2) public {
+    vm.assume(_to != address(0));
+    _amount1 = bound(_amount1, 1, MINT_RATE_LIMIT);
+    _amount2 = bound(_amount2, 0, MINT_RATE_LIMIT - _amount1);
+
+    vm.startPrank(minter);
+    minterRateLimiter.mint(_to, _amount1);
+    minterRateLimiter.mint(_to, _amount2);
+    vm.stopPrank();
+
+    assertEq(minterRateLimiter.mintedInWindow(minterRateLimiter.currentMintWindowStart()), _amount1 + _amount2);
+    assertEq(token.balanceOf(_to), _amount1 + _amount2);
+  }
+
   function testFuzz_MintRateLimitIsResetAfterWindow(address _to, uint256 _amount) public {
     vm.assume(_to != address(0));
     _amount = bound(_amount, 1, MINT_RATE_LIMIT);
@@ -96,6 +110,21 @@ contract Mint is ZkMinterRateLimiterV1Test {
       vm.warp(block.timestamp + MINT_RATE_LIMIT_WINDOW);
     }
     vm.stopPrank();
+  }
+
+  function testFuzz_CanMintAfterUnpause(address _to, uint256 _amount) public {
+    vm.assume(_to != address(0));
+    _amount = bound(_amount, 1, MINT_RATE_LIMIT);
+
+    vm.startPrank(admin);
+    minterRateLimiter.pause();
+    minterRateLimiter.unpause();
+    vm.stopPrank();
+
+    vm.prank(minter);
+    minterRateLimiter.mint(_to, _amount);
+    assertEq(token.balanceOf(_to), _amount);
+    assertEq(minterRateLimiter.mintedInWindow(minterRateLimiter.currentMintWindowStart()), _amount);
   }
 
   function testFuzz_RevertIf_MintRateLimitExceeded(address _to, uint256 _amount) public {
@@ -171,6 +200,15 @@ contract Mint is ZkMinterRateLimiterV1Test {
 
     vm.prank(_nonMinter);
     vm.expectRevert(_formatAccessControlError(_nonMinter, MINTER_ROLE));
+    minterRateLimiter.mint(_to, _amount);
+  }
+
+  function testFuzz_RevertIf_MintAfterContractIsPaused(address _caller, address _to, uint256 _amount) public {
+    vm.prank(admin);
+    minterRateLimiter.pause();
+
+    vm.prank(_caller);
+    vm.expectRevert("Pausable: paused");
     minterRateLimiter.mint(_to, _amount);
   }
 
