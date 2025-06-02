@@ -53,7 +53,7 @@ contract ZkMinterRateLimiterV1 is IMintable, AccessControl, Pausable {
   event Minted(address indexed minter, address indexed to, uint256 amount);
 
   /// @notice Emitted when the contract is closed.
-  event Closed(address _closer);
+  event Closed(address closer);
 
   /// @notice Error for when the rate limit is exceeded.
   error ZkMinterRateLimiterV1__MintRateLimitExceeded(address minter, uint256 amount);
@@ -69,9 +69,9 @@ contract ZkMinterRateLimiterV1 is IMintable, AccessControl, Pausable {
   /// @param _mintRateLimit The maximum number of tokens that can be minted during the rate limit window.
   /// @param _mintRateLimitWindow The duration of the rate limit window in seconds.
   constructor(IMintable _mintable, address _admin, uint256 _mintRateLimit, uint48 _mintRateLimitWindow) {
-    mintable = _mintable;
-    mintRateLimit = _mintRateLimit;
-    mintRateLimitWindow = _mintRateLimitWindow;
+    _updateMintable(_mintable);
+    _updateMintRateLimit(_mintRateLimit);
+    _updateMintRateLimitWindow(_mintRateLimitWindow);
     START_TIME = uint48(block.timestamp);
 
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
@@ -98,8 +98,7 @@ contract ZkMinterRateLimiterV1 is IMintable, AccessControl, Pausable {
   /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE.
   function updateMintable(IMintable _mintable) external {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    emit MintableUpdated(mintable, _mintable);
-    mintable = _mintable;
+    _updateMintable(_mintable);
   }
 
   /// @notice Updates the maximum number of tokens that can be minted during the rate limit window.
@@ -107,8 +106,7 @@ contract ZkMinterRateLimiterV1 is IMintable, AccessControl, Pausable {
   /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE.
   function updateMintRateLimit(uint256 _mintRateLimit) external {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    emit MintRateLimitUpdated(mintRateLimit, _mintRateLimit);
-    mintRateLimit = _mintRateLimit;
+    _updateMintRateLimit(_mintRateLimit);
   }
 
   /// @notice Updates the duration of the rate limit window in seconds.
@@ -116,8 +114,7 @@ contract ZkMinterRateLimiterV1 is IMintable, AccessControl, Pausable {
   /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE.
   function updateMintRateLimitWindow(uint48 _mintRateLimitWindow) external {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    emit MintRateLimitWindowUpdated(mintRateLimitWindow, _mintRateLimitWindow);
-    mintRateLimitWindow = _mintRateLimitWindow;
+    _updateMintRateLimitWindow(_mintRateLimitWindow);
   }
 
   /// @notice Pauses token minting
@@ -145,6 +142,27 @@ contract ZkMinterRateLimiterV1 is IMintable, AccessControl, Pausable {
   /// @return The timestamp marking the start of the current mint window.
   function currentMintWindowStart() public view returns (uint48) {
     return uint48(block.timestamp - ((block.timestamp - START_TIME) % mintRateLimitWindow));
+  }
+
+  /// @notice Updates the mintable contract that this rate limiter will use for minting.
+  /// @param _mintable The new mintable contract to use.
+  function _updateMintable(IMintable _mintable) internal {
+    emit MintableUpdated(mintable, _mintable);
+    mintable = _mintable;
+  }
+
+  /// @notice Updates the maximum number of tokens that can be minted during the rate limit window.
+  /// @param _mintRateLimit The new maximum number of tokens that can be minted during the rate limit window.
+  function _updateMintRateLimit(uint256 _mintRateLimit) internal {
+    emit MintRateLimitUpdated(mintRateLimit, _mintRateLimit);
+    mintRateLimit = _mintRateLimit;
+  }
+
+  /// @notice Updates the duration of the rate limit window in seconds.
+  /// @param _mintRateLimitWindow The new duration of the rate limit window in seconds.
+  function _updateMintRateLimitWindow(uint48 _mintRateLimitWindow) internal {
+    emit MintRateLimitWindowUpdated(mintRateLimitWindow, _mintRateLimitWindow);
+    mintRateLimitWindow = _mintRateLimitWindow;
   }
 
   /// @notice Calculates how many tokens are still available to mint in a given window.

@@ -5,18 +5,16 @@ import * as hre from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 
-// Read the bytecode hash from ZkMinterRateLimiterV1Factory.json
+// Read the bytecode hash from ZkMinterRateLimiterV1.json
 // Verify the zksolc version used to compile the contract, the hash changes with different versions
-const zkMinterRateLimiterFactoryPath = path.join(
+const zkMinterRateLimiterPath = path.join(
   __dirname,
   "../artifacts-zk/src/ZkMinterRateLimiterV1.sol/ZkMinterRateLimiterV1.json"
 );
-const zkMinterRateLimiterFactoryJson = JSON.parse(
-  fs.readFileSync(zkMinterRateLimiterFactoryPath, "utf8")
+const zkMinterRateLimiterJson = JSON.parse(
+  fs.readFileSync(zkMinterRateLimiterPath, "utf8")
 );
-const BYTECODE_HASH = utils.hashBytecode(
-  zkMinterRateLimiterFactoryJson.bytecode
-);
+const BYTECODE_HASH = utils.hashBytecode(zkMinterRateLimiterJson.bytecode);
 
 async function main() {
   dotEnvConfig();

@@ -3,9 +3,7 @@ import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
 import { Wallet } from "zksync-ethers";
 import * as hre from "hardhat";
 
-// Before executing a real deployment, be sure to set these values as appropriate for the environment being deploying
-// to. The values used in the script at the time of deployment can be checked in along with the deployment artifacts
-// produced by running the scripts.
+// Set these values appropriately for your deployment environment.
 const MINTABLE_ADDRESS = ""; // TODO: Update this to the actual mintable address.
 const ADMIN_ACCOUNT = ""; // TODO: Update this to the actual admin account.
 const MINT_RATE_LIMIT = "1000000000000000000000"; // TODO: Update this to the actual mint rate limit. Currently set to 1000 tokens.
