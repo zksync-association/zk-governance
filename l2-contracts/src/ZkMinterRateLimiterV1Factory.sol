@@ -44,7 +44,7 @@ contract ZkMinterRateLimiterV1Factory {
   /// @param _mintRateLimitWindow The duration in seconds of the rate limit window.
   /// @param _saltNonce A user-provided nonce for salt calculation.
   /// @return _minterRateLimiterAddress The address of the newly deployed `ZkMinterRateLimiterV1`.
-  function createMinterRateLimiter(
+  function createMinter(
     IMintable _mintable,
     address _admin,
     uint256 _mintRateLimit,
