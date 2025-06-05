@@ -68,6 +68,46 @@ contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
     factory.createMinter(_mintable, _minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce);
   }
 
+  function testFuzz_CreatesNewMinterRateLimiterWithBytesArgs(
+    IMintable _mintable,
+    address _minterAdmin,
+    uint256 _mintRateLimit,
+    uint48 _mintRateLimitWindow,
+    uint256 _saltNonce
+  ) public {
+    _assumeValidAddress(_minterAdmin);
+
+    address minterAddress =
+      factory.createMinter(_mintable, abi.encode(_minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce));
+
+    ZkMinterRateLimiterV1 minter = ZkMinterRateLimiterV1(minterAddress);
+    assertEq(address(minter.mintable()), address(_mintable));
+    assertEq(minter.hasRole(minter.DEFAULT_ADMIN_ROLE(), _minterAdmin), true);
+    assertEq(minter.mintRateLimit(), _mintRateLimit);
+    assertEq(minter.mintRateLimitWindow(), _mintRateLimitWindow);
+  }
+
+  function testFuzz_EmitsMinterRateLimiterCreatedEventWithBytesArgs(
+    IMintable _mintable,
+    address _minterAdmin,
+    uint256 _mintRateLimit,
+    uint48 _mintRateLimitWindow,
+    uint256 _saltNonce
+  ) public {
+    _assumeValidAddress(_minterAdmin);
+
+    vm.expectEmit();
+    emit ZkMinterRateLimiterV1Factory.MinterRateLimiterCreated(
+      factory.getMinter(_mintable, _minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce),
+      _mintable,
+      _minterAdmin,
+      _mintRateLimit,
+      _mintRateLimitWindow
+    );
+
+    factory.createMinter(_mintable, abi.encode(_minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce));
+  }
+
   function testFuzz_RevertIf_CreatingDuplicateMinter(
     IMintable _mintable,
     address _minterAdmin,
