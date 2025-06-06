@@ -40,13 +40,13 @@ abstract contract ZkMinterV1 is IMintable, AccessControl, Pausable {
   error ZkMinter__ContractClosed();
 
   /// @notice Pauses token minting
-  function pause() external {
+  function pause() external virtual {
     _checkRole(PAUSER_ROLE, msg.sender);
     _pause();
   }
 
   /// @notice Unpauses token minting
-  function unpause() external {
+  function unpause() external virtual {
     _checkRole(PAUSER_ROLE, msg.sender);
     _unpause();
   }
@@ -54,7 +54,7 @@ abstract contract ZkMinterV1 is IMintable, AccessControl, Pausable {
   /// @notice Permanently closes the contract, preventing any future minting.
   /// @dev Once closed, the contract cannot be reopened and all minting operations will be permanently blocked.
   /// @dev Only callable by the admin.
-  function close() external {
+  function close() external virtual {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
     closed = true;
     emit Closed(msg.sender);
@@ -63,20 +63,20 @@ abstract contract ZkMinterV1 is IMintable, AccessControl, Pausable {
   /// @notice Updates the mintable contract that this rate limiter will use for minting.
   /// @param _mintable The new mintable contract to use.
   /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE.
-  function updateMintable(IMintable _mintable) external {
+  function updateMintable(IMintable _mintable) external virtual {
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _updateMintable(_mintable);
   }
 
   /// @notice Updates the mintable contract that this rate limiter will use for minting.
   /// @param _mintable The new mintable contract to use.
-  function _updateMintable(IMintable _mintable) internal {
+  function _updateMintable(IMintable _mintable) internal virtual {
     emit MintableUpdated(mintable, _mintable);
     mintable = _mintable;
   }
 
   /// @notice Reverts if the contract is closed.
-  function _revertIfClosed() internal view {
+  function _revertIfClosed() internal view virtual {
     if (closed) {
       revert ZkMinter__ContractClosed();
     }
