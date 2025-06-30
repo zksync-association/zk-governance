@@ -64,6 +64,7 @@ abstract contract ZkMinterV1 is IMintable, AccessControl, Pausable {
   /// @param _mintable The new mintable contract to use.
   /// @dev Only callable by addresses with the DEFAULT_ADMIN_ROLE.
   function updateMintable(IMintable _mintable) external virtual {
+    _revertIfClosed();
     _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _updateMintable(_mintable);
   }

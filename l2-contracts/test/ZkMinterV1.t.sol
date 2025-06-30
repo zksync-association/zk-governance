@@ -84,6 +84,16 @@ contract UpdateMintable is ZkMinterV1Test {
     minterRateLimiter.updateMintable(_newMintable);
     vm.stopPrank();
   }
+
+  function testFuzz_RevertIf_CalledAfterContractIsClosed(IMintable _newMintable) public {
+    vm.prank(admin);
+    minterRateLimiter.close();
+
+    vm.startPrank(admin);
+    vm.expectRevert(ZkMinterV1.ZkMinter__ContractClosed.selector);
+    minterRateLimiter.updateMintable(_newMintable);
+    vm.stopPrank();
+  }
 }
 
 contract Pause is ZkMinterV1Test {
