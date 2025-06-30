@@ -80,19 +80,17 @@ contract ZkMinterRateLimiterV1Factory is IZkMinterV1Factory {
     uint48 _mintRateLimitWindow,
     uint256 _saltNonce
   ) external view returns (address _minterRateLimiterAddress) {
-    bytes memory saltArgs = abi.encode(_mintable, _admin, _mintRateLimit, _mintRateLimitWindow);
-    bytes32 salt = _calculateSalt(saltArgs, _saltNonce);
+    bytes32 salt = _calculateSalt(_saltNonce);
     _minterRateLimiterAddress = L2ContractHelper.computeCreate2Address(
       address(this), salt, BYTECODE_HASH, keccak256(abi.encode(_mintable, _admin, _mintRateLimit, _mintRateLimitWindow))
     );
   }
 
   /// @notice Calculates the salt for CREATE2 deployment.
-  /// @param _args The encoded arguments for the salt calculation.
   /// @param _saltNonce A user-provided nonce for additional uniqueness.
   /// @return The calculated salt as a bytes32 value.
-  function _calculateSalt(bytes memory _args, uint256 _saltNonce) internal view returns (bytes32) {
-    return keccak256(abi.encode(_args, block.chainid, _saltNonce));
+  function _calculateSalt(uint256 _saltNonce) internal view returns (bytes32) {
+    return keccak256(abi.encode(block.chainid, _saltNonce));
   }
 
   /// @notice Deploys a new `ZkMinterRateLimiterV1` contract using CREATE2.
@@ -112,9 +110,7 @@ contract ZkMinterRateLimiterV1Factory is IZkMinterV1Factory {
     if (_admin == address(0)) {
       revert ZkMinterRateLimiterV1Factory__InvalidAdminAddress();
     }
-
-    bytes memory saltArgs = abi.encode(_mintable, _admin, _mintRateLimit, _mintRateLimitWindow);
-    bytes32 _salt = _calculateSalt(saltArgs, _saltNonce);
+    bytes32 _salt = _calculateSalt(_saltNonce);
 
     ZkMinterRateLimiterV1 instance =
       new ZkMinterRateLimiterV1{salt: _salt}(_mintable, _admin, _mintRateLimit, _mintRateLimitWindow);
