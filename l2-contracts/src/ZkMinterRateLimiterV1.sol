@@ -33,6 +33,9 @@ contract ZkMinterRateLimiterV1 is ZkMinterV1 {
   /// @notice Error for when the rate limit is exceeded.
   error ZkMinterRateLimiterV1__MintRateLimitExceeded(address minter, uint256 amount);
 
+  /// @notice Error for when the admin is the zero address.
+  error ZkMinterRateLimiterV1__InvalidAdmin();
+
   /// @notice Initializes the rate limiter with the mintable contract, admin, mint rate limit, and mint rate limit
   /// window.
   /// @param _mintable A contract used as a target when calling mint. Any contract that conforms to the IMintable
@@ -41,6 +44,10 @@ contract ZkMinterRateLimiterV1 is ZkMinterV1 {
   /// @param _mintRateLimit The maximum number of tokens that can be minted during the rate limit window.
   /// @param _mintRateLimitWindow The duration of the rate limit window in seconds.
   constructor(IMintable _mintable, address _admin, uint256 _mintRateLimit, uint48 _mintRateLimitWindow) {
+    if (_admin == address(0)) {
+      revert ZkMinterRateLimiterV1__InvalidAdmin();
+    }
+
     _updateMintable(_mintable);
     _updateMintRateLimit(_mintRateLimit);
     _updateMintRateLimitWindow(_mintRateLimitWindow);
