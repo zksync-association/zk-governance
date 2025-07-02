@@ -25,6 +25,10 @@ contract ZkMinterRateLimiterV1FactoryTest is Test {
   function _assumeValidAddress(address _addr) internal view {
     vm.assume(_addr != address(0) && _addr != address(factory));
   }
+
+  function _assumeValidMintRateLimitWindow(uint48 _mintRateLimitWindow) internal pure {
+    vm.assume(_mintRateLimitWindow != 0);
+  }
 }
 
 contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
@@ -36,6 +40,7 @@ contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
     uint256 _saltNonce
   ) public {
     _assumeValidAddress(_minterAdmin);
+    _assumeValidMintRateLimitWindow(_mintRateLimitWindow);
 
     address minterAddress =
       factory.createMinter(_mintable, _minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce);
@@ -55,6 +60,7 @@ contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
     uint256 _saltNonce
   ) public {
     _assumeValidAddress(_minterAdmin);
+    _assumeValidMintRateLimitWindow(_mintRateLimitWindow);
 
     vm.expectEmit();
     emit ZkMinterRateLimiterV1Factory.MinterRateLimiterCreated(
@@ -76,6 +82,7 @@ contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
     uint256 _saltNonce
   ) public {
     _assumeValidAddress(_minterAdmin);
+    _assumeValidMintRateLimitWindow(_mintRateLimitWindow);
 
     address minterAddress =
       factory.createMinter(_mintable, abi.encode(_minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce));
@@ -95,6 +102,7 @@ contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
     uint256 _saltNonce
   ) public {
     _assumeValidAddress(_minterAdmin);
+    _assumeValidMintRateLimitWindow(_mintRateLimitWindow);
 
     vm.expectEmit();
     emit ZkMinterRateLimiterV1Factory.MinterRateLimiterCreated(
@@ -116,6 +124,7 @@ contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
     uint256 _saltNonce
   ) public {
     _assumeValidAddress(_minterAdmin);
+    _assumeValidMintRateLimitWindow(_mintRateLimitWindow);
 
     factory.createMinter(_mintable, _minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce);
 
@@ -134,6 +143,19 @@ contract CreateMinterRateLimiter is ZkMinterRateLimiterV1FactoryTest {
     );
     factory.createMinter(_mintable, address(0), _mintRateLimit, _mintRateLimitWindow, _saltNonce);
   }
+
+  function testFuzz_RevertIf_CreatingMinterWithZeroRateLimitWindow(
+    IMintable _mintable,
+    address _minterAdmin,
+    uint256 _mintRateLimit,
+    uint256 _saltNonce
+  ) public {
+    vm.assume(_minterAdmin != address(0));
+    vm.expectRevert(
+      abi.encodeWithSelector(ZkMinterRateLimiterV1.ZkMinterRateLimiterV1__InvalidMintRateLimitWindow.selector)
+    );
+    factory.createMinter(_mintable, _minterAdmin, _mintRateLimit, 0, _saltNonce);
+  }
 }
 
 contract GetMinter is ZkMinterRateLimiterV1FactoryTest {
@@ -145,6 +167,7 @@ contract GetMinter is ZkMinterRateLimiterV1FactoryTest {
     uint256 _saltNonce
   ) public {
     _assumeValidAddress(_minterAdmin);
+    _assumeValidMintRateLimitWindow(_mintRateLimitWindow);
 
     address expectedMinterAddress =
       factory.getMinter(_mintable, _minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce);
@@ -163,6 +186,7 @@ contract GetMinter is ZkMinterRateLimiterV1FactoryTest {
     uint256 _saltNonce
   ) public {
     _assumeValidAddress(_minterAdmin);
+    _assumeValidMintRateLimitWindow(_mintRateLimitWindow);
 
     address expectedMinterAddress =
       factory.getMinter(_mintable, _minterAdmin, _mintRateLimit, _mintRateLimitWindow, _saltNonce);
