@@ -13,6 +13,11 @@ import {ZkTokenV2} from "src/ZkTokenV2.sol";
 /// calling these functions one after the other then they should use an incremented nonce for the subsequent call.
 /// @custom:security-contact security@zksync.io
 contract ZkTokenV3 is ZkTokenV2 {
+  /// @notice Constructor that disables initializers to prevent the implementation contract from being initialized.
+  constructor() {
+    _disableInitializers();
+  }
+
   /// @notice Destroys tokens held by the caller and removes them from the total supply.
   /// @param _amount The quantity of tokens, in raw decimals, that will be destroyed.
   /// @dev The caller must have sufficient balance to burn the requested amount.

@@ -8,6 +8,7 @@ import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.so
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {console2} from "forge-std/console2.sol";
 import {stdJson} from "forge-std/StdJson.sol";
+import {HashIsNonZero} from "era-contracts/system-contracts/contracts/SystemContractErrors.sol";
 
 contract ZkCappedMinterFactoryTest is ZkTokenTest {
   bytes32 bytecodeHash;
@@ -71,7 +72,7 @@ contract CreateCappedMinter is ZkCappedMinterFactoryTest {
 
     factory.createCappedMinter(IMintableAndDelegatable(address(token)), _cappedMinterAdmin, _cap, _saltNonce);
 
-    vm.expectRevert("Code hash is non-zero");
+    vm.expectRevert(abi.encodeWithSelector(HashIsNonZero.selector, bytecodeHash));
     factory.createCappedMinter(IMintableAndDelegatable(address(token)), _cappedMinterAdmin, _cap, _saltNonce);
   }
 }

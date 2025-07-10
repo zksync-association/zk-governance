@@ -15,7 +15,6 @@ contract Initialize is Test {
   ZkTokenV2 tokenV2;
   address admin = makeAddr("Admin");
   address initMintReceiver = makeAddr("Init Mint Receiver");
-
   uint256 INITIAL_MINT_AMOUNT = 1_000_000_000e18;
 
   // As defined internally in ERC20Votes
