@@ -14,6 +14,7 @@ import {IStateTransitionManager} from "../../src/interfaces/IStateTransitionMana
 import {IPausable} from "../../src/interfaces/IPausable.sol";
 
 import {ProtocolUpgradeHandler} from "../../src/ProtocolUpgradeHandler.sol";
+import {MockChainAssetHandler} from "./mocks/MockChainAssetHandler.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {IChainTypeManager} from "../../src/interfaces/IChainTypeManager.sol";
 import {IBridgeHub} from "../../src/interfaces/IBridgeHub.sol";
@@ -40,6 +41,7 @@ contract TestProtocolUpgradeHandler is Test {
     IPausable l1NativeTokenVault;
 
     ProtocolUpgradeHandler handler;
+    MockChainAssetHandler chainAssetHandler;
     uint256[] chainIds;
 
     function _createProofData(IProtocolUpgradeHandler.UpgradeProposal memory _proposal, bool _isCorrect)
@@ -161,6 +163,7 @@ contract TestProtocolUpgradeHandler is Test {
         l1Nullifier = IPausable(address(new EmptyContract()));
         l1AssetRouter = IPausable(address(new EmptyContract()));
         l1NativeTokenVault = IPausable(address(new EmptyContract()));
+        chainAssetHandler = new MockChainAssetHandler();
 
         handler = _deployProtocolUpgradeHanlder(
             securityCouncil,
@@ -195,7 +198,8 @@ contract TestProtocolUpgradeHandler is Test {
             bridgeHub,
             l1Nullifier,
             l1AssetRouter,
-            l1NativeTokenVault
+            l1NativeTokenVault,
+            chainAssetHandler
         );
 
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(

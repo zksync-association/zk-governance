@@ -7,6 +7,7 @@ import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IChainTypeManager} from "./interfaces/IChainTypeManager.sol";
 import {IBridgeHub} from "./interfaces/IBridgeHub.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
+import {IChainAssetHandler} from "./interfaces/IChainAssetHandler.sol";
 
 /// @title Testnet Protocol Upgrade Handler
 /// @author Matter Labs
@@ -30,6 +31,7 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
     /// @param _l1Nullifier The address of the nullifier
     /// @param _l1AssetRouter The address of the L1 asset router.
     /// @param _l1NativeTokenVault The address of the L1 native token vault.
+    /// @param _chainAssetHandler The address of the L1 chain asset handler.
     constructor(
         address _l2ProtocolGovernor,
         IZKsyncEra _ZKsyncEra,
@@ -37,7 +39,8 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
         IBridgeHub _bridgeHub,
         IPausable _l1Nullifier,
         IPausable _l1AssetRouter,
-        IPausable _l1NativeTokenVault
+        IPausable _l1NativeTokenVault,
+        IChainAssetHandler _chainAssetHandler
     )
         ProtocolUpgradeHandler(
             _l2ProtocolGovernor,
@@ -46,7 +49,8 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
             _bridgeHub,
             _l1Nullifier,
             _l1AssetRouter,
-            _l1NativeTokenVault
+            _l1NativeTokenVault,
+            _chainAssetHandler
         )
     {}
 }
