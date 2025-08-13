@@ -28,9 +28,9 @@ contract TestnetDeploy is Script {
     bytes32 EMERGENCY_UPGRADE_BOARD_SALT = keccak256("EmergencyUpgradeBoard");
 
     IZKsyncEra constant ZKSYNC_ERA = IZKsyncEra(0x9A6DE0f62Aa270A8bCB1e2610078650D539B1Ef9);
-    IStateTransitionManager constant STATE_TRANSITION_MANAGER = IStateTransitionManager(0x4e39E90746A9ee410A8Ce173C7B96D3AfEd444a5);
+    IStateTransitionManager constant CHAIN_TYPE_MANAGER = IStateTransitionManager(0x4e39E90746A9ee410A8Ce173C7B96D3AfEd444a5);
     IPausable constant BRIDGE_HUB = IPausable(0x35A54c8C757806eB6820629bc82d90E056394C92 );
-    IPausable constant SHARED_BRIDGE = IPausable(0x3E8b2fe58675126ed30d0d12dea2A9bda72D18Ae);
+    IPausable constant L1_ASSET_ROUTER = IPausable(0x3E8b2fe58675126ed30d0d12dea2A9bda72D18Ae);
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -71,7 +71,7 @@ contract TestnetDeploy is Script {
         (address protocolUpgradeHandler, address guardians, address securityCouncil, address emergencyUpgradeBoard) = predictAddresses(deployerWallet.addr);
 
         address l2ProtocolGovernor = vm.envAddress("L2_PROTOCOL_GOVERNOR");
-        bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(securityCouncil, guardians, emergencyUpgradeBoard, l2ProtocolGovernor, ZKSYNC_ERA, STATE_TRANSITION_MANAGER, BRIDGE_HUB, SHARED_BRIDGE);
+        bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(securityCouncil, guardians, emergencyUpgradeBoard, l2ProtocolGovernor, ZKSYNC_ERA, CHAIN_TYPE_MANAGER, BRIDGE_HUB, L1_ASSET_ROUTER);
         bytes memory protocolUpgradeHandlerCreationCode = abi.encodePacked(type(TestnetProtocolUpgradeHandler).creationCode, protocolUpgradeHandlerConstructorArgs);
 
         vm.startBroadcast();
