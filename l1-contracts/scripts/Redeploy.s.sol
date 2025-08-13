@@ -79,9 +79,9 @@ contract Redeploy is Script {
         EmergencyUpgradeBoard emergencyUpgradeBoard = EmergencyUpgradeBoard(_currentProtocolUpgradeHandler.emergencyUpgradeBoard());
 
         address zksyncEra = address(_currentProtocolUpgradeHandler.ZKSYNC_ERA());
-        address stateTransitionManager = address(_currentProtocolUpgradeHandler.STATE_TRANSITION_MANAGER());
+        address stateTransitionManager = address(_currentProtocolUpgradeHandler.CHAIN_TYPE_MANAGER());
         address bridgehub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
-        address sharedBridge = address(_currentProtocolUpgradeHandler.SHARED_BRIDGE());
+        address sharedBridge = address(_currentProtocolUpgradeHandler.L1_ASSET_ROUTER());
 
         // A small cross check for consistency
         require(emergencyUpgradeBoard.SECURITY_COUNCIL() == securityCouncil, "incorrect security council");

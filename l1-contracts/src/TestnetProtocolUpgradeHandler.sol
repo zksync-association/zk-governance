@@ -4,7 +4,8 @@ pragma solidity 0.8.24;
 
 import {ProtocolUpgradeHandler} from "./ProtocolUpgradeHandler.sol";
 import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
-import {IStateTransitionManager} from "./interfaces/IStateTransitionManager.sol";
+import {IChainTypeManager} from "./interfaces/IChainTypeManager.sol";
+import {IBridgeHub} from "./interfaces/IBridgeHub.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
 
 /// @title Testnet Protocol Upgrade Handler
@@ -24,22 +25,28 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
     /// @param _ZKsyncEra The address of the zkSync Era chain, on top of which the `_l2ProtocolGovernor` is deployed.
-    /// @param _stateTransitionManager The address of the state transition manager.
+    /// @param _chainTypeManager The address of the state transition manager.
     /// @param _bridgeHub The address of the bridgehub.
-    /// @param _sharedBridge The address of the shared bridge.
+    /// @param _l1Nullifier The address of the nullifier
+    /// @param _l1AssetRouter The address of the L1 asset router.
+    /// @param _l1NativeTokenVault The address of the L1 native token vault.
     constructor(
         address _l2ProtocolGovernor,
         IZKsyncEra _ZKsyncEra,
-        IStateTransitionManager _stateTransitionManager,
-        IPausable _bridgeHub,
-        IPausable _sharedBridge
+        IChainTypeManager _chainTypeManager,
+        IBridgeHub _bridgeHub,
+        IPausable _l1Nullifier,
+        IPausable _l1AssetRouter,
+        IPausable _l1NativeTokenVault
     )
         ProtocolUpgradeHandler(
             _l2ProtocolGovernor,
             _ZKsyncEra,
-            _stateTransitionManager,
+            _chainTypeManager,
             _bridgeHub,
-            _sharedBridge
+            _l1Nullifier,
+            _l1AssetRouter,
+            _l1NativeTokenVault
         )
     {}
 }
