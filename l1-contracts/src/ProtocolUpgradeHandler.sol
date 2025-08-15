@@ -6,6 +6,7 @@ import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IChainTypeManager} from "./interfaces/IChainTypeManager.sol";
 import {IBridgeHub} from "./interfaces/IBridgeHub.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
+import {IChainAssetHandler} from "./interfaces/IChainAssetHandler.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
@@ -85,6 +86,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Vault holding L1 native ETH and ERC20 tokens bridged into the ZK chains.
     IPausable public immutable L1_NATIVE_TOKEN_VAULT;
 
+    /// @dev Chain asset handler contract for migration pausing/unpausing.
+    IChainAssetHandler public immutable CHAIN_ASSET_HANDLER;
+
     /// @notice The address of the Security Council.
     address public securityCouncil;
 
@@ -111,6 +115,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @param _l1Nullifier The address of the nullifier
     /// @param _l1AssetRouter The address of the L1 asset router.
     /// @param _l1NativeTokenVault The address of the L1 native token vault.
+    /// @param _chainAssetHandler The address of the L1 chain asset handler.
     constructor(
         address _l2ProtocolGovernor,
         IZKsyncEra _ZKsyncEra,
@@ -118,7 +123,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         IBridgeHub _bridgeHub,
         IPausable _l1Nullifier,
         IPausable _l1AssetRouter,
-        IPausable _l1NativeTokenVault
+        IPausable _l1NativeTokenVault,
+        IChainAssetHandler _chainAssetHandler
     ) {
         _disableInitializers();
 
@@ -132,6 +138,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         L1_NULLIFIER = _l1Nullifier;
         L1_ASSET_ROUTER = _l1AssetRouter;
         L1_NATIVE_TOKEN_VAULT = _l1NativeTokenVault;
+        CHAIN_ASSET_HANDLER = _chainAssetHandler;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -405,6 +412,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         try L1_NULLIFIER.pause() {} catch {}
         try L1_ASSET_ROUTER.pause() {} catch {}
         try L1_NATIVE_TOKEN_VAULT.pause() {} catch {}
+        try CHAIN_ASSET_HANDLER.pauseMigration() {} catch {}
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
@@ -451,6 +459,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         try L1_NULLIFIER.unpause() {} catch {}
         try L1_ASSET_ROUTER.unpause() {} catch {}
         try L1_NATIVE_TOKEN_VAULT.unpause() {} catch {}
+        try CHAIN_ASSET_HANDLER.unpauseMigration() {} catch {}
     }
 
     /*//////////////////////////////////////////////////////////////
