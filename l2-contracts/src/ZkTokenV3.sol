@@ -33,16 +33,4 @@ contract ZkTokenV3 is ZkTokenV2 {
   function burnFrom(address _from, uint256 _amount) external onlyRole(BURNER_ROLE) {
     _burn(_from, _amount);
   }
-
-  /// @notice Returns the maximum supply of tokens that can ever exist.
-  /// @return The maximum supply of tokens in raw decimals.
-  function maxSupply() external pure returns (uint224) {
-    return _maxSupply();
-  }
-
-  /// @notice Internal function that defines the maximum supply of tokens.
-  /// @return The maximum supply of tokens in raw decimals (21 billion tokens).
-  function _maxSupply() internal pure override returns (uint224) {
-    return 21_000_000_000e18;
-  }
 }

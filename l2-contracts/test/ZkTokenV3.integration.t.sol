@@ -84,7 +84,7 @@ contract Transfer is ZkTokenV3ForkTest {
   ) public {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
     vm.assume(_to != address(0));
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, type(uint208).max - tokenV3.totalSupply());
     _transferAmount = bound(_transferAmount, 0, _initialBalance);
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_caller, _initialBalance);
@@ -108,7 +108,7 @@ contract TransferFrom is ZkTokenV3ForkTest {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
     vm.assume(_from != address(0) && _from != PROXY_ADMIN_ADDRESS);
     vm.assume(_to != address(0));
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, type(uint208).max - tokenV3.totalSupply());
     _transferAmount = bound(_transferAmount, 0, _initialBalance);
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_from, _initialBalance);
@@ -129,7 +129,7 @@ contract Delegate is ZkTokenV3ForkTest {
     address _delegatee
   ) public {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, type(uint208).max - tokenV3.totalSupply());
     _delegateAmount = bound(_delegateAmount, 0, _initialBalance);
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_caller, _initialBalance);
@@ -147,7 +147,7 @@ contract Delegate is ZkTokenV3ForkTest {
     uint256 _amount
   ) public {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, type(uint208).max - tokenV3.totalSupply());
     _amount = bound(_amount, 0, _initialBalance);
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
@@ -177,18 +177,14 @@ contract Delegate is ZkTokenV3ForkTest {
   }
 }
 
-contract MaxSupply is ZkTokenV3ForkTest {
-  function test_ReturnsTheCorrectMaxSupply() public {
-    assertEq(tokenV3.maxSupply(), MAX_SUPPLY);
-  }
-}
-
 contract Mint is ZkTokenV3ForkTest {
   function testForkFuzz_GovernorCanMintTokens(uint256 _mintAmount, address _to) public {
     vm.assume(_to != address(0));
-    _mintAmount = bound(_mintAmount, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
     uint256 _initialBalance = tokenV3.balanceOf(_to);
     uint256 _initialSupply = tokenV3.totalSupply();
+    vm.assume(_initialSupply <= MAX_SUPPLY);
+    uint256 _availableSupply = MAX_SUPPLY - _initialSupply;
+    _mintAmount = bound(_mintAmount, 0, _availableSupply);
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_to, _mintAmount);
 
@@ -198,7 +194,12 @@ contract Mint is ZkTokenV3ForkTest {
 
   function testForkFuzz_RevertIf_MintsAboveMaxSupply(uint256 _mintAmount, address _to) public {
     vm.assume(_to != address(0));
-    _mintAmount = bound(_mintAmount, tokenV3.maxSupply(), type(uint256).max);
+    uint256 _initialSupply = tokenV3.totalSupply();
+    uint256 _maxVotesSupply = type(uint224).max;
+    vm.assume(_initialSupply <= MAX_SUPPLY);
+    vm.assume(_initialSupply < _maxVotesSupply);
+    uint256 _minExcessMint = _maxVotesSupply - _initialSupply + 1;
+    _mintAmount = bound(_mintAmount, _minExcessMint, type(uint256).max - _initialSupply);
 
     vm.expectRevert();
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
@@ -207,7 +208,7 @@ contract Mint is ZkTokenV3ForkTest {
 
   function testForkFuzz_RevertIf_CallerDoesNotHaveMinterRole(uint256 _mintAmount, address _caller) public {
     vm.assume(_caller != address(0) && _caller != admin);
-    _mintAmount = bound(_mintAmount, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _mintAmount = bound(_mintAmount, 0, type(uint208).max - tokenV3.totalSupply());
 
     vm.expectRevert(_formatAccessControlError(_caller, tokenV3.MINTER_ROLE()));
     vm.prank(_caller);
@@ -218,7 +219,7 @@ contract Mint is ZkTokenV3ForkTest {
 contract Burn is ZkTokenV3ForkTest {
   function testForkFuzz_CallerCanBurnTokens(uint256 _initialBalance, uint256 _burnAmount, address _caller) public {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, type(uint208).max - tokenV3.totalSupply());
     _burnAmount = bound(_burnAmount, 0, _initialBalance);
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_caller, _initialBalance);
@@ -237,8 +238,8 @@ contract Burn is ZkTokenV3ForkTest {
     address _caller
   ) public {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply() - 1);
-    _burnAmount = bound(_burnAmount, _initialBalance + 1, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, MAX_SUPPLY - tokenV3.totalSupply() - 1);
+    _burnAmount = bound(_burnAmount, _initialBalance + 1, MAX_SUPPLY - tokenV3.totalSupply());
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_caller, _initialBalance);
 
@@ -259,7 +260,7 @@ contract BurnFrom is ZkTokenV3ForkTest {
     vm.assume(_from != address(0) && _from != PROXY_ADMIN_ADDRESS);
     _grantBurnerRole(_caller);
     uint256 _initialSupply = tokenV3.totalSupply();
-    _mintBalance = bound(_mintBalance, 0, tokenV3.maxSupply() - _initialSupply);
+    _mintBalance = bound(_mintBalance, 0, MAX_SUPPLY - _initialSupply);
     _burnAmount = bound(_burnAmount, 0, _mintBalance);
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
@@ -283,7 +284,7 @@ contract BurnFrom is ZkTokenV3ForkTest {
     vm.assume(_from != address(0) && _from != PROXY_ADMIN_ADDRESS);
     _grantBurnerRole(_caller);
     uint256 _initialSupply = tokenV3.totalSupply();
-    _mintAmount = bound(_mintAmount, 0, tokenV3.maxSupply() - _initialSupply);
+    _mintAmount = bound(_mintAmount, 0, MAX_SUPPLY - _initialSupply);
     _burnAmount = bound(_burnAmount, 0, _mintAmount);
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
@@ -305,7 +306,7 @@ contract BurnFrom is ZkTokenV3ForkTest {
   ) public {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
     vm.assume(_from != address(0) && _from != PROXY_ADMIN_ADDRESS);
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, MAX_SUPPLY - tokenV3.totalSupply());
     _burnAmount = bound(_burnAmount, 0, _initialBalance);
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
@@ -324,7 +325,7 @@ contract BurnFrom is ZkTokenV3ForkTest {
   ) public {
     vm.assume(_caller != address(0) && _caller != PROXY_ADMIN_ADDRESS);
     vm.assume(_from != address(0) && _from != PROXY_ADMIN_ADDRESS);
-    _initialBalance = bound(_initialBalance, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _initialBalance = bound(_initialBalance, 0, MAX_SUPPLY - tokenV3.totalSupply());
     _burnAmount = bound(_burnAmount, 0, _initialBalance);
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
@@ -351,7 +352,7 @@ contract DelegateOnBehalf is ZkTokenV3ForkTest {
     _expiry = bound(_expiry, block.timestamp, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
-    _amount = bound(_amount, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _amount = bound(_amount, 0, MAX_SUPPLY - tokenV3.totalSupply());
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_signer, _amount);
@@ -383,7 +384,7 @@ contract DelegateOnBehalf is ZkTokenV3ForkTest {
     _expiry = bound(_expiry, block.timestamp, type(uint256).max);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
-    _amount = bound(_amount, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _amount = bound(_amount, 0, MAX_SUPPLY - tokenV3.totalSupply());
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_signer, _amount);
@@ -420,7 +421,7 @@ contract DelegateOnBehalf is ZkTokenV3ForkTest {
     _expiry = bound(_expiry, 0, block.timestamp - 1);
     _signerPrivateKey = bound(_signerPrivateKey, 1, 100e18);
     address _signer = vm.addr(_signerPrivateKey);
-    _amount = bound(_amount, 0, tokenV3.maxSupply() - tokenV3.totalSupply());
+    _amount = bound(_amount, 0, MAX_SUPPLY - tokenV3.totalSupply());
 
     vm.prank(TOKEN_GOVERNOR_TIMELOCK);
     tokenV3.mint(_signer, _amount);

@@ -78,7 +78,6 @@ contract Initialize is ZkTokenV3Test {
   function test_InitializesTheTokenWithTheCorrectConfigurationWhenDeployed() public {
     assertEq(tokenV3Proxy.symbol(), "ZK");
     assertEq(tokenV3Proxy.name(), "ZKsync");
-    assertEq(tokenV3Proxy.maxSupply(), 21_000_000_000e18);
     assertEq(tokenV3Proxy.DOMAIN_SEPARATOR(), calculateDomainSeparator(address(tokenV3Proxy)));
     assertEq(tokenV3Proxy.totalSupply(), INITIAL_MINT_AMOUNT);
     assertEq(tokenV3Proxy.balanceOf(initMintReceiver), INITIAL_MINT_AMOUNT);
@@ -110,12 +109,6 @@ contract Initialize is ZkTokenV3Test {
   function testFuzz_RevertIf_TheInitializerV2IsCalledTwiceOnTheProxy() public {
     vm.expectRevert("Initializable: contract is already initialized");
     tokenV3Proxy.initializeV2();
-  }
-}
-
-contract MaxSupply is ZkTokenV3Test {
-  function test_ReturnsTheCorrectMaxSupply() public {
-    assertEq(tokenV3Implementation.maxSupply(), MAX_SUPPLY);
   }
 }
 
