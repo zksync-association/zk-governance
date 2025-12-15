@@ -1,0 +1,20 @@
+{
+  "../l2-contracts/lib/flexible-voting": {
+    "rev": "d71c4e02256d4ef6c9067b947d398753402afdd2"
+  },
+  "../l2-contracts/lib/forge-std": {
+    "rev": "1d0766bc5d814f117c7b1e643828f7d85024fb51"
+  },
+  "../l2-contracts/lib/murky": {
+    "rev": "40de6e80117f39cda69d71b07b7c824adac91b29"
+  },
+  "../l2-contracts/lib/openzeppelin-contracts": {
+    "rev": "dc44c9f1a4c3b10af99492eed84f83ed244203f6"
+  },
+  "../l2-contracts/lib/openzeppelin-contracts-upgradeable": {
+    "rev": "2d081f24cac1a867f6f73d512f2022e1fa987854"
+  },
+  "lib/openzeppelin-contracts-upgradeable": {
+    "rev": "fbdb824a735891908d5588b28e0da5852d7ed7ba"
+  }
+}

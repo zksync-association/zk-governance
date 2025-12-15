@@ -7,10 +7,10 @@ import {Utils} from "./utils/Utils.t.sol";
 import {EIP712Util} from "./utils/EIP712Util.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
 import {GovernorMock} from "./mocks/GovernorMock.t.sol";
-import {Guardians} from "../../src/Guardians.sol";
-import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
-import {IGuardians} from "../../src/interfaces/IGuardians.sol";
-import {IZKsyncEra} from "../../src/interfaces/IZKsyncEra.sol";
+import {Guardians} from "../src/Guardians.sol";
+import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
+import {IGuardians} from "../src/interfaces/IGuardians.sol";
+import {IZKsyncEra} from "../src/interfaces/IZKsyncEra.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract TestGuardians is Test, EIP712Util {
