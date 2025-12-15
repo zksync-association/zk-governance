@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.24;
 
-contract BridgehubMock {
+import {IBridgeHub, L2TransactionRequestDirect} from "../../src/interfaces/IBridgeHub.sol";
+
+contract BridgehubMock is IBridgeHub {
     uint256[] chainIds;
 
     constructor(uint256[] memory _chainIds) {
@@ -19,6 +21,14 @@ contract BridgehubMock {
     
     function unpause() external {
         // Do nothing
+    }
+
+    function requestL2TransactionDirect(
+        L2TransactionRequestDirect calldata _request
+    ) external payable returns (bytes32 canonicalTxHash) {
+
+        bytes32 canonicalTxHash;
+
     }
 
     // add this to be excluded from coverage report

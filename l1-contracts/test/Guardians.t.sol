@@ -6,16 +6,18 @@ import {Test, Vm} from "forge-std/Test.sol";
 import {Utils} from "./utils/Utils.t.sol";
 import {EIP712Util} from "./utils/EIP712Util.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
+import {BridgehubMock} from "./mocks/BridgehubMock.t.sol";
 import {GovernorMock} from "./mocks/GovernorMock.t.sol";
 import {Guardians} from "../src/Guardians.sol";
 import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
 import {IGuardians} from "../src/interfaces/IGuardians.sol";
-import {IZKsyncEra} from "../src/interfaces/IZKsyncEra.sol";
+import {IBridgeHub} from "../src/interfaces/IBridgeHub.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract TestGuardians is Test, EIP712Util {
+    uint256[] chainIds = [uint256(1)];
     IProtocolUpgradeHandler protocolUpgradeHandler = IProtocolUpgradeHandler(address(new EmptyContract()));
-    IZKsyncEra zksyncAddress = IZKsyncEra(address(new EmptyContract()));
+    IBridgeHub bridgeHubAddress = IBridgeHub(address(new BridgehubMock(chainIds)));
     Guardians guardians;
     Vm.Wallet[] wallets;
     address[] internal members;
@@ -49,7 +51,7 @@ contract TestGuardians is Test, EIP712Util {
             members.push(wallets_[i].addr);
         }
 
-        guardians = new Guardians(protocolUpgradeHandler, zksyncAddress, members);
+        guardians = new Guardians(protocolUpgradeHandler, bridgeHubAddress, members);
         guardiansDomainHash = _buildDomainHash(address(guardians), "Guardians", "1");
     }
 
@@ -68,7 +70,7 @@ contract TestGuardians is Test, EIP712Util {
             vm.expectRevert("EIP-1271 threshold is too big");
         }
 
-        new Guardians(protocolUpgradeHandler, zksyncAddress, members_);
+        new Guardians(protocolUpgradeHandler, bridgeHubAddress, members_);
     }
 
     function test_hashL2ProposalIsTheSameAsOnL2Governor(IGuardians.L2GovernorProposal memory _l2Proposal) public {
