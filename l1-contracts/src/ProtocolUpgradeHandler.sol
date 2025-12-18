@@ -202,9 +202,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         // Security council approval case
         if (upg.securityCouncilApprovalTimestamp != 0) {
             uint256 readyWithSecurityCouncilTimestamp = upg.securityCouncilApprovalTimestamp + UPGRADE_DELAY_PERIOD();
-            return block.timestamp >= readyWithSecurityCouncilTimestamp
-                ? UpgradeState.Ready
-                : UpgradeState.ExecutionPending;
+            return
+                block.timestamp >= readyWithSecurityCouncilTimestamp
+                    ? UpgradeState.Ready
+                    : UpgradeState.ExecutionPending;
         }
 
         uint256 waitOrExpiryTimestamp = upg.creationTimestamp + legalVetoTime + UPGRADE_WAIT_OR_EXPIRE_PERIOD;
@@ -240,9 +241,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     ) external {
         bytes memory upgradeMessage = abi.encode(_proposal);
         IZKsyncEra.L2Message memory l2ToL1Message = IZKsyncEra.L2Message({
-            txNumberInBatch: _l2TxNumberInBatch,
-            sender: L2_PROTOCOL_GOVERNOR,
-            data: upgradeMessage
+            txNumberInBatch: _l2TxNumberInBatch, sender: L2_PROTOCOL_GOVERNOR, data: upgradeMessage
         });
         bool success = ZKSYNC_ERA.proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _proof);
         require(success, "Failed to check upgrade proposal initiation");
@@ -497,11 +496,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /*//////////////////////////////////////////////////////////////
                         PROXY INITIALIZER
     //////////////////////////////////////////////////////////////*/
-    function initialize(
-        address _securityCouncil,
-        address _guardians,
-        address _emergencyUpgradeBoard
-    ) external initializer() {
+    function initialize(address _securityCouncil, address _guardians, address _emergencyUpgradeBoard)
+        external
+        initializer
+    {
         securityCouncil = _securityCouncil;
         emit ChangeSecurityCouncil(address(0), _securityCouncil);
 

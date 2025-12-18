@@ -36,6 +36,7 @@ interface IGuardians {
     function approveUpgradeGuardians(bytes32 _id, address[] calldata _signers, bytes[] calldata _signatures) external;
 
     function cancelL2GovernorProposal(
+        uint256 _chainId,
         L2GovernorProposal calldata _l2Proposal,
         TxRequest calldata _txRequest,
         address[] calldata _signers,
@@ -43,6 +44,7 @@ interface IGuardians {
     ) external payable;
 
     function proposeL2GovernorProposal(
+        uint256 _chainId,
         L2GovernorProposal calldata _l2Proposal,
         TxRequest calldata _txRequest,
         address[] calldata _signers,

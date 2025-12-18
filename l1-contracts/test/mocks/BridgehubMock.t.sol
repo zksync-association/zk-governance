@@ -18,17 +18,19 @@ contract BridgehubMock is IBridgeHub {
     function pause() external {
         // Do nothing
     }
-    
+
     function unpause() external {
         // Do nothing
     }
 
-    function requestL2TransactionDirect(
-        L2TransactionRequestDirect calldata _request
-    ) external payable returns (bytes32 canonicalTxHash) {
+    function requestL2TransactionDirect(L2TransactionRequestDirect calldata _request)
+        external
+        payable
+        returns (bytes32 canonicalTxHash)
+    {
+
 
         bytes32 canonicalTxHash;
-
     }
 
     // add this to be excluded from coverage report

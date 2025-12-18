@@ -76,8 +76,7 @@ contract TestProtocolUpgradeHandler is Test {
     function _expectFreezeAttempt() internal {
         for (uint256 i = 0; i < chainIds.length; i++) {
             vm.expectCall(
-                address(chainTypeManager),
-                abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, (chainIds[i]))
+                address(chainTypeManager), abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, (chainIds[i]))
             );
         }
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.pause.selector));
@@ -86,9 +85,7 @@ contract TestProtocolUpgradeHandler is Test {
 
     function _emptyProposal(bytes32 _salt) internal returns (IProtocolUpgradeHandler.UpgradeProposal memory) {
         return IProtocolUpgradeHandler.UpgradeProposal({
-            calls: new IProtocolUpgradeHandler.Call[](0),
-            executor: address(0),
-            salt: _salt
+            calls: new IProtocolUpgradeHandler.Call[](0), executor: address(0), salt: _salt
         });
     }
 
@@ -409,9 +406,9 @@ contract TestProtocolUpgradeHandler is Test {
         assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Ready));
     }
 
-    function testApproveUpgradeSecurityCouncilAfterLegalVetoExecutionPendingStatusAfterOneDayMinusOne(
-        bool _extendedLegalPeriod
-    ) public {
+    function testApproveUpgradeSecurityCouncilAfterLegalVetoExecutionPendingStatusAfterOneDayMinusOne(bool _extendedLegalPeriod)
+        public
+    {
         bytes32 id = _startUpgrade(_emptyProposal(bytes32("14")));
 
         _passLegalVeto(_extendedLegalPeriod, id);
@@ -524,9 +521,7 @@ contract TestProtocolUpgradeHandler is Test {
     ) public {
         Callee callee = new Callee();
         IProtocolUpgradeHandler.Call memory call = IProtocolUpgradeHandler.Call({
-            target: address(callee),
-            value: 0,
-            data: abi.encodeWithSelector(Callee.reenterCaller.selector)
+            target: address(callee), value: 0, data: abi.encodeWithSelector(Callee.reenterCaller.selector)
         });
         IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](1);
         calls[0] = call;

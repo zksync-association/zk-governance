@@ -17,10 +17,10 @@ struct L2TransactionRequestDirect {
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 interface IBridgeHub is IPausable {
-
-    function requestL2TransactionDirect(
-        L2TransactionRequestDirect calldata _request
-    ) external payable returns (bytes32 canonicalTxHash);
+    function requestL2TransactionDirect(L2TransactionRequestDirect calldata _request)
+        external
+        payable
+        returns (bytes32 canonicalTxHash);
 
     function getAllZKChainChainIDs() external view returns (uint256[] memory);
 }

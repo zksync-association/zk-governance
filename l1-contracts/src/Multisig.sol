@@ -48,10 +48,12 @@ abstract contract Multisig is IERC1271 {
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures to be validated.
     /// @param _threshold The minimum number of valid signatures required to pass the check.
-    function checkSignatures(bytes32 _digest, address[] memory _signers, bytes[] memory _signatures, uint256 _threshold)
-        public
-        view
-    {
+    function checkSignatures(
+        bytes32 _digest,
+        address[] memory _signers,
+        bytes[] memory _signatures,
+        uint256 _threshold
+    ) public view {
         // Ensure the total number of signatures meets or exceeds the threshold.
         require(_signatures.length >= _threshold, "Insufficient valid signatures");
         require(_signers.length == _signatures.length, "Inconsistent signers/signatures length");
