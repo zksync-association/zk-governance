@@ -87,7 +87,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @notice Cancel ZKsync proposal in one of the L2 governors, by the 5 of 8 Guardians approvals.
-    /// @param _chainId chaind of the L2
+    /// @param _chainId chainId of the L2
     /// @param _l2Proposal The L2 governor proposal to be canceled.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
@@ -136,7 +136,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @notice Propose ZKsync proposal on one the L2 governors, by the 5 of 8 Guardians approvals.
-    /// @param _chainId chaind of the L2
+    /// @param _chainId chainId of the L2
     /// @param _l2Proposal The L2 governor proposal to be proposed.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
