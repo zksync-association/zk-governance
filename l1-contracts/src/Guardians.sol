@@ -21,6 +21,9 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @dev Bridge contract used to operate with L2 via asynchronous L2 <-> L1 communication.
     IBridgeHub public immutable BRIDGE_HUB;
 
+    /// @dev Chain ID of the Era chain.
+    uint256 public immutable ERA_CHAIN_ID;
+
     /// @dev EIP-712 TypeHash for extending the legal veto period by the guardians.
     bytes32 internal constant EXTEND_LEGAL_VETO_PERIOD_TYPEHASH = keccak256("ExtendLegalVetoPeriod(bytes32 id)");
 
@@ -54,15 +57,19 @@ contract Guardians is IGuardians, Multisig, EIP712 {
 
     /// @dev Initializes the Guardians contract with predefined members and setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
-    /// @param _bridgeHub The address of the
+    /// @param _bridgeHub The address of the BridgeHub
+    /// @param _eraChainId Chain ID corresponding to ZKsync ERA
     /// @param _members Array of addresses representing the members of the guardians.
     /// Expected to be sorted in ascending order without duplicates.
-    constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, IBridgeHub _bridgeHub, address[] memory _members)
-        Multisig(_members, 5)
-        EIP712("Guardians", "1")
-    {
+    constructor(
+        IProtocolUpgradeHandler _protocolUpgradeHandler,
+        IBridgeHub _bridgeHub,
+        uint256 _eraChainId,
+        address[] memory _members
+    ) Multisig(_members, 5) EIP712("Guardians", "1") {
         PROTOCOL_UPGRADE_HANDLER = _protocolUpgradeHandler;
         BRIDGE_HUB = _bridgeHub;
+        ERA_CHAIN_ID = _eraChainId;
         require(_members.length == 8, "Guardians requires exactly 8 members");
     }
 
@@ -87,13 +94,11 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @notice Cancel ZKsync proposal in one of the L2 governors, by the 5 of 8 Guardians approvals.
-    /// @param _chainId chainId of the L2
     /// @param _l2Proposal The L2 governor proposal to be canceled.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
     function cancelL2GovernorProposal(
-        uint256 _chainId,
         L2GovernorProposal calldata _l2Proposal,
         TxRequest calldata _txRequest,
         address[] calldata _signers,
@@ -118,11 +123,9 @@ contract Guardians is IGuardians, Multisig, EIP712 {
             IL2Governor.cancel,
             (_l2Proposal.targets, _l2Proposal.values, _l2Proposal.calldatas, keccak256(bytes(_l2Proposal.description)))
         );
-        BRIDGE_HUB.requestL2TransactionDirect{
-            value: _txRequest.txMintValue
-        }(
+        BRIDGE_HUB.requestL2TransactionDirect{value: _txRequest.txMintValue}(
             L2TransactionRequestDirect({
-                chainId: _chainId,
+                chainId: ERA_CHAIN_ID,
                 mintValue: _txRequest.txMintValue,
                 l2Contract: _txRequest.to,
                 l2Value: 0,
@@ -136,13 +139,11 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     }
 
     /// @notice Propose ZKsync proposal on one the L2 governors, by the 5 of 8 Guardians approvals.
-    /// @param _chainId chainId of the L2
     /// @param _l2Proposal The L2 governor proposal to be proposed.
     /// @param _txRequest The L1 -> L2 transaction parameters needed to request execution on L2.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from the guardians approving the upgrade.
     function proposeL2GovernorProposal(
-        uint256 _chainId,
         L2GovernorProposal calldata _l2Proposal,
         TxRequest calldata _txRequest,
         address[] calldata _signers,
@@ -167,11 +168,9 @@ contract Guardians is IGuardians, Multisig, EIP712 {
             IL2Governor.propose,
             (_l2Proposal.targets, _l2Proposal.values, _l2Proposal.calldatas, _l2Proposal.description)
         );
-        BRIDGE_HUB.requestL2TransactionDirect{
-            value: _txRequest.txMintValue
-        }(
+        BRIDGE_HUB.requestL2TransactionDirect{value: _txRequest.txMintValue}(
             L2TransactionRequestDirect({
-                chainId: _chainId,
+                chainId: ERA_CHAIN_ID,
                 mintValue: _txRequest.txMintValue,
                 l2Contract: _txRequest.to,
                 l2Value: 0,

@@ -51,7 +51,7 @@ contract TestGuardians is Test, EIP712Util {
             members.push(wallets_[i].addr);
         }
 
-        guardians = new Guardians(protocolUpgradeHandler, bridgeHubAddress, members);
+        guardians = new Guardians(protocolUpgradeHandler, bridgeHubAddress, chainIds[0], members);
         guardiansDomainHash = _buildDomainHash(address(guardians), "Guardians", "1");
     }
 
@@ -70,7 +70,7 @@ contract TestGuardians is Test, EIP712Util {
             vm.expectRevert("EIP-1271 threshold is too big");
         }
 
-        new Guardians(protocolUpgradeHandler, bridgeHubAddress, members_);
+        new Guardians(protocolUpgradeHandler, bridgeHubAddress, chainIds[0], members_);
     }
 
     function test_hashL2ProposalIsTheSameAsOnL2Governor(IGuardians.L2GovernorProposal memory _l2Proposal) public {
@@ -110,7 +110,7 @@ contract TestGuardians is Test, EIP712Util {
         bytes[] memory signatures = new bytes[](_numberOfSignatures);
 
         vm.expectRevert("Insufficient valid signatures");
-        guardians.cancelL2GovernorProposal(123, _l2Proposal, _txRequest, signers, signatures);
+        guardians.cancelL2GovernorProposal(_l2Proposal, _txRequest, signers, signatures);
     }
 
     function test_RevertWhen_proposeL2GovernorProposalNotEnoughSigners(
@@ -123,7 +123,7 @@ contract TestGuardians is Test, EIP712Util {
         bytes[] memory signatures = new bytes[](_numberOfSignatures);
 
         vm.expectRevert("Insufficient valid signatures");
-        guardians.proposeL2GovernorProposal(123, _l2Proposal, _txRequest, signers, signatures);
+        guardians.proposeL2GovernorProposal(_l2Proposal, _txRequest, signers, signatures);
     }
 
     function test_extendLegalVeto(bytes32 _id, uint256 _numberOfSignatures, uint256 _isEOAOrEIP712Mask) public {
@@ -171,9 +171,7 @@ contract TestGuardians is Test, EIP712Util {
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        guardians.cancelL2GovernorProposal{
-            value: _txRequest.txMintValue
-        }(123, _l2Proposal, _txRequest, signers, signatures);
+        guardians.cancelL2GovernorProposal{value: _txRequest.txMintValue}(_l2Proposal, _txRequest, signers, signatures);
         assertEq(guardians.nonce(), nonceBefore + 1);
     }
 
@@ -202,9 +200,7 @@ contract TestGuardians is Test, EIP712Util {
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        guardians.proposeL2GovernorProposal{
-            value: _txRequest.txMintValue
-        }(123, _l2Proposal, _txRequest, signers, signatures);
+        guardians.proposeL2GovernorProposal{value: _txRequest.txMintValue}(_l2Proposal, _txRequest, signers, signatures);
         assertEq(guardians.nonce(), nonceBefore + 1);
     }
 

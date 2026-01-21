@@ -9,7 +9,6 @@ import {EmptyContract} from "./utils/EmptyContract.t.sol";
 import {StateTransitionManagerMock} from "./mocks/StateTransitionManagerMock.t.sol";
 
 import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
-import {IZKsyncEra} from "../src/interfaces/IZKsyncEra.sol";
 import {IStateTransitionManager} from "../src/interfaces/IStateTransitionManager.sol";
 import {IPausable} from "../src/interfaces/IPausable.sol";
 

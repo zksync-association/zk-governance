@@ -28,9 +28,17 @@ contract BridgehubMock is IBridgeHub {
         payable
         returns (bytes32 canonicalTxHash)
     {
-
-
         bytes32 canonicalTxHash;
+    }
+
+    function proveL2MessageInclusion(
+        uint256 _chainId,
+        uint256 _batchNumber,
+        uint256 _index,
+        L2Message calldata _message,
+        bytes32[] calldata _proof
+    ) external view returns (bool) {
+        return true;
     }
 
     // add this to be excluded from coverage report
