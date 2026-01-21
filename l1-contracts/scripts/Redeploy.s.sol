@@ -41,10 +41,13 @@ contract Redeploy is Script {
         address[] securityCouncilMembers;
         address[] guardiansMembers;
         address zkFoundationSafe;
-        address zksyncEra;
+        uint256 eraChainId;
         address stateTransitionManager;
-        address bridgehub;
+        address bridgeHub;
         address sharedBridge;
+        address l1Nullifier;
+        address l1NativeTokenVault;
+        address chainAssetHandler;
     }
 
     // Holds the addresses that were deployed. It is only needed for testing purposes for 
@@ -78,10 +81,13 @@ contract Redeploy is Script {
         address guardians = _currentProtocolUpgradeHandler.guardians();
         EmergencyUpgradeBoard emergencyUpgradeBoard = EmergencyUpgradeBoard(_currentProtocolUpgradeHandler.emergencyUpgradeBoard());
 
-        address zksyncEra = address(_currentProtocolUpgradeHandler.ZKSYNC_ERA());
+        uint256 eraChainId = vm.envUint("ERA_CHAIN_ID");//TODO after the next redeployment, update to _currentProtocolUpgradeHandler.ERA_CHAIN_ID();
         address stateTransitionManager = address(_currentProtocolUpgradeHandler.CHAIN_TYPE_MANAGER());
-        address bridgehub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
+        address bridgeHub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
         address sharedBridge = address(_currentProtocolUpgradeHandler.L1_ASSET_ROUTER());
+        address l1Nullifier = address(_currentProtocolUpgradeHandler.L1_NULLIFIER());
+        address l1NativeTokenVault = address(_currentProtocolUpgradeHandler.L1_NATIVE_TOKEN_VAULT());
+        address chainAssetHandler = address(_currentProtocolUpgradeHandler.CHAIN_ASSET_HANDLER());
 
         // A small cross check for consistency
         require(emergencyUpgradeBoard.SECURITY_COUNCIL() == securityCouncil, "incorrect security council");
@@ -92,10 +98,13 @@ contract Redeploy is Script {
             securityCouncilMembers: readMembers(securityCouncil),
             guardiansMembers: readMembers(guardians),
             zkFoundationSafe: emergencyUpgradeBoard.ZK_FOUNDATION_SAFE(),
-            zksyncEra: zksyncEra,
+            eraChainId: eraChainId,
             stateTransitionManager: stateTransitionManager,
-            bridgehub: bridgehub,
-            sharedBridge: sharedBridge
+            bridgeHub: bridgeHub,
+            sharedBridge: sharedBridge,
+            l1Nullifier: l1Nullifier,
+            l1NativeTokenVault: l1NativeTokenVault,
+            chainAssetHandler: chainAssetHandler
         });
     }
 
@@ -117,7 +126,16 @@ contract Redeploy is Script {
 
         // Firstly, we deploy the implementation
         {
-            bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(l2ProtocolGovernor, info.zksyncEra, info.stateTransitionManager, info.bridgehub, info.sharedBridge);
+            bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(
+                l2ProtocolGovernor, 
+                info.stateTransitionManager,
+                info.bridgeHub, 
+                info.l1Nullifier,
+                info.sharedBridge,
+                info.l1NativeTokenVault,
+                info.chainAssetHandler,
+                info.eraChainId
+            );
             bytes memory protocolUpgradeHandlerBytecode;
             if (_useTestnetUpgradeHandler) {
                 protocolUpgradeHandlerBytecode = type(TestnetProtocolUpgradeHandler).creationCode;
@@ -145,7 +163,7 @@ contract Redeploy is Script {
         
         // Deploying guardians
         {
-            bytes memory guardiansConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.zksyncEra, info.guardiansMembers);
+            bytes memory guardiansConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.bridgeHub, info.eraChainId, info.guardiansMembers); 
             bytes memory guardiansCreationCode = abi.encodePacked(type(Guardians).creationCode, guardiansConstructorArgs);   
             vm.startBroadcast(deployerWallet.addr);
             CREATE3_FACTORY.deploy(GUARDIANS_SALT, guardiansCreationCode);
