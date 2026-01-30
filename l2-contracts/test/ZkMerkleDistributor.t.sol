@@ -130,9 +130,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_claimantPrivateKey, _messageHash);
 
     return ZkMerkleDistributor.DelegateInfo({
-      delegatee: _delegatee,
-      signature: abi.encodePacked(_r, _s, _v),
-      expiry: block.timestamp + 12 hours
+      delegatee: _delegatee, signature: abi.encodePacked(_r, _s, _v), expiry: block.timestamp + 12 hours
     });
   }
 
@@ -146,11 +144,10 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_claimantPrivateKey, _messageHash);
 
-    return ZkMerkleDistributor.DelegateInfo({
-      delegatee: _delegatee,
-      signature: abi.encodePacked(_r, _s, _v),
-      expiry: _expiry
-    });
+    return
+      ZkMerkleDistributor.DelegateInfo({
+        delegatee: _delegatee, signature: abi.encodePacked(_r, _s, _v), expiry: _expiry
+      });
   }
 
   // Creates a claim signature with the provided parameters.
@@ -1155,9 +1152,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     );
 
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo = ZkMerkleDistributor.ClaimSignatureInfo({
-      signature: _claimSignature,
-      claimant: _claimant,
-      expiry: block.timestamp + 7 hours
+      signature: _claimSignature, claimant: _claimant, expiry: block.timestamp + 7 hours
     });
     _distributor.claimAndDelegateOnBehalf(_claimIndex, 1000, _proof, _claimSignatureInfo, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), 1000);

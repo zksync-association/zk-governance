@@ -1,0 +1,74 @@
+name: Slither Scanning
+
+on: 
+  workflow_dispatch:
+  # TODO Commented until solving/silencing the findings
+  #pull_request:
+  #push:
+  #  branches:
+  #    - main  
+
+jobs:
+  l1-contracts:
+    name: Slither check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.5.0
+
+      - name: Install dependencies l1-contracts
+        working-directory: ./l1-contracts
+        run: |
+          forge install
+          npm install   
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+
+      - name: Install Slither
+        run: |
+          pip install slither-analyzer
+
+      - name: Run Slither for L1 contracts
+        working-directory: ./l1-contracts
+        run: |
+          slither --config ../slither.config.json .
+
+  l2-contracts:
+    name: Slither check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.5.0
+
+      - name: Install dependencies l2-contracts
+        working-directory: ./l2-contracts
+        run: forge install       
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+
+      - name: Install Slither
+        run: |
+          pip install slither-analyzer
+
+      - name: Run Slither for L2 contracts
+        working-directory: ./l2-contracts
+        run: |
+          slither --config ../slither.config.json .
