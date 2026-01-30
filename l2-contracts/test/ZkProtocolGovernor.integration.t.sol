@@ -72,8 +72,7 @@ contract ZKProtocolTokenUpgradeTest is ZkProtocolGovernorIntegrationBase {
 
   function _buildEmptyUpgradeCalldata() internal pure returns (bytes memory) {
     UpgradeProposal memory proposal = _emptyProposal("1");
-    return (
-      abi.encodeWithSignature(
+    return (abi.encodeWithSignature(
         "startUpgrade(uint256,uint256,uint16,bytes32[],address,bytes32[])",
         0,
         0,
@@ -81,8 +80,7 @@ contract ZKProtocolTokenUpgradeTest is ZkProtocolGovernorIntegrationBase {
         new bytes32[](0),
         proposal.executor,
         proposal.salt
-      )
-    );
+      ));
   }
 
   function testFork_ProtocolUpgrade() public {

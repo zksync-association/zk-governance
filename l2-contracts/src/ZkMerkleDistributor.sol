@@ -235,7 +235,8 @@ contract ZkMerkleDistributor is EIP712, Nonces {
     // Catch delegateOnBehalf reverts caused by a front-run delegateOnBehalf so entire claim doesn't revert.
     try TOKEN.delegateOnBehalf(
       _claimSignatureInfo.claimant, _delegateInfo.delegatee, _delegateInfo.expiry, _delegateInfo.signature
-    ) {} catch (bytes memory) {}
+    ) {}
+      catch (bytes memory) {}
   }
 
   /// @notice Allows the admin to sweep unclaimed tokens to a given address.

@@ -4,8 +4,9 @@ pragma solidity 0.8.24;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
-import {GovernorCompatibilityBravo} from
-  "@openzeppelin/contracts/governance/compatibility/GovernorCompatibilityBravo.sol";
+import {
+  GovernorCompatibilityBravo
+} from "@openzeppelin/contracts/governance/compatibility/GovernorCompatibilityBravo.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
@@ -214,7 +215,7 @@ abstract contract GovernorCountingFractional is Governor {
   }
 
   uint256 internal constant _MASK_HALF_WORD_RIGHT = 0xffffffffffffffffffffffffffffffff; // 128 bits of 0's, 128 bits of
-    // 1's
+  // 1's
 
   /**
    * @dev Decodes three packed uint128's. Uses assembly because of a Solidity
@@ -285,21 +286,20 @@ abstract contract GovernorCountingFractional is Governor {
       // Get the nonce out of the params. It is the last half-word.
       uint128 nonce;
       assembly {
-        nonce :=
-          and(
-            // Perform bitwise AND operation on the data in the second word of
-            // `params` with a mask of 128 zeros followed by 128 ones, i.e. take
-            // the last 128 bits of `params`.
-            _MASK_HALF_WORD_RIGHT,
-            // Load the data from memory at the returned address.
-            mload(
-              // Skip the first 64 bytes (0x40):
-              //   32 bytes encoding the length of the bytes array.
-              //   32 bytes for the first word in the params
-              // Return the memory address for the last word in params.
-              add(params, 0x40)
-            )
+        nonce := and(
+          // Perform bitwise AND operation on the data in the second word of
+          // `params` with a mask of 128 zeros followed by 128 ones, i.e. take
+          // the last 128 bits of `params`.
+          _MASK_HALF_WORD_RIGHT,
+          // Load the data from memory at the returned address.
+          mload(
+            // Skip the first 64 bytes (0x40):
+            //   32 bytes encoding the length of the bytes array.
+            //   32 bytes for the first word in the params
+            // Return the memory address for the last word in params.
+            add(params, 0x40)
           )
+        )
       }
 
       require(fractionalVoteNonce[voter] == nonce, "GovernorCountingFractional: signature has already been used");
