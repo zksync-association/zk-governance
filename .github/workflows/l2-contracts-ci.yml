@@ -1,4 +1,4 @@
-name: L2 contracts ci
+name: L2 contracts CI
 
 on:
   workflow_dispatch:
@@ -17,36 +17,58 @@ jobs:
         working-directory: ./l2-contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 1
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
 
       - name: Install dependencies
-        run: forge install && npm install
+        run: |
+          forge install
+          npm install
 
       - name: Build
         run: npm run compile
 
-  test:
+  lint:
     defaults:
       run:
         working-directory: ./l2-contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.5.0
+
+      - name: Install dependencies
+        run: forge install
+
+      - name: Linting checks
+        run: forge lint
+
+      - name: Formatting checks
+        run: forge fmt --check
+
+  foundry-test:
+    needs: [build, lint]
+    defaults:
+      run:
+        working-directory: ./l2-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
 
       - name: Install dependencies
-        run: forge install && npm install
+        run: |
+          forge install
+          npm install
 
       - name: Build
         run: npm run compile
@@ -54,42 +76,39 @@ jobs:
       - name: Run forge tests
         run: npm run foundry-test
 
+  hardhat-test:
+    needs: [build, lint]    
+    defaults:
+      run:
+        working-directory: ./l2-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: dutterbutter/foundry-zksync-toolchain@v1
+
+      - name: Install dependencies
+        run: |
+          forge install
+          npm install
+
+      - name: Build
+        run: npm run compile
+
       - name: Run Era test node
         uses: dutterbutter/era-test-node-action@v0.1.3
 
       - name: Run hardhat tests
         run: npx hardhat test
 
-  lint:
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./l2-contracts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 1
-
-      - name: Install Foundry
-        uses: dutterbutter/foundry-zksync-toolchain@v1
-
-      - name: Install dependencies
-        run: forge install
-
-      - name: Install scopelint
-        uses: engineerd/configurator@v0.0.8
-        with:
-          name: scopelint
-          repo: ScopeLift/scopelint
-          fromGitHubReleases: true
-          version: latest
-          pathInArchive: scopelint-x86_64-linux/scopelint
-          urlTemplate: https://github.com/ScopeLift/scopelint/releases/download/{{version}}/scopelint-x86_64-linux.tar.xz
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check formatting
-        run: |
-          scopelint --version
-          scopelint check
+        
+  # TODO
+  # coverage:
+  #  needs: [build, lint]    
+  #  defaults:
+  #    run:
+  #      working-directory: ./l12-contracts
+  #  runs-on: ubuntu-latest
+  #  steps:
