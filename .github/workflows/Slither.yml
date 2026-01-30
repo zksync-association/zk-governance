@@ -24,9 +24,7 @@ jobs:
 
       - name: Install dependencies l1-contracts
         working-directory: ./l1-contracts
-        run: |
-          forge install
-          npm install   
+        run: forge install  
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -57,7 +55,9 @@ jobs:
 
       - name: Install dependencies l2-contracts
         working-directory: ./l2-contracts
-        run: forge install       
+        run: |
+          forge install
+          npm install          
 
       - name: Setup Python
         uses: actions/setup-python@v5
