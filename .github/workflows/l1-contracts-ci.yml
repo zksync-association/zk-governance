@@ -24,10 +24,10 @@ jobs:
         uses: dutterbutter/foundry-zksync-toolchain@v1
 
       - name: Install dependencies
-        run: forge install && npm install
+        run: forge install
 
       - name: Build
-        run: npm run compile
+        run: forge build
 
   lint:
     defaults:
