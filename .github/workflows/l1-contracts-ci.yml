@@ -96,6 +96,7 @@ jobs:
 
         - uses: kefasjw/lcov-pull-request-report@v1
           with:
-            lcov-file: lcov.info
+            lcov-file: l1-contracts/lcov.info
             all-files-minimum-coverage: 83
+            comment-title: "L1 contracts"
             github-token: ${{ secrets.GITHUB_TOKEN }}

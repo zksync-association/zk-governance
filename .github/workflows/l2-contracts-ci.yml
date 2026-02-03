@@ -104,7 +104,7 @@ jobs:
         run: npx hardhat test
         
   coverage: # TODO aggregate coverage info of hardhat tests
-    needs: [foundry-test]  
+    needs: [foundry-test]  # [foundry-test, hardhat-test]
     runs-on: ubuntu-latest  
     defaults:
       run:
@@ -126,7 +126,8 @@ jobs:
           run: forge coverage --no-match-coverage 'script|test' --report lcov
 
         - uses: kefasjw/lcov-pull-request-report@v1
-          with:
-            lcov-file: lcov.info
+          with: 
+            lcov-file: l2-contracts/lcov.info
             #all-files-minimum-coverage: 83
+            comment-title: "L2 contracts"
             github-token: ${{ secrets.GITHUB_TOKEN }}
