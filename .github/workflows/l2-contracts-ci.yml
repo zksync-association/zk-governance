@@ -127,6 +127,8 @@ jobs:
 
         - uses: kefasjw/lcov-pull-request-report@v1
           with:
-            lcov-file: l2-contracts/lcov.info
+            working-directory: l2-contracts
+            lcov-file: lcov.info
             #all-files-minimum-coverage: 83
+            comment-title: "L2 contracts coverage"
             github-token: ${{ secrets.GITHUB_TOKEN }}
