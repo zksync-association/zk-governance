@@ -129,5 +129,5 @@ jobs:
           with: 
             lcov-file: l2-contracts/lcov.info
             #all-files-minimum-coverage: 83
-            comment-title: "L2 contracts coverage"
+            comment-title: "L2 contracts"
             github-token: ${{ secrets.GITHUB_TOKEN }}
