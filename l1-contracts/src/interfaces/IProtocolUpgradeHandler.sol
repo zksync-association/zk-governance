@@ -9,7 +9,8 @@ interface IProtocolUpgradeHandler {
   /// @param None Default state, indicating the upgrade has not been set.
   /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.
   /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security
-  /// Council. @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for
+  /// Council. 
+  /// @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for
   /// execution.
   /// @param Ready The upgrade proposal is ready to be executed.
   /// @param Expired The upgrade proposal was expired.
@@ -25,7 +26,8 @@ interface IProtocolUpgradeHandler {
   }
 
   /// @dev Represents the status of an upgrade process, including the creation timestamp and actions made by guardians
-  /// and Security Council. @param creationTimestamp The timestamp (in seconds) when the upgrade state was created.
+  /// and Security Council.
+  /// @param creationTimestamp The timestamp (in seconds) when the upgrade state was created.
   /// @param securityCouncilApprovalTimestamp The timestamp (in seconds) when Security Council approved the upgrade.
   /// @param guardiansApproval Indicates whether the upgrade has been approved by the guardians.
   /// @param guardiansExtendedLegalVeto Indicates whether guardians extended the legal veto period.

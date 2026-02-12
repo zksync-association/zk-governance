@@ -38,7 +38,8 @@ contract EmergencyUpgradeBoard is EIP712 {
 
   /// @dev Initializes the Emergency Upgrade Board contract with setup for EIP-712.
   /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the
-  /// upgrades. @param _securityCouncil The address of the Security Council multisig.
+  /// upgrades. 
+  /// @param _securityCouncil The address of the Security Council multisig.
   /// @param _guardians The address of the Guardians multisig.
   /// @param _zkFoundation The address of the ZK Foundation Safe multisig.
   constructor(
@@ -57,7 +58,8 @@ contract EmergencyUpgradeBoard is EIP712 {
   /// @param _calls Array of `Call` structures specifying the calls to be made in the upgrade.
   /// @param _salt A bytes32 value used for creating unique upgrade proposal hashes.
   /// @param _guardiansSignatures Encoded signers & signatures from the guardians multisig, required to authorize the
-  /// emergency upgrade. @param _securityCouncilSignatures Encoded signers & signatures from the Security Council
+  /// emergency upgrade. 
+  /// @param _securityCouncilSignatures Encoded signers & signatures from the Security Council
   /// multisig, required to authorize the emergency upgrade.
   /// @param _zkFoundationSignatures Signatures from the ZK Foundation multisig, required to authorize the emergency
   /// upgrade.

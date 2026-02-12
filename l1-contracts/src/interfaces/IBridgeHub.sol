@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+pragma solidity 0.8.24;
+
 import {IPausable} from "./IPausable.sol";
 
 struct L2TransactionRequestDirect {

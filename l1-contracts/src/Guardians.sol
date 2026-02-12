@@ -59,7 +59,8 @@ contract Guardians is IGuardians, Multisig, EIP712 {
 
   /// @dev Initializes the Guardians contract with predefined members and setup for EIP-712.
   /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the
-  /// upgrades. @param _bridgeHub The address of the BridgeHub
+  /// upgrades. 
+  /// @param _bridgeHub The address of the BridgeHub
   /// @param _eraChainId Chain ID corresponding to ZKsync ERA
   /// @param _members Array of addresses representing the members of the guardians.
   /// Expected to be sorted in ascending order without duplicates.

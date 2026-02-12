@@ -23,7 +23,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 /// 3. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
 ///    immediately move the proposal to the next stage, while guardians approval will move the proposal to the
 ///    next stage only after 30 days delay after the legal veto passes. If no approval is received within the specified
-/// period, the proposal is expired.
+///    period, the proposal is expired.
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
 ///    preparations and reviews.
 /// 5. Execution: The proposed changes are executed by the authorized address in the proposal,
@@ -108,7 +108,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   uint256 public protocolFrozenUntil;
 
   /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting
-  /// governor. @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
+  /// governor. 
+  /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
   /// @param _chainTypeManager The address of the state transition manager.
   /// @param _bridgeHub The address of the BridgeHub.
   /// @param _l1Nullifier The address of the nullifier
@@ -223,7 +224,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
   /// @notice Initiates the upgrade process by verifying an L2 voting decision.
   /// @dev This function decodes and validates an upgrade proposal message from L2, setting the initial state for the
-  /// upgrade process. @param _l2BatchNumber The batch number of the L2 transaction containing the upgrade proposal.
+  /// upgrade process. 
+  /// @param _l2BatchNumber The batch number of the L2 transaction containing the upgrade proposal.
   /// @param _l2MessageIndex The index of the message within the L2 batch.
   /// @param _l2TxNumberInBatch The transaction number of the upgrade proposal in the L2 batch.
   /// @param _proof Merkle proof verifying the inclusion of the upgrade message in the L2 batch.
