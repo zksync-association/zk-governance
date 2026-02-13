@@ -493,7 +493,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   //////////////////////////////////////////////////////////////*/
   function initialize(address _securityCouncil, address _guardians, address _emergencyUpgradeBoard)
     external
-    initializer
+    reinitializer(2)
   {
     securityCouncil = _securityCouncil;
     emit ChangeSecurityCouncil(address(0), _securityCouncil);
