@@ -21,7 +21,7 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @dev Bridge contract used to operate with L2 via asynchronous L2 <-> L1 communication.
     IBridgeHub public immutable BRIDGE_HUB;
 
-    /// @dev Chain ID of the Era chain.
+    /// @dev Chain ID of the zkSync Era chain.
     uint256 public immutable ERA_CHAIN_ID;
 
     /// @dev EIP-712 TypeHash for extending the legal veto period by the guardians.

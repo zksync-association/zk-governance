@@ -31,7 +31,7 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
     /// @param _l1AssetRouter The address of the L1 asset router.
     /// @param _l1NativeTokenVault The address of the L1 native token vault.
     /// @param _chainAssetHandler The address of the L1 chain asset handler.
-    /// @param _eraChainId The chain ID of ZKsync Era.
+    /// @param _eraChainId The chain ID of zkSync Era.
     constructor(
         address _l2ProtocolGovernor,
         IChainTypeManager _chainTypeManager,
