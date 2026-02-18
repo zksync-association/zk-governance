@@ -8,16 +8,15 @@ import {Callee} from "./utils/Callee.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
 import {StateTransitionManagerMock} from "./mocks/StateTransitionManagerMock.t.sol";
 import {BridgehubMock} from "./mocks/BridgehubMock.t.sol";
-import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
-import {IZKsyncEra} from "../../src/interfaces/IZKsyncEra.sol";
-import {IStateTransitionManager} from "../../src/interfaces/IStateTransitionManager.sol";
-import {IPausable} from "../../src/interfaces/IPausable.sol";
+import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
+import {IStateTransitionManager} from "../src/interfaces/IStateTransitionManager.sol";
+import {IPausable} from "../src/interfaces/IPausable.sol";
 
-import {ProtocolUpgradeHandler} from "../../src/ProtocolUpgradeHandler.sol";
+import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
 import {MockChainAssetHandler} from "./mocks/MockChainAssetHandler.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {IChainTypeManager} from "../../src/interfaces/IChainTypeManager.sol";
-import {IBridgeHub} from "../../src/interfaces/IBridgeHub.sol";
+import {IChainTypeManager} from "../src/interfaces/IChainTypeManager.sol";
+import {IBridgeHub} from "../src/interfaces/IBridgeHub.sol";
 
 struct ZkSyncProofData {
     uint256 _l2BatchNumber;
@@ -33,7 +32,6 @@ contract TestProtocolUpgradeHandler is Test {
     address guardians;
     address emergencyUpgradeBoard;
     address l2ProtocolGovernor;
-    IZKsyncEra zksyncAddress;
     IChainTypeManager chainTypeManager;
     IBridgeHub bridgeHub;
     IPausable l1Nullifier;
@@ -54,13 +52,13 @@ contract TestProtocolUpgradeHandler is Test {
         bytes32[] memory proof = new bytes32[](11);
         bytes memory upgradeMessage = abi.encode(_proposal);
 
-        IZKsyncEra.L2Message memory l2ToL1Message =
-            IZKsyncEra.L2Message({txNumberInBatch: txNumberInBatch, sender: l2ProtocolGovernor, data: upgradeMessage});
+        IBridgeHub.L2Message memory l2ToL1Message =
+            IBridgeHub.L2Message({txNumberInBatch: txNumberInBatch, sender: l2ProtocolGovernor, data: upgradeMessage});
 
         vm.mockCall(
-            address(zksyncAddress),
+            address(bridgeHub),
             abi.encodeWithSelector(
-                IZKsyncEra.proveL2MessageInclusion.selector, batchNumber, index, l2ToL1Message, proof
+                IBridgeHub.proveL2MessageInclusion.selector, chainIds[1], batchNumber, index, l2ToL1Message, proof
             ),
             abi.encode(_isCorrect)
         );
@@ -157,7 +155,6 @@ contract TestProtocolUpgradeHandler is Test {
         guardians = makeAddr("guardians");
         emergencyUpgradeBoard = makeAddr("emergencyUpgradeBoard");
         l2ProtocolGovernor = makeAddr("l2ProtocolGovernor");
-        zksyncAddress = IZKsyncEra(address(new EmptyContract()));
         chainTypeManager = IChainTypeManager(address(new StateTransitionManagerMock(chainIds)));
         bridgeHub = IBridgeHub(address(new BridgehubMock(chainIds)));
         l1Nullifier = IPausable(address(new EmptyContract()));
@@ -170,12 +167,12 @@ contract TestProtocolUpgradeHandler is Test {
             guardians,
             emergencyUpgradeBoard,
             l2ProtocolGovernor,
-            zksyncAddress,
             chainTypeManager,
             bridgeHub,
             l1Nullifier,
             l1AssetRouter,
-            l1NativeTokenVault
+            l1NativeTokenVault,
+            chainIds[1]
         );
     }
 
@@ -184,22 +181,22 @@ contract TestProtocolUpgradeHandler is Test {
         address guardians,
         address emergencyUpgradeBoard,
         address l2ProtocolGovernor,
-        IZKsyncEra zksyncAddress,
         IChainTypeManager chainTypeManager,
         IBridgeHub bridgeHub,
         IPausable l1Nullifier,
         IPausable l1AssetRouter,
-        IPausable l1NativeTokenVault
+        IPausable l1NativeTokenVault,
+        uint256 eraChainId
     ) internal returns (ProtocolUpgradeHandler handler) {
         ProtocolUpgradeHandler impl = new ProtocolUpgradeHandler(
             l2ProtocolGovernor,
-            zksyncAddress,
             chainTypeManager,
             bridgeHub,
             l1Nullifier,
             l1AssetRouter,
             l1NativeTokenVault,
-            chainAssetHandler
+            chainAssetHandler,
+            eraChainId
         );
 
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
@@ -224,23 +221,23 @@ contract TestProtocolUpgradeHandler is Test {
             guardians,
             emergencyUpgradeBoard,
             l2ProtocolGovernor,
-            zksyncAddress,
             chainTypeManager,
             bridgeHub,
             l1Nullifier,
             l1AssetRouter,
-            l1NativeTokenVault
+            l1NativeTokenVault,
+            chainIds[1]
         );
         assertEq(testHandler.securityCouncil(), securityCouncil);
         assertEq(testHandler.guardians(), guardians);
         assertEq(testHandler.emergencyUpgradeBoard(), emergencyUpgradeBoard);
         assertEq(testHandler.L2_PROTOCOL_GOVERNOR(), l2ProtocolGovernor);
-        assertEq(address(testHandler.ZKSYNC_ERA()), address(zksyncAddress));
         assertEq(address(testHandler.CHAIN_TYPE_MANAGER()), address(chainTypeManager));
         assertEq(address(testHandler.BRIDGE_HUB()), address(bridgeHub));
         assertEq(address(testHandler.L1_NULLIFIER()), address(l1Nullifier));
         assertEq(address(testHandler.L1_ASSET_ROUTER()), address(l1AssetRouter));
         assertEq(address(testHandler.L1_NATIVE_TOKEN_VAULT()), address(l1NativeTokenVault));
+        assertEq(testHandler.ERA_CHAIN_ID(), chainIds[1]);
     }
 
     function test_StateUpgradeIncorrectProof() public {

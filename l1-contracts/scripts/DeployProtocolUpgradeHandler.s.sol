@@ -3,7 +3,6 @@ pragma solidity 0.8.24;
 
 import "forge-std/Script.sol";
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
-import {IZKsyncEra} from "../src/interfaces/IZKsyncEra.sol";
 import {IChainTypeManager} from "../src/interfaces/IChainTypeManager.sol";
 import {IBridgeHub} from "../src/interfaces/IBridgeHub.sol";
 import {IPausable} from "../src/interfaces/IPausable.sol";
@@ -42,6 +41,7 @@ contract DeployProtocolUpgradeHandler is Script {
         address chainAssetHandlerAddr = vm.envAddress("CHAIN_ASSET_HANDLER");
         address create2FactoryAddr = vm.envAddress("CREATE2_FACTORY");
         bytes32 salt = vm.envBytes32("CREATE2_SALT");
+        uint256 chainId = vm.envUint("ERA_CHAIN_ID");
 
         ProtocolUpgradeHandler prev = ProtocolUpgradeHandler(payable(prevHandlerAddr));
 
@@ -49,13 +49,13 @@ contract DeployProtocolUpgradeHandler is Script {
             type(ProtocolUpgradeHandler).creationCode,
             abi.encode(
                 prev.L2_PROTOCOL_GOVERNOR(),
-                prev.ZKSYNC_ERA(),
                 prev.CHAIN_TYPE_MANAGER(),
                 prev.BRIDGE_HUB(),
                 prev.L1_NULLIFIER(),
                 prev.L1_ASSET_ROUTER(),
                 prev.L1_NATIVE_TOKEN_VAULT(),
-                IChainAssetHandler(chainAssetHandlerAddr)
+                IChainAssetHandler(chainAssetHandlerAddr),
+                chainId  //ToDo after the next redeployment, update to prev.ERA_CHAIN_ID()
             )
         );
 

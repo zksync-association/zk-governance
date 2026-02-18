@@ -3,7 +3,7 @@
 pragma solidity 0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {Multisig} from "../../src/Multisig.sol";
+import {Multisig} from "../src/Multisig.sol";
 import {MultisigMock} from "./mocks/MultisigMock.t.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
