@@ -1,5 +1,5 @@
 [profile.default]
-    evm_version = "paris"
+    evm_version = "cancun"
     fs_permissions = [{ access = "read", path = "./zkout" }]
     fuzz = { runs = 50 }
     optimizer = true
