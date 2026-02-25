@@ -29,7 +29,7 @@ struct DeployedContracts {
 
 // A common redeploy script that can be used for both mainnet and testnet scripts
 contract Redeploy is Script {
-    ICREATE3Factory constant CREATE3_FACTORY = ICREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
+    ICREATE3Factory constant CREATE3_FACTORY = ICREATE3Factory(vm.envAddress("CREATE3_FACTORY"));
 
     bytes32 PROTOCOL_UPGRADE_HANDLER_PROXY_SALT = keccak256("ProtocolUpgradeHandlerProxy"); 
     bytes32 PROTOCOL_UPGRADE_HANDLER_IMPL_SALT = keccak256("ProtocolUpgradeHandlerImpl");
