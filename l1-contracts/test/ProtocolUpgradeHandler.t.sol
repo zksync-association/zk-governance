@@ -796,6 +796,10 @@ contract TestProtocolUpgradeHandler is Test {
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.unpause.selector));
         vm.expectCall(address(l1AssetRouter), abi.encodeWithSelector(IPausable.unpause.selector));
 
+        // Verify event with correct parameters
+        vm.expectEmit(true, true, true, true);
+        emit IProtocolUpgradeHandler.Unfreeze(specificChains, true);
+
         vm.prank(securityCouncil);
         handler.unfreeze(specificChains, true);
 
@@ -921,5 +925,114 @@ contract TestProtocolUpgradeHandler is Test {
         // Now we can call reinforceUnfreeze to actually unfreeze chains
         // (this would fail before because protocolFrozenUntil != 0)
         handler.reinforceUnfreeze(new uint256[](0), true);
+    }
+
+    function test_unfreezeWithUnpauseBridgesFalse() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze();
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IProtocolUpgradeHandler.Unfreeze(specificChains, false);
+
+        vm.prank(securityCouncil);
+        handler.unfreeze(specificChains, false);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze)
+        );
+    }
+
+    function test_reinforceUnfreezeWithSpecificChains() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze();
+        vm.prank(securityCouncil);
+        handler.unfreeze(new uint256[](0), true);
+
+        uint256[] memory specificChains = new uint256[](2);
+        specificChains[0] = chainIds[0];
+        specificChains[1] = chainIds[1];
+
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
+        );
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[1])
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(specificChains, true);
+
+        handler.reinforceUnfreeze(specificChains, true);
+    }
+
+    function test_executeEmergencyUpgradeWithSpecificChains() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.hardFreeze();
+
+        IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencySpecificChains");
+        proposal.executor = emergencyUpgradeBoard;
+        bytes32 id = keccak256(abi.encode(proposal));
+
+        uint256[] memory specificChains = new uint256[](2);
+        specificChains[0] = chainIds[0];
+        specificChains[1] = chainIds[1];
+
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
+        );
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[1])
+        );
+        vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.unpause.selector));
+        vm.expectEmit(true, true, true, true);
+        emit IProtocolUpgradeHandler.EmergencyUpgradeExecuted(id);
+
+        vm.prank(emergencyUpgradeBoard);
+        handler.executeEmergencyUpgrade(proposal, specificChains, true);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.None)
+        );
+        assertEq(0, handler.protocolFrozenUntil());
+    }
+
+    function test_executeEmergencyUpgradeWithUnpauseBridgesFalse() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.hardFreeze();
+
+        IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencyNoBridgeUnpause");
+        proposal.executor = emergencyUpgradeBoard;
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
+        );
+
+        vm.prank(emergencyUpgradeBoard);
+        handler.executeEmergencyUpgrade(proposal, specificChains, false);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.None)
+        );
     }
 }
