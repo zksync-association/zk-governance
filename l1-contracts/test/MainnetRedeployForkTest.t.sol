@@ -69,7 +69,7 @@ contract MainnetRedeployForkTest is Test {
         });
 
         vm.broadcast(addresses.emergencyUpgradeBoard);
-        ProtocolUpgradeHandler(payable(addresses.protocolUpgradeHandlerProxy)).executeEmergencyUpgrade(proposal);
+        ProtocolUpgradeHandler(payable(addresses.protocolUpgradeHandlerProxy)).executeEmergencyUpgrade(proposal, new uint256[](0), true);
     }
 
     // Tests that the new ProtocolUpgradeHandler can upgrade itself

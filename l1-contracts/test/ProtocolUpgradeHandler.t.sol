@@ -766,12 +766,12 @@ contract TestProtocolUpgradeHandler is Test {
         bytes32 id = keccak256(abi.encode(proposal));
         vm.startPrank(proposal.executor);
         // once
-        handler.executeEmergencyUpgrade(proposal);
+        handler.executeEmergencyUpgrade(proposal, new uint256[](0), true);
         // state is done
         assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Done));
         vm.expectRevert("Upgrade already exists");
         // Try second time
-        handler.executeEmergencyUpgrade(proposal);
+        handler.executeEmergencyUpgrade(proposal, new uint256[](0), true);
     }
 
     function test_unfreezeWithSpecificChains() public {
@@ -909,7 +909,7 @@ contract TestProtocolUpgradeHandler is Test {
         proposal.executor = emergencyUpgradeBoard;
 
         vm.prank(emergencyUpgradeBoard);
-        handler.executeEmergencyUpgrade(proposal);
+        handler.executeEmergencyUpgrade(proposal, new uint256[](0), true);
 
         // Verify freeze state is cleared
         assertEq(

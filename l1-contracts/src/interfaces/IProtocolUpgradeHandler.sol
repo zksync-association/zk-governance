@@ -87,7 +87,11 @@ interface IProtocolUpgradeHandler {
 
     function execute(UpgradeProposal calldata _proposal) external payable;
 
-    function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable;
+    function executeEmergencyUpgrade(
+        UpgradeProposal calldata _proposal,
+        uint256[] calldata _chainIds,
+        bool _unpauseBridges
+    ) external payable;
 
     function softFreeze() external;
 

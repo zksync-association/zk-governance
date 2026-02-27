@@ -311,12 +311,16 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
-    /// @dev Note: This function clears the freeze state but does NOT automatically unfreeze chains.
-    /// Chain unfreezing should be handled by the upgrade calls or via subsequent calls to
-    /// `reinforceUnfreeze` or `unfreezeChains`.
-    /// This design prevents malicious chains from DoS'ing the emergency upgrade by burning gas.
+    /// @dev This function clears the freeze state and unfreezes the specified chains.
+    /// Misbehaving chains can be skipped by not including them in `_chainIds`.
     /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
-    function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable onlyEmergencyUpgradeBoard {
+    /// @param _chainIds The array of chain IDs to unfreeze. If empty, queries the Bridgehub for all chains.
+    /// @param _unpauseBridges Whether to unpause the bridging contracts.
+    function executeEmergencyUpgrade(
+        UpgradeProposal calldata _proposal,
+        uint256[] calldata _chainIds,
+        bool _unpauseBridges
+    ) external payable onlyEmergencyUpgradeBoard {
         bytes32 id = keccak256(abi.encode(_proposal));
         UpgradeState upgState = upgradeState(id);
         // 1. Checks
@@ -324,10 +328,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         require(_proposal.executor == msg.sender, "msg.sender is not authorized to perform the upgrade");
         // 2. Effects
         upgradeStatus[id].executed = true;
-        // Clear the freeze state (actual chain unfreezing is handled separately)
+        // Clear the freeze state
         lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
         // 3. Interactions
+        _unfreeze(_chainIds, _unpauseBridges);
         _execute(_proposal.calls);
         emit EmergencyUpgradeExecuted(id);
     }
