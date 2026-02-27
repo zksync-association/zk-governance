@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.24;
 
-import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IChainTypeManager} from "./interfaces/IChainTypeManager.sol";
 import {IBridgeHub} from "./interfaces/IBridgeHub.sol";
 import {IPausable} from "./interfaces/IPausable.sol";
@@ -68,9 +67,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// specifically for proposing and approving protocol upgrades.
     address public immutable L2_PROTOCOL_GOVERNOR;
 
-    /// @dev ZKsync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IZKsyncEra public immutable ZKSYNC_ERA;
-
     /// @dev ZKsync smart contract that is responsible for creating new ZK Chains and changing parameters in existent.
     IChainTypeManager public immutable CHAIN_TYPE_MANAGER;
 
@@ -88,6 +84,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
     /// @dev Chain asset handler contract for migration pausing/unpausing.
     IChainAssetHandler public immutable CHAIN_ASSET_HANDLER;
+
+    /// @dev Chain ID of the Era chain.
+    uint256 public immutable ERA_CHAIN_ID;    
 
     /// @notice The address of the Security Council.
     address public securityCouncil;
@@ -109,22 +108,23 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
-    /// @param _ZKsyncEra The address of the zkSync Era chain, on top of which the `_l2ProtocolGovernor` is deployed.
     /// @param _chainTypeManager The address of the state transition manager.
     /// @param _bridgeHub The address of the bridgehub.
     /// @param _l1Nullifier The address of the nullifier
     /// @param _l1AssetRouter The address of the L1 asset router.
     /// @param _l1NativeTokenVault The address of the L1 native token vault.
     /// @param _chainAssetHandler The address of the L1 chain asset handler.
+    /// @param _chainAssetHandler The address of the L1 chain asset handler.
+    /// @param _eraChainId Chain ID corresponding to ZKsync Era
     constructor(
         address _l2ProtocolGovernor,
-        IZKsyncEra _ZKsyncEra,
         IChainTypeManager _chainTypeManager,
         IBridgeHub _bridgeHub,
         IPausable _l1Nullifier,
         IPausable _l1AssetRouter,
         IPausable _l1NativeTokenVault,
-        IChainAssetHandler _chainAssetHandler
+        IChainAssetHandler _chainAssetHandler,
+        uint256 _eraChainId
     ) {
         _disableInitializers();
 
@@ -132,13 +132,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
 
         L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
-        ZKSYNC_ERA = _ZKsyncEra;
         CHAIN_TYPE_MANAGER = _chainTypeManager;
         BRIDGE_HUB = _bridgeHub;
         L1_NULLIFIER = _l1Nullifier;
         L1_ASSET_ROUTER = _l1AssetRouter;
         L1_NATIVE_TOKEN_VAULT = _l1NativeTokenVault;
         CHAIN_ASSET_HANDLER = _chainAssetHandler;
+        ERA_CHAIN_ID = _eraChainId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -239,12 +239,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         UpgradeProposal calldata _proposal
     ) external {
         bytes memory upgradeMessage = abi.encode(_proposal);
-        IZKsyncEra.L2Message memory l2ToL1Message = IZKsyncEra.L2Message({
-            txNumberInBatch: _l2TxNumberInBatch,
-            sender: L2_PROTOCOL_GOVERNOR,
-            data: upgradeMessage
-        });
-        bool success = ZKSYNC_ERA.proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _proof);
+        IBridgeHub.L2Message memory l2ToL1Message =
+            IBridgeHub.L2Message({txNumberInBatch: _l2TxNumberInBatch, sender: L2_PROTOCOL_GOVERNOR, data: upgradeMessage});
+        bool success =
+            BRIDGE_HUB.proveL2MessageInclusion(ERA_CHAIN_ID, _l2BatchNumber, _l2MessageIndex, l2ToL1Message, _proof);
         require(success, "Failed to check upgrade proposal initiation");
         require(_proposal.executor != emergencyUpgradeBoard, "Emergency Upgrade Board can't execute usual upgrade");
 

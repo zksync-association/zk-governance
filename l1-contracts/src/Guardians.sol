@@ -4,9 +4,9 @@ pragma solidity 0.8.24;
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {IGuardians} from "./interfaces/IGuardians.sol";
-import {IZKsyncEra} from "./interfaces/IZKsyncEra.sol";
 import {IL2Governor} from "./interfaces/IL2Governor.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
+import {IBridgeHub, L2TransactionRequestDirect} from "./interfaces/IBridgeHub.sol";
 import {Multisig} from "./Multisig.sol";
 
 /// @title Guadians
@@ -18,8 +18,11 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     /// @notice Address of the contract, which manages protocol upgrades.
     IProtocolUpgradeHandler public immutable PROTOCOL_UPGRADE_HANDLER;
 
-    /// @dev ZKsync smart contract that used to operate with L2 via asynchronous L2 <-> L1 communication.
-    IZKsyncEra public immutable ZKSYNC_ERA;
+    /// @dev Bridge contract used to operate with L2 via asynchronous L2 <-> L1 communication.
+    IBridgeHub public immutable BRIDGE_HUB;
+
+    /// @dev Chain ID of the ZKsync Era chain.
+    uint256 public immutable ERA_CHAIN_ID;
 
     /// @dev EIP-712 TypeHash for extending the legal veto period by the guardians.
     bytes32 internal constant EXTEND_LEGAL_VETO_PERIOD_TYPEHASH = keccak256("ExtendLegalVetoPeriod(bytes32 id)");
@@ -53,15 +56,21 @@ contract Guardians is IGuardians, Multisig, EIP712 {
     uint256 public nonce;
 
     /// @dev Initializes the Guardians contract with predefined members and setup for EIP-712.
-    /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
+    /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the
+    /// upgrades. 
+    /// @param _bridgeHub The address of the BridgeHub
+    /// @param _eraChainId Chain ID corresponding to ZKsync Era
     /// @param _members Array of addresses representing the members of the guardians.
     /// Expected to be sorted in ascending order without duplicates.
-    constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, IZKsyncEra _ZKsyncEra, address[] memory _members)
-        Multisig(_members, 5)
-        EIP712("Guardians", "1")
-    {
+    constructor(
+        IProtocolUpgradeHandler _protocolUpgradeHandler,
+        IBridgeHub _bridgeHub,
+        uint256 _eraChainId,
+        address[] memory _members
+    ) Multisig(_members, 5) EIP712("Guardians", "1") {
         PROTOCOL_UPGRADE_HANDLER = _protocolUpgradeHandler;
-        ZKSYNC_ERA = _ZKsyncEra;
+        BRIDGE_HUB = _bridgeHub;
+        ERA_CHAIN_ID = _eraChainId;
         require(_members.length == 8, "Guardians requires exactly 8 members");
     }
 
@@ -115,14 +124,18 @@ contract Guardians is IGuardians, Multisig, EIP712 {
             IL2Governor.cancel,
             (_l2Proposal.targets, _l2Proposal.values, _l2Proposal.calldatas, keccak256(bytes(_l2Proposal.description)))
         );
-        ZKSYNC_ERA.requestL2Transaction{value: _txRequest.txMintValue}(
-            _txRequest.to,
-            0,
-            cancelCalldata,
-            _txRequest.l2GasLimit,
-            _txRequest.l2GasPerPubdataByteLimit,
-            new bytes[](0),
-            _txRequest.refundRecipient
+        BRIDGE_HUB.requestL2TransactionDirect{value: _txRequest.txMintValue}(
+            L2TransactionRequestDirect({
+                chainId: ERA_CHAIN_ID,
+                mintValue: _txRequest.txMintValue,
+                l2Contract: _txRequest.to,
+                l2Value: 0,
+                l2Calldata: cancelCalldata,
+                l2GasLimit: _txRequest.l2GasLimit,
+                l2GasPerPubdataByteLimit: _txRequest.l2GasPerPubdataByteLimit,
+                factoryDeps: new bytes[](0),
+                refundRecipient: _txRequest.refundRecipient
+            })
         );
     }
 
@@ -156,14 +169,18 @@ contract Guardians is IGuardians, Multisig, EIP712 {
             IL2Governor.propose,
             (_l2Proposal.targets, _l2Proposal.values, _l2Proposal.calldatas, _l2Proposal.description)
         );
-        ZKSYNC_ERA.requestL2Transaction{value: _txRequest.txMintValue}(
-            _txRequest.to,
-            0,
-            proposeCalldata,
-            _txRequest.l2GasLimit,
-            _txRequest.l2GasPerPubdataByteLimit,
-            new bytes[](0),
-            _txRequest.refundRecipient
+        BRIDGE_HUB.requestL2TransactionDirect{value: _txRequest.txMintValue}(
+            L2TransactionRequestDirect({
+                chainId: ERA_CHAIN_ID,
+                mintValue: _txRequest.txMintValue,
+                l2Contract: _txRequest.to,
+                l2Value: 0,
+                l2Calldata: proposeCalldata,
+                l2GasLimit: _txRequest.l2GasLimit,
+                l2GasPerPubdataByteLimit: _txRequest.l2GasPerPubdataByteLimit,
+                factoryDeps: new bytes[](0),
+                refundRecipient: _txRequest.refundRecipient
+            })
         );
     }
 

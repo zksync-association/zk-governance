@@ -41,3 +41,5 @@ lcov.info
 .idea
 
 node_modules/
+
+foundry.lock
