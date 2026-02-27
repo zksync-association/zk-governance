@@ -148,11 +148,15 @@ interface IProtocolUpgradeHandler {
     event ReinforceFreeze();
 
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
-    event Unfreeze();
+    /// @param _chainIds The chain IDs that were unfrozen (empty if all chains from Bridgehub were used).
+    /// @param _unpauseBridges Whether the bridging contracts were unpaused.
+    event Unfreeze(uint256[] _chainIds, bool _unpauseBridges);
 
     /// @notice Emitted when someone makes an attempt to freeze the specific chain when the protocol is frozen already.
     event ReinforceFreezeOneChain(uint256 _chainId);
 
     /// @notice Emitted when someone makes an attempt to unfreeze the protocol when it is unfrozen already.
-    event ReinforceUnfreeze();
+    /// @param _chainIds The chain IDs that were unfrozen (empty if all chains from Bridgehub were used).
+    /// @param _unpauseBridges Whether the bridging contracts were unpaused.
+    event ReinforceUnfreeze(uint256[] _chainIds, bool _unpauseBridges);
 }

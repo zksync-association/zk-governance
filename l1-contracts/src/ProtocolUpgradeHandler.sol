@@ -431,7 +431,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         }
         protocolFrozenUntil = 0;
         _unfreeze(_chainIds, _unpauseBridges);
-        emit Unfreeze();
+        emit Unfreeze(_chainIds, _unpauseBridges);
     }
 
     /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode. This function can be called
@@ -443,7 +443,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unpauseBridges) external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
         _unfreeze(_chainIds, _unpauseBridges);
-        emit ReinforceUnfreeze();
+        emit ReinforceUnfreeze(_chainIds, _unpauseBridges);
     }
 
     /// @dev Unfreeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
