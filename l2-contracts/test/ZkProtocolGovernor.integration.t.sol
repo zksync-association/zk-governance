@@ -14,7 +14,7 @@ import {ZkTokenUpgradeFake} from "test/fakes/ZkTokenUpgradeFake.sol";
 
 contract ZkProtocolGovernorIntegrationBase is IntegrationTest {
   function setUp() public virtual {
-    // Create a fork of the zkSync Era mainnet, at a point in time after the ZK token was deployed
+    // Create a fork of the ZKsync Era mainnet, at a point in time after the ZK token was deployed
     vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 36_326_417);
 
     // Deploy the timelock, initially with this test script as its admin (will change later)

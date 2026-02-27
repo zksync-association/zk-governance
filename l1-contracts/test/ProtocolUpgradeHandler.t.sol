@@ -276,7 +276,7 @@ contract TestProtocolUpgradeHandler is Test {
     }
 
     function test_StartUpgrade() public {
-        // It is assumed that zkSync Era has completely correctly implemented message proving, i.e. we will consider
+        // It is assumed that ZKsync Era has completely correctly implemented message proving, i.e. we will consider
         // two cases:
         // - proof is correct
         // - proof is not correct
