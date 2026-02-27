@@ -95,13 +95,11 @@ interface IProtocolUpgradeHandler {
 
     function reinforceFreeze() external;
 
-    function unfreeze() external;
+    function unfreeze(uint256[] calldata _chainIds, bool _unpauseBridges) external;
 
     function reinforceFreezeOneChain(uint256 _chainId) external;
 
-    function reinforceUnfreeze() external;
-
-    function reinforceUnfreezeOneChain(uint256 _chainId) external;
+    function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unpauseBridges) external;
 
     function upgradeState(bytes32 _id) external view returns (UpgradeState);
 
@@ -157,7 +155,4 @@ interface IProtocolUpgradeHandler {
 
     /// @notice Emitted when someone makes an attempt to unfreeze the protocol when it is unfrozen already.
     event ReinforceUnfreeze();
-
-    /// @notice Emitted when someone makes an attempt to unfreeze the specific chain when the protocol is unfrozen already.
-    event ReinforceUnfreezeOneChain(uint256 _chainId);
 }

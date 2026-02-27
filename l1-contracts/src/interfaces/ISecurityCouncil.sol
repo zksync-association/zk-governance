@@ -12,7 +12,13 @@ interface ISecurityCouncil {
 
     function hardFreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external;
 
-    function unfreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external;
+    function unfreeze(
+        uint256[] calldata _chainIds,
+        bool _unpauseBridges,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external;
 
     function setSoftFreezeThreshold(
         uint256 _threshold,

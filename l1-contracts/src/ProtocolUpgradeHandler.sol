@@ -311,6 +311,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
+    /// @dev Note: This function clears the freeze state but does NOT automatically unfreeze chains.
+    /// Chain unfreezing should be handled by the upgrade calls or via subsequent calls to
+    /// `reinforceUnfreeze`, `reinforceUnfreezeOneChain`, or `unfreezeChains`.
+    /// This design prevents malicious chains from DoS'ing the emergency upgrade by burning gas.
     /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
     function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable onlyEmergencyUpgradeBoard {
         bytes32 id = keccak256(abi.encode(_proposal));
@@ -320,13 +324,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         require(_proposal.executor == msg.sender, "msg.sender is not authorized to perform the upgrade");
         // 2. Effects
         upgradeStatus[id].executed = true;
-        // Clear the freeze
+        // Clear the freeze state (actual chain unfreezing is handled separately)
         lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
-        _unfreeze();
         // 3. Interactions
         _execute(_proposal.calls);
-        emit Unfreeze();
         emit EmergencyUpgradeExecuted(id);
     }
 
@@ -398,7 +400,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         emit ReinforceFreezeOneChain(_chainId);
     }
 
-    /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all ZK Chains.
+    /// @dev Freeze all ZKsync contracts, including bridges (if needed), state transition managers and all ZK Chains.
     function _freeze() internal {
         uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
         uint256 len = zkChainIds.length;
@@ -414,7 +416,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
-    function unfreeze() external onlySecurityCouncilOrProtocolFreezeExpired {
+    /// @param _chainIds The array of chain IDs to unfreeze. If empty, queries the Bridgehub
+    /// for all chains (default behavior). If non-empty, only unfreezes the specified chains,
+    /// allowing misbehaving chains (e.g., ones that burn all gas) to be skipped.
+    /// @param _unpauseBridges Whether to unpause the bridging contracts (BridgeHub, L1Nullifier,
+    /// L1AssetRouter, L1NativeTokenVault, ChainAssetHandler).
+    function unfreeze(uint256[] calldata _chainIds, bool _unpauseBridges) external onlySecurityCouncilOrProtocolFreezeExpired {
         if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Soft) {
             lastFreezeStatusInUpgradeCycle = FreezeStatus.AfterSoftFreeze;
         } else if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Hard) {
@@ -423,41 +430,42 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
             revert("Unexpected last freeze status");
         }
         protocolFrozenUntil = 0;
-        _unfreeze();
+        _unfreeze(_chainIds, _unpauseBridges);
         emit Unfreeze();
     }
 
     /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode. This function can be called
     /// by anyone to ensure the protocol remains in an unfrozen state, particularly useful if there is a need
     /// to confirm or re-apply the unfreeze due to partial or incomplete application during the initial unfreeze.
-    function reinforceUnfreeze() external {
+    /// @param _chainIds The array of chain IDs to unfreeze. If empty, queries the Bridgehub
+    /// for all chains. If non-empty, only unfreezes the specified chains.
+    /// @param _unpauseBridges Whether to unpause the bridging contracts.
+    function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unpauseBridges) external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
-        _unfreeze();
+        _unfreeze(_chainIds, _unpauseBridges);
         emit ReinforceUnfreeze();
     }
 
-    /// @dev Reinforces the unfreeze for one specific chain if the protocol is not in the freeze mode.
-    /// The function is an analog of `reinforceUnfreeze` but only for one specific chain, needed in the
-    /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
-    function reinforceUnfreezeOneChain(uint256 _chainId) external {
-        require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
-        CHAIN_TYPE_MANAGER.unfreezeChain(_chainId);
-        emit ReinforceUnfreezeOneChain(_chainId);
-    }
+    /// @dev Unfreeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
+    /// @param _chainIds The array of chain IDs to unfreeze. If empty, queries the Bridgehub for all chains.
+    /// @param _unpauseBridges Whether to unpause the bridging contracts.
+    function _unfreeze(uint256[] calldata _chainIds, bool _unpauseBridges) internal {
+        uint256[] memory chainsToUnfreeze = _chainIds.length > 0
+            ? _chainIds
+            : BRIDGE_HUB.getAllZKChainChainIDs();
 
-    /// @dev Unfreeze all ZKsync contracts, including bridges, state transition managers and all ZK Chains.
-    function _unfreeze() internal {
-        uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
-        uint256 len = zkChainIds.length;
+        uint256 len = chainsToUnfreeze.length;
         for (uint256 i = 0; i < len; ++i) {
-            try CHAIN_TYPE_MANAGER.unfreezeChain(zkChainIds[i]) {} catch {}
+            try CHAIN_TYPE_MANAGER.unfreezeChain(chainsToUnfreeze[i]) {} catch {}
         }
 
-        try BRIDGE_HUB.unpause() {} catch {}
-        try L1_NULLIFIER.unpause() {} catch {}
-        try L1_ASSET_ROUTER.unpause() {} catch {}
-        try L1_NATIVE_TOKEN_VAULT.unpause() {} catch {}
-        try CHAIN_ASSET_HANDLER.unpauseMigration() {} catch {}
+        if (_unpauseBridges) {
+            try BRIDGE_HUB.unpause() {} catch {}
+            try L1_NULLIFIER.unpause() {} catch {}
+            try L1_ASSET_ROUTER.unpause() {} catch {}
+            try L1_NATIVE_TOKEN_VAULT.unpause() {} catch {}
+            try CHAIN_ASSET_HANDLER.unpauseMigration() {} catch {}
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

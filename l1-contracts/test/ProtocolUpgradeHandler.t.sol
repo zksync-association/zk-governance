@@ -719,7 +719,7 @@ contract TestProtocolUpgradeHandler is Test {
         _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_ufreezeAfter);
         vm.prank(securityCouncil);
-        handler.unfreeze();
+        handler.unfreeze(new uint256[](0), true);
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
             uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze)
@@ -734,7 +734,7 @@ contract TestProtocolUpgradeHandler is Test {
         _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_ufreezeAfter);
         vm.prank(securityCouncil);
-        handler.unfreeze();
+        handler.unfreeze(new uint256[](0), true);
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
             uint256(IProtocolUpgradeHandler.FreezeStatus.AfterHardFreeze)
@@ -772,5 +772,154 @@ contract TestProtocolUpgradeHandler is Test {
         vm.expectRevert("Upgrade already exists");
         // Try second time
         handler.executeEmergencyUpgrade(proposal);
+    }
+
+    function test_unfreezeWithSpecificChains() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze();
+
+        // Create array with only first two chain IDs (simulating skipping one chain)
+        uint256[] memory specificChains = new uint256[](2);
+        specificChains[0] = chainIds[0];
+        specificChains[1] = chainIds[1];
+
+        // Expect calls only for the specified chains
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
+        );
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[1])
+        );
+        vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.unpause.selector));
+        vm.expectCall(address(l1AssetRouter), abi.encodeWithSelector(IPausable.unpause.selector));
+
+        vm.prank(securityCouncil);
+        handler.unfreeze(specificChains, true);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze)
+        );
+        assertEq(0, handler.protocolFrozenUntil());
+    }
+
+    function test_unfreezeWithSpecificChainsAfterHardFreeze() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.hardFreeze();
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        vm.prank(securityCouncil);
+        handler.unfreeze(specificChains, true);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.AfterHardFreeze)
+        );
+        assertEq(0, handler.protocolFrozenUntil());
+    }
+
+    function test_unfreezeEmptyArrayQueriesBridgehub() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze();
+
+        // Empty array - queries Bridgehub and unfreezes ALL chains (default behavior)
+        uint256[] memory emptyChains = new uint256[](0);
+
+        // Expect calls for ALL chains (same as regular unfreeze)
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            vm.expectCall(
+                address(chainTypeManager),
+                abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[i])
+            );
+        }
+        vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.unpause.selector));
+
+        vm.prank(securityCouncil);
+        handler.unfreeze(emptyChains, true);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze)
+        );
+        assertEq(0, handler.protocolFrozenUntil());
+    }
+
+    function test_unfreezeAfterFreezeExpired() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze();
+
+        // Warp past the freeze period
+        vm.warp(block.timestamp + 12 hours + 1);
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        // Anyone can call after freeze expired
+        address randomCaller = makeAddr("randomCaller");
+        vm.prank(randomCaller);
+        handler.unfreeze(specificChains, true);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze)
+        );
+    }
+
+    function test_RevertWhen_unfreezeNotFrozen() public {
+        _resetUpgradeCycle();
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        vm.prank(securityCouncil);
+        vm.expectRevert("Unexpected last freeze status");
+        handler.unfreeze(specificChains, true);
+    }
+
+    function test_RevertWhen_unfreezeUnauthorized() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze();
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        // Random caller should fail when protocol is still frozen
+        address randomCaller = makeAddr("randomCaller");
+        vm.prank(randomCaller);
+        vm.expectRevert("Only Security Council is allowed to call this function or the protocol should be frozen");
+        handler.unfreeze(specificChains, true);
+    }
+
+    function test_emergencyUpgradeDoesNotAutoUnfreeze() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.hardFreeze();
+
+        // Execute emergency upgrade
+        IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencyNoUnfreeze");
+        proposal.executor = emergencyUpgradeBoard;
+
+        vm.prank(emergencyUpgradeBoard);
+        handler.executeEmergencyUpgrade(proposal);
+
+        // Verify freeze state is cleared
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.None)
+        );
+        assertEq(0, handler.protocolFrozenUntil());
+
+        // Now we can call reinforceUnfreeze to actually unfreeze chains
+        // (this would fail before because protocolFrozenUntil != 0)
+        handler.reinforceUnfreeze(new uint256[](0), true);
     }
 }

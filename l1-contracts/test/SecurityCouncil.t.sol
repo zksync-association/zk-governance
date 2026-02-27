@@ -85,7 +85,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
     function test_RevertWhen_unfreezeSignatureExpired(uint256 _timestamp) public {
         _timestamp = bound(_timestamp, 0, block.timestamp);
         vm.expectRevert("Signature expired");
-        securityCouncil.unfreeze(_timestamp, members, new bytes[](0));
+        securityCouncil.unfreeze(new uint256[](0), true, _timestamp, members, new bytes[](0));
     }
 
     function test_RevertWhen_setSoftFreezeThresholdSignatureExpired(uint256 _timestamp) public {
@@ -153,7 +153,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.unfreeze(_validUntil, signers, signatures);
+        securityCouncil.unfreeze(new uint256[](0), true, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.unfreezeNonce());
     }
 
