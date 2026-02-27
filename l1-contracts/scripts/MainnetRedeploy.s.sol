@@ -10,11 +10,11 @@ import {Redeploy} from "./Redeploy.s.sol";
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
 
 contract MainnetRedeploy is Redeploy {
-    address public constant PUH_PROXY = 0xE30Dca3047B37dc7d88849dE4A4Dc07937ad5Ab3;
+    address public PUH_PROXY_MAINNET = vm.envAddress("PUH_PROXY_MAINNET");
 
     function run() external {
         runRedeploy(
-            PUH_PROXY,
+            PUH_PROXY_MAINNET,
             false
         );
     }
