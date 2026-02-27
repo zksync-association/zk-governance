@@ -313,7 +313,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
     /// @dev Note: This function clears the freeze state but does NOT automatically unfreeze chains.
     /// Chain unfreezing should be handled by the upgrade calls or via subsequent calls to
-    /// `reinforceUnfreeze`, `reinforceUnfreezeOneChain`, or `unfreezeChains`.
+    /// `reinforceUnfreeze` or `unfreezeChains`.
     /// This design prevents malicious chains from DoS'ing the emergency upgrade by burning gas.
     /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
     function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable onlyEmergencyUpgradeBoard {
