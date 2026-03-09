@@ -401,16 +401,21 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
     function reinforceFreezeOneChain(uint256 _chainId) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
-        CHAIN_TYPE_MANAGER.freezeChain(_chainId);
+        address ctm = BRIDGE_HUB.chainTypeManager(_chainId);
+        require(ctm != address(0), "Chain type manager not found");
+        IChainTypeManager(ctm).freezeChain(_chainId);
         emit ReinforceFreezeOneChain(_chainId);
     }
 
-    /// @dev Freeze all ZKsync contracts, including bridges (if needed), state transition managers and all ZK Chains.
+    /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all ZK Chains.
     function _freeze() internal {
         uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
         uint256 len = zkChainIds.length;
         for (uint256 i = 0; i < len; ++i) {
-            try CHAIN_TYPE_MANAGER.freezeChain(zkChainIds[i]) {} catch {}
+            address ctm = BRIDGE_HUB.chainTypeManager(zkChainIds[i]);
+            if (ctm != address(0)) {
+                try IChainTypeManager(ctm).freezeChain(zkChainIds[i]) {} catch {}
+            }
         }
 
         try BRIDGE_HUB.pause() {} catch {}
@@ -461,7 +466,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
         uint256 len = chainsToUnfreeze.length;
         for (uint256 i = 0; i < len; ++i) {
-            try CHAIN_TYPE_MANAGER.unfreezeChain(chainsToUnfreeze[i]) {} catch {}
+            address ctm = BRIDGE_HUB.chainTypeManager(chainsToUnfreeze[i]);
+            if (ctm != address(0)) {
+                try IChainTypeManager(ctm).unfreezeChain(chainsToUnfreeze[i]) {} catch {}
+            }
         }
 
         if (_unpauseBridges) {

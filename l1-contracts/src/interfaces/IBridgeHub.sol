@@ -43,6 +43,11 @@ interface IBridgeHub is IPausable {
     /// @notice Returns all the registered zkChain chainIDs
     function getAllZKChainChainIDs() external view returns (uint256[] memory);
 
+    /// @notice Returns the chain type manager for a specific chain ID
+    /// @param _chainId The chain ID to query
+    /// @return The address of the chain type manager for the given chain ID
+    function chainTypeManager(uint256 _chainId) external view returns (address);
+
     /// @notice forwards function call to Mailbox based on ChainId
     /// @param _chainId The chain ID of the ZK chain where to prove L2 message inclusion.
     /// @param _batchNumber The executed L2 batch number in which the message appeared

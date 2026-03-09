@@ -156,7 +156,11 @@ contract TestProtocolUpgradeHandler is Test {
         emergencyUpgradeBoard = makeAddr("emergencyUpgradeBoard");
         l2ProtocolGovernor = makeAddr("l2ProtocolGovernor");
         chainTypeManager = IChainTypeManager(address(new StateTransitionManagerMock(chainIds)));
-        bridgeHub = IBridgeHub(address(new BridgehubMock(chainIds)));
+        BridgehubMock bridgehubMock = new BridgehubMock(chainIds);
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            bridgehubMock.setChainTypeManager(chainIds[i], address(chainTypeManager));
+        }
+        bridgeHub = IBridgeHub(address(bridgehubMock));
         l1Nullifier = IPausable(address(new EmptyContract()));
         l1AssetRouter = IPausable(address(new EmptyContract()));
         l1NativeTokenVault = IPausable(address(new EmptyContract()));
