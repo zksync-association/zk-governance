@@ -73,13 +73,13 @@ contract TestSecurityCouncil is Test, EIP712Util {
     function test_RevertWhen_softFreezeSignatureExpired(uint256 _timestamp) public {
         _timestamp = bound(_timestamp, 0, block.timestamp);
         vm.expectRevert("Signature expired");
-        securityCouncil.softFreeze(_timestamp, members, new bytes[](0));
+        securityCouncil.softFreeze(new uint256[](0), true, _timestamp, members, new bytes[](0));
     }
 
     function test_RevertWhen_hardFreezeSignatureExpired(uint256 _timestamp) public {
         _timestamp = bound(_timestamp, 0, block.timestamp);
         vm.expectRevert("Signature expired");
-        securityCouncil.hardFreeze(_timestamp, members, new bytes[](0));
+        securityCouncil.hardFreeze(new uint256[](0), true, _timestamp, members, new bytes[](0));
     }
 
     function test_RevertWhen_unfreezeSignatureExpired(uint256 _timestamp) public {
@@ -127,7 +127,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.softFreeze(_validUntil, signers, signatures);
+        securityCouncil.softFreeze(new uint256[](0), true, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.softFreezeNonce());
     }
 
@@ -140,7 +140,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.hardFreeze(_validUntil, signers, signatures);
+        securityCouncil.hardFreeze(new uint256[](0), true, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.hardFreezeNonce());
     }
 

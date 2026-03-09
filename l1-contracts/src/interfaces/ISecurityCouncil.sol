@@ -8,9 +8,21 @@ interface ISecurityCouncil {
     function approveUpgradeSecurityCouncil(bytes32 _id, address[] calldata _signers, bytes[] calldata _signatures)
         external;
 
-    function softFreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external;
+    function softFreeze(
+        uint256[] calldata _chainIds,
+        bool _pauseBridges,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external;
 
-    function hardFreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external;
+    function hardFreeze(
+        uint256[] calldata _chainIds,
+        bool _pauseBridges,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external;
 
     function unfreeze(
         uint256[] calldata _chainIds,

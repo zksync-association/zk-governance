@@ -95,10 +95,18 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     }
 
     /// @notice Initiates the protocol soft freeze by small threshold of the Security Council members.
+    /// @param _chainIds The array of chain IDs to freeze. If empty, freezes all chains.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
-    function softFreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external {
+    function softFreeze(
+        uint256[] calldata _chainIds,
+        bool _pauseBridges,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external {
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, softFreezeNonce++, _validUntil))
@@ -106,20 +114,28 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         checkSignatures(digest, _signers, _signatures, softFreezeThreshold);
         // Reset threshold
         softFreezeThreshold = SOFT_FREEZE_CONSERVATIVE_THRESHOLD;
-        PROTOCOL_UPGRADE_HANDLER.softFreeze();
+        PROTOCOL_UPGRADE_HANDLER.softFreeze(_chainIds, _pauseBridges);
     }
 
     /// @notice Initiates the protocol hard freeze by majority of the Security Council members.
+    /// @param _chainIds The array of chain IDs to freeze. If empty, freezes all chains.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
-    function hardFreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external {
+    function hardFreeze(
+        uint256[] calldata _chainIds,
+        bool _pauseBridges,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external {
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, hardFreezeNonce++, _validUntil))
         );
         checkSignatures(digest, _signers, _signatures, HARD_FREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.hardFreeze();
+        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, _pauseBridges);
     }
 
     /// @notice Initiates the protocol unfreeze by the Security Council members.

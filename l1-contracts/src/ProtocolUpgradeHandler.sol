@@ -365,16 +365,20 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Initiates a soft protocol freeze.
-    function softFreeze() external onlySecurityCouncil {
+    /// @param _chainIds The array of chain IDs to freeze. If empty, queries the Bridgehub for all chains.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
+    function softFreeze(uint256[] calldata _chainIds, bool _pauseBridges) external onlySecurityCouncil {
         require(lastFreezeStatusInUpgradeCycle == FreezeStatus.None, "Protocol already frozen");
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Soft;
         protocolFrozenUntil = block.timestamp + SOFT_FREEZE_PERIOD;
-        _freeze();
-        emit SoftFreeze(protocolFrozenUntil);
+        _freeze(_chainIds, _pauseBridges);
+        emit SoftFreeze(protocolFrozenUntil, _chainIds, _pauseBridges);
     }
 
     /// @notice Initiates a hard protocol freeze.
-    function hardFreeze() external onlySecurityCouncil {
+    /// @param _chainIds The array of chain IDs to freeze. If empty, queries the Bridgehub for all chains.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
+    function hardFreeze(uint256[] calldata _chainIds, bool _pauseBridges) external onlySecurityCouncil {
         FreezeStatus freezeStatus = lastFreezeStatusInUpgradeCycle;
         require(
             freezeStatus == FreezeStatus.None || freezeStatus == FreezeStatus.Soft
@@ -383,17 +387,19 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         );
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
-        _freeze();
-        emit HardFreeze(protocolFrozenUntil);
+        _freeze(_chainIds, _pauseBridges);
+        emit HardFreeze(protocolFrozenUntil, _chainIds, _pauseBridges);
     }
 
     /// @dev Reinforces the freezing state of the protocol if it is already within the frozen period. This function
     /// can be called by anyone to ensure the protocol remains in a frozen state, particularly useful if there is a need
     /// to confirm or re-apply the freeze due to partial or incomplete application during the initial freeze.
-    function reinforceFreeze() external {
+    /// @param _chainIds The array of chain IDs to freeze. If empty, queries the Bridgehub for all chains.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
+    function reinforceFreeze(uint256[] calldata _chainIds, bool _pauseBridges) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
-        _freeze();
-        emit ReinforceFreeze();
+        _freeze(_chainIds, _pauseBridges);
+        emit ReinforceFreeze(_chainIds, _pauseBridges);
     }
 
     /// @dev Reinforces the freezing state of the specific chain if the protocol is already within the frozen period.
@@ -407,22 +413,29 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         emit ReinforceFreezeOneChain(_chainId);
     }
 
-    /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all ZK Chains.
-    function _freeze() internal {
-        uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
-        uint256 len = zkChainIds.length;
+    /// @dev Freeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
+    /// @param _chainIds The array of chain IDs to freeze. If empty, queries the Bridgehub for all chains.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
+    function _freeze(uint256[] calldata _chainIds, bool _pauseBridges) internal {
+        uint256[] memory chainsToFreeze = _chainIds.length > 0
+            ? _chainIds
+            : BRIDGE_HUB.getAllZKChainChainIDs();
+
+        uint256 len = chainsToFreeze.length;
         for (uint256 i = 0; i < len; ++i) {
-            address ctm = BRIDGE_HUB.chainTypeManager(zkChainIds[i]);
+            address ctm = BRIDGE_HUB.chainTypeManager(chainsToFreeze[i]);
             if (ctm != address(0)) {
-                try IChainTypeManager(ctm).freezeChain(zkChainIds[i]) {} catch {}
+                try IChainTypeManager(ctm).freezeChain(chainsToFreeze[i]) {} catch {}
             }
         }
 
-        try BRIDGE_HUB.pause() {} catch {}
-        try L1_NULLIFIER.pause() {} catch {}
-        try L1_ASSET_ROUTER.pause() {} catch {}
-        try L1_NATIVE_TOKEN_VAULT.pause() {} catch {}
-        try CHAIN_ASSET_HANDLER.pauseMigration() {} catch {}
+        if (_pauseBridges) {
+            try BRIDGE_HUB.pause() {} catch {}
+            try L1_NULLIFIER.pause() {} catch {}
+            try L1_ASSET_ROUTER.pause() {} catch {}
+            try L1_NATIVE_TOKEN_VAULT.pause() {} catch {}
+            try CHAIN_ASSET_HANDLER.pauseMigration() {} catch {}
+        }
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.

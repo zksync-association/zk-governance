@@ -336,12 +336,12 @@ contract TestProtocolUpgradeHandler is Test {
 
     function test_RevertWhen_SoftFreezeOnlySecurityCouncil() public {
         vm.expectRevert("Only Security Council is allowed to call this function");
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
     }
 
     function test_RevertWhen_HardFreezeOnlySecurityCouncil() public {
         vm.expectRevert("Only Security Council is allowed to call this function");
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
     }
 
     function test_RevertWhen_ExtendLegalVetoOnlyGuardians() public {
@@ -654,11 +654,11 @@ contract TestProtocolUpgradeHandler is Test {
         _resetUpgradeCycle();
         uint256 protocolFrozenUntil = block.timestamp + 12 hours;
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil);
+        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, new uint256[](0), true);
         _expectFreezeAttempt();
 
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
         assertEq(protocolFrozenUntil, handler.protocolFrozenUntil());
@@ -667,7 +667,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_RevertWhen_ReinforceFreezeWithoutFreeze() public {
         _resetUpgradeCycle();
         vm.expectRevert("Protocol should be already frozen");
-        handler.reinforceFreeze();
+        handler.reinforceFreeze(new uint256[](0), true);
     }
 
     function test_RevertWhen_ReinforceFreezeOneChainWithoutFreeze(uint256 _chainId) public {
@@ -679,18 +679,18 @@ contract TestProtocolUpgradeHandler is Test {
     function test_softFreezeReinforceFreeze(uint256 _timeAfterFreeze) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         uint256 timeAfterFreeze = bound(_timeAfterFreeze, block.timestamp, block.timestamp + 12 hours);
         vm.warp(timeAfterFreeze);
         _expectFreezeAttempt();
-        handler.reinforceFreeze();
+        handler.reinforceFreeze(new uint256[](0), true);
     }
 
     function test_softFreezeReinforceFreezeOneChain(uint256 _timeAfterFreeze, uint8 _chainIdPos) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         uint256 timeAfterFreeze = bound(_timeAfterFreeze, block.timestamp, block.timestamp + 12 hours);
         vm.warp(timeAfterFreeze);
@@ -705,7 +705,7 @@ contract TestProtocolUpgradeHandler is Test {
     ) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         uint256 timeAfterFreeze = bound(_timeAfterFreeze, block.timestamp, block.timestamp + 12 hours);
         for (uint256 i = 0; i < chainIds.length; i++) {
@@ -719,7 +719,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeAfterSoftFreezeSecurityCouncil(uint256 _ufreezeAfter) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
         _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_ufreezeAfter);
         vm.prank(securityCouncil);
@@ -734,7 +734,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeAfterHardFreezeSecurityCouncil(uint256 _ufreezeAfter) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
         _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_ufreezeAfter);
         vm.prank(securityCouncil);
@@ -749,12 +749,12 @@ contract TestProtocolUpgradeHandler is Test {
     function test_RevertWhen_hardFreezeAfterHardFreezeSecurityCouncil(uint256 _hardFreezeAfter) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
         _hardFreezeAfter = bound(_hardFreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_hardFreezeAfter);
         vm.expectRevert("Protocol can't be hard frozen");
         vm.prank(securityCouncil);
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
     }
 
     function test_Receive() public {
@@ -781,7 +781,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeWithSpecificChains() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         // Create array with only first two chain IDs (simulating skipping one chain)
         uint256[] memory specificChains = new uint256[](2);
@@ -817,7 +817,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeWithSpecificChainsAfterHardFreeze() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
 
         uint256[] memory specificChains = new uint256[](1);
         specificChains[0] = chainIds[0];
@@ -835,7 +835,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeEmptyArrayQueriesBridgehub() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         // Empty array - queries Bridgehub and unfreezes ALL chains (default behavior)
         uint256[] memory emptyChains = new uint256[](0);
@@ -862,7 +862,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeAfterFreezeExpired() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         // Warp past the freeze period
         vm.warp(block.timestamp + 12 hours + 1);
@@ -895,7 +895,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_RevertWhen_unfreezeUnauthorized() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         uint256[] memory specificChains = new uint256[](1);
         specificChains[0] = chainIds[0];
@@ -910,7 +910,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_emergencyUpgradeDoesNotAutoUnfreeze() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
 
         // Execute emergency upgrade
         IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencyNoUnfreeze");
@@ -934,7 +934,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeWithUnpauseBridgesFalse() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
 
         uint256[] memory specificChains = new uint256[](1);
         specificChains[0] = chainIds[0];
@@ -958,7 +958,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_reinforceUnfreezeWithSpecificChains() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze();
+        handler.softFreeze(new uint256[](0), true);
         vm.prank(securityCouncil);
         handler.unfreeze(new uint256[](0), true);
 
@@ -983,7 +983,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_executeEmergencyUpgradeWithSpecificChains() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
 
         IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencySpecificChains");
         proposal.executor = emergencyUpgradeBoard;
@@ -1018,7 +1018,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_executeEmergencyUpgradeWithUnpauseBridgesFalse() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze();
+        handler.hardFreeze(new uint256[](0), true);
 
         IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencyNoBridgeUnpause");
         proposal.executor = emergencyUpgradeBoard;

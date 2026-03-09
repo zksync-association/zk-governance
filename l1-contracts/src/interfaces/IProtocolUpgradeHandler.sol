@@ -93,11 +93,11 @@ interface IProtocolUpgradeHandler {
         bool _unpauseBridges
     ) external payable;
 
-    function softFreeze() external;
+    function softFreeze(uint256[] calldata _chainIds, bool _pauseBridges) external;
 
-    function hardFreeze() external;
+    function hardFreeze(uint256[] calldata _chainIds, bool _pauseBridges) external;
 
-    function reinforceFreeze() external;
+    function reinforceFreeze(uint256[] calldata _chainIds, bool _pauseBridges) external;
 
     function unfreeze(uint256[] calldata _chainIds, bool _unpauseBridges) external;
 
@@ -143,13 +143,21 @@ interface IProtocolUpgradeHandler {
     event EmergencyUpgradeExecuted(bytes32 indexed _id);
 
     /// @notice Emitted when the protocol became soft frozen.
-    event SoftFreeze(uint256 _protocolFrozenUntil);
+    /// @param _protocolFrozenUntil The timestamp until which the protocol is frozen.
+    /// @param _chainIds The chain IDs that were frozen (empty if all chains from Bridgehub were used).
+    /// @param _pauseBridges Whether the bridging contracts were paused.
+    event SoftFreeze(uint256 _protocolFrozenUntil, uint256[] _chainIds, bool _pauseBridges);
 
     /// @notice Emitted when the protocol became hard frozen.
-    event HardFreeze(uint256 _protocolFrozenUntil);
+    /// @param _protocolFrozenUntil The timestamp until which the protocol is frozen.
+    /// @param _chainIds The chain IDs that were frozen (empty if all chains from Bridgehub were used).
+    /// @param _pauseBridges Whether the bridging contracts were paused.
+    event HardFreeze(uint256 _protocolFrozenUntil, uint256[] _chainIds, bool _pauseBridges);
 
     /// @notice Emitted when someone makes an attempt to freeze the protocol when it is frozen already.
-    event ReinforceFreeze();
+    /// @param _chainIds The chain IDs that were frozen (empty if all chains from Bridgehub were used).
+    /// @param _pauseBridges Whether the bridging contracts were paused.
+    event ReinforceFreeze(uint256[] _chainIds, bool _pauseBridges);
 
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
     /// @param _chainIds The chain IDs that were unfrozen (empty if all chains from Bridgehub were used).
