@@ -23,18 +23,18 @@ contract TestSecurityCouncil is Test, EIP712Util {
 
     /// @dev EIP-712 TypeHash for soft emergency freeze approval by the Security Council.
     bytes32 internal constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("SoftFreeze(uint256 nonce,uint256 validUntil)");
+        keccak256("SoftFreeze(uint256[] chainIds,bool pauseBridges,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for hard emergency freeze approval by the Security Council.
     bytes32 internal constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("HardFreeze(uint256 nonce,uint256 validUntil)");
+        keccak256("HardFreeze(uint256[] chainIds,bool pauseBridges,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for setting threshold for soft freeze approval by the Security Council.
     bytes32 internal constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the Security Council.
-    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
+    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256[] chainIds,bool unpauseBridges,uint256 nonce,uint256 validUntil)");
 
     constructor() {
         Vm.Wallet[] memory wallets_ = new Vm.Wallet[](12);
@@ -123,11 +123,18 @@ contract TestSecurityCouncil is Test, EIP712Util {
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.softFreezeNonce();
 
-        bytes32 message = keccak256(abi.encode(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, nonceBefore, _validUntil));
+        uint256[] memory chainIds = new uint256[](0);
+        bytes32 message = keccak256(abi.encode(
+            SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH,
+            keccak256(abi.encodePacked(chainIds)),
+            true,
+            nonceBefore,
+            _validUntil
+        ));
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.softFreeze(new uint256[](0), true, _validUntil, signers, signatures);
+        securityCouncil.softFreeze(chainIds, true, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.softFreezeNonce());
     }
 
@@ -136,11 +143,18 @@ contract TestSecurityCouncil is Test, EIP712Util {
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.hardFreezeNonce();
 
-        bytes32 message = keccak256(abi.encode(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, nonceBefore, _validUntil));
+        uint256[] memory chainIds = new uint256[](0);
+        bytes32 message = keccak256(abi.encode(
+            HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH,
+            keccak256(abi.encodePacked(chainIds)),
+            true,
+            nonceBefore,
+            _validUntil
+        ));
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.hardFreeze(new uint256[](0), true, _validUntil, signers, signatures);
+        securityCouncil.hardFreeze(chainIds, true, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.hardFreezeNonce());
     }
 
@@ -149,11 +163,18 @@ contract TestSecurityCouncil is Test, EIP712Util {
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.unfreezeNonce();
 
-        bytes32 message = keccak256(abi.encode(UNFREEZE_TYPEHASH, nonceBefore, _validUntil));
+        uint256[] memory chainIds = new uint256[](0);
+        bytes32 message = keccak256(abi.encode(
+            UNFREEZE_TYPEHASH,
+            keccak256(abi.encodePacked(chainIds)),
+            true,
+            nonceBefore,
+            _validUntil
+        ));
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.unfreeze(new uint256[](0), true, _validUntil, signers, signatures);
+        securityCouncil.unfreeze(chainIds, true, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.unfreezeNonce());
     }
 

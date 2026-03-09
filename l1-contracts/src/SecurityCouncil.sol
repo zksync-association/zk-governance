@@ -21,18 +21,18 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
 
     /// @dev EIP-712 TypeHash for soft emergency freeze approval by the Security Council.
     bytes32 internal constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("SoftFreeze(uint256 nonce,uint256 validUntil)");
+        keccak256("SoftFreeze(uint256[] chainIds,bool pauseBridges,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for hard emergency freeze approval by the Security Council.
     bytes32 internal constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("HardFreeze(uint256 nonce,uint256 validUntil)");
+        keccak256("HardFreeze(uint256[] chainIds,bool pauseBridges,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for setting threshold for soft freeze approval by the Security Council.
     bytes32 internal constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the Security Council.
-    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
+    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256[] chainIds,bool unpauseBridges,uint256 nonce,uint256 validUntil)");
 
     /// @dev The default threshold for soft freeze initiated by the Security Council.
     uint256 public constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 9;
@@ -109,7 +109,13 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     ) external {
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
-            keccak256(abi.encode(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, softFreezeNonce++, _validUntil))
+            keccak256(abi.encode(
+                SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH,
+                keccak256(abi.encodePacked(_chainIds)),
+                _pauseBridges,
+                softFreezeNonce++,
+                _validUntil
+            ))
         );
         checkSignatures(digest, _signers, _signatures, softFreezeThreshold);
         // Reset threshold
@@ -132,7 +138,13 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     ) external {
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
-            keccak256(abi.encode(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, hardFreezeNonce++, _validUntil))
+            keccak256(abi.encode(
+                HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH,
+                keccak256(abi.encodePacked(_chainIds)),
+                _pauseBridges,
+                hardFreezeNonce++,
+                _validUntil
+            ))
         );
         checkSignatures(digest, _signers, _signatures, HARD_FREEZE_THRESHOLD);
         PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, _pauseBridges);
@@ -152,7 +164,15 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         bytes[] calldata _signatures
     ) external {
         require(block.timestamp < _validUntil, "Signature expired");
-        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(UNFREEZE_TYPEHASH, unfreezeNonce++, _validUntil)));
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(abi.encode(
+                UNFREEZE_TYPEHASH,
+                keccak256(abi.encodePacked(_chainIds)),
+                _unpauseBridges,
+                unfreezeNonce++,
+                _validUntil
+            ))
+        );
         checkSignatures(digest, _signers, _signatures, UNFREEZE_THRESHOLD);
         PROTOCOL_UPGRADE_HANDLER.unfreeze(_chainIds, _unpauseBridges);
     }
