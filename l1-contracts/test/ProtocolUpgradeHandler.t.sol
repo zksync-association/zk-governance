@@ -1039,4 +1039,118 @@ contract TestProtocolUpgradeHandler is Test {
             uint256(IProtocolUpgradeHandler.FreezeStatus.None)
         );
     }
+
+    /// @notice Test that reinforceFreeze can be called multiple times with overlapping chain sets
+    function test_reinforceFreezeWithOverlappingChains() public {
+        // Setup: Soft freeze first
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true);
+
+        // First reinforceFreeze with chains [1, 300]
+        uint256[] memory firstSet = new uint256[](2);
+        firstSet[0] = chainIds[0]; // 1
+        firstSet[1] = chainIds[1]; // 300
+
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.ReinforceFreeze(firstSet, false);
+        handler.reinforceFreeze(firstSet, false);
+
+        // Second reinforceFreeze with chains [300, 324] (overlapping with chain 300)
+        uint256[] memory secondSet = new uint256[](2);
+        secondSet[0] = chainIds[1]; // 300 (overlap!)
+        secondSet[1] = chainIds[2]; // 324
+
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.ReinforceFreeze(secondSet, false);
+        handler.reinforceFreeze(secondSet, false);
+
+        // Third reinforceFreeze with all chains (complete overlap)
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.ReinforceFreeze(chainIds, true);
+        handler.reinforceFreeze(chainIds, true);
+
+        // Verify protocol is still frozen
+        assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
+        assertGt(handler.protocolFrozenUntil(), block.timestamp);
+    }
+
+    /// @notice Test that reinforceUnfreeze can be called multiple times with overlapping chain sets
+    function test_reinforceUnfreezeWithOverlappingChains() public {
+        // Setup: Freeze and then unfreeze
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true);
+
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(securityCouncil);
+        handler.unfreeze(new uint256[](0), true);
+
+        // Protocol should be unfrozen now
+        assertEq(handler.protocolFrozenUntil(), 0);
+
+        // First reinforceUnfreeze with chains [1, 300]
+        uint256[] memory firstSet = new uint256[](2);
+        firstSet[0] = chainIds[0]; // 1
+        firstSet[1] = chainIds[1]; // 300
+
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(firstSet, false);
+        handler.reinforceUnfreeze(firstSet, false);
+
+        // Second reinforceUnfreeze with chains [300, 324] (overlapping with chain 300)
+        uint256[] memory secondSet = new uint256[](2);
+        secondSet[0] = chainIds[1]; // 300 (overlap!)
+        secondSet[1] = chainIds[2]; // 324
+
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(secondSet, false);
+        handler.reinforceUnfreeze(secondSet, false);
+
+        // Third reinforceUnfreeze with all chains (complete overlap)
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(chainIds, true);
+        handler.reinforceUnfreeze(chainIds, true);
+
+        // Verify protocol is still unfrozen
+        assertEq(handler.protocolFrozenUntil(), 0);
+    }
+
+    /// @notice Test that calling reinforceFreeze multiple times with same chains doesn't revert
+    function test_reinforceFreezeSameChainsMultipleTimes() public {
+        // Setup: Soft freeze first
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true);
+
+        uint256[] memory sameChains = new uint256[](1);
+        sameChains[0] = chainIds[0]; // chain 1
+
+        // Call reinforceFreeze 5 times with the same chain
+        for (uint256 i = 0; i < 5; i++) {
+            handler.reinforceFreeze(sameChains, false);
+        }
+
+        // Should not revert and protocol should still be frozen
+        assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
+    }
+
+    /// @notice Test that calling reinforceUnfreeze multiple times with same chains doesn't revert
+    function test_reinforceUnfreezeSameChainsMultipleTimes() public {
+        // Setup: Freeze and then unfreeze
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true);
+
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(securityCouncil);
+        handler.unfreeze(new uint256[](0), true);
+
+        uint256[] memory sameChains = new uint256[](1);
+        sameChains[0] = chainIds[0]; // chain 1
+
+        // Call reinforceUnfreeze 5 times with the same chain
+        for (uint256 i = 0; i < 5; i++) {
+            handler.reinforceUnfreeze(sameChains, false);
+        }
+
+        // Should not revert and protocol should still be unfrozen
+        assertEq(handler.protocolFrozenUntil(), 0);
+    }
 }
