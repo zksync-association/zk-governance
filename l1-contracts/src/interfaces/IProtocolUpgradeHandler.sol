@@ -5,6 +5,10 @@ pragma solidity 0.8.24;
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 interface IProtocolUpgradeHandler {
+    /// @notice Thrown when a chain type manager is not found for a given chain ID.
+    /// @param chainId The chain ID that has no associated chain type manager.
+    error ChainTypeManagerNotFound(uint256 chainId);
+
     /// @dev This enumeration includes the following states:
     /// @param None Default state, indicating the upgrade has not been set.
     /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.

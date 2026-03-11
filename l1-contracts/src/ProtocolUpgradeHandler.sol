@@ -67,9 +67,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// specifically for proposing and approving protocol upgrades.
     address public immutable L2_PROTOCOL_GOVERNOR;
 
-    /// @dev ZKsync smart contract that is responsible for creating new ZK Chains and changing parameters in existent.
-    IChainTypeManager public immutable CHAIN_TYPE_MANAGER;
-
     /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
     IBridgeHub public immutable BRIDGE_HUB;
 
@@ -108,7 +105,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
     /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting governor.
     /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
-    /// @param _chainTypeManager The address of the state transition manager.
     /// @param _bridgeHub The address of the bridgehub.
     /// @param _l1Nullifier The address of the nullifier
     /// @param _l1AssetRouter The address of the L1 asset router.
@@ -118,7 +114,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @param _eraChainId Chain ID corresponding to ZKsync Era
     constructor(
         address _l2ProtocolGovernor,
-        IChainTypeManager _chainTypeManager,
         IBridgeHub _bridgeHub,
         IPausable _l1Nullifier,
         IPausable _l1AssetRouter,
@@ -132,7 +127,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
 
         L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
-        CHAIN_TYPE_MANAGER = _chainTypeManager;
         BRIDGE_HUB = _bridgeHub;
         L1_NULLIFIER = _l1Nullifier;
         L1_ASSET_ROUTER = _l1AssetRouter;
@@ -334,6 +328,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         // 3. Interactions
         _unfreeze(_chainIds, _unpauseBridges);
         _execute(_proposal.calls);
+        emit Unfreeze(_chainIds, _unpauseBridges);
         emit EmergencyUpgradeExecuted(id);
     }
 
@@ -402,13 +397,18 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         emit ReinforceFreeze(_chainIds, _pauseBridges);
     }
 
-    /// @dev Reinforces the freezing state of the specific chain if the protocol is already within the frozen period.
-    /// The function is an analog of `reinforceFreeze` but only for one specific chain, needed in the
-    /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
+    /// @dev Reinforces the freezing state of a specific chain if the protocol is already within the frozen period.
+    /// Unlike reinforceFreeze which uses try/catch and continues on failure, this function will REVERT
+    /// if the chain fails to freeze. Use this when you need a guarantee that a specific chain was frozen
+    /// successfully, particularly in cases where a chain's freeze operation is critical and failures
+    /// should be explicit rather than silent.
+    /// @param _chainId The ID of the chain to freeze.
     function reinforceFreezeOneChain(uint256 _chainId) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
         address ctm = BRIDGE_HUB.chainTypeManager(_chainId);
-        require(ctm != address(0), "Chain type manager not found");
+        if (ctm == address(0)) {
+            revert ChainTypeManagerNotFound(_chainId);
+        }
         IChainTypeManager(ctm).freezeChain(_chainId);
         emit ReinforceFreezeOneChain(_chainId);
     }
@@ -424,9 +424,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         uint256 len = chainsToFreeze.length;
         for (uint256 i = 0; i < len; ++i) {
             address ctm = BRIDGE_HUB.chainTypeManager(chainsToFreeze[i]);
-            if (ctm != address(0)) {
-                try IChainTypeManager(ctm).freezeChain(chainsToFreeze[i]) {} catch {}
+            if (ctm == address(0)) {
+                revert ChainTypeManagerNotFound(chainsToFreeze[i]);
             }
+            try IChainTypeManager(ctm).freezeChain(chainsToFreeze[i]) {} catch {}
         }
 
         if (_pauseBridges) {
@@ -480,9 +481,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         uint256 len = chainsToUnfreeze.length;
         for (uint256 i = 0; i < len; ++i) {
             address ctm = BRIDGE_HUB.chainTypeManager(chainsToUnfreeze[i]);
-            if (ctm != address(0)) {
-                try IChainTypeManager(ctm).unfreezeChain(chainsToUnfreeze[i]) {} catch {}
+            if (ctm == address(0)) {
+                revert ChainTypeManagerNotFound(chainsToUnfreeze[i]);
             }
+            try IChainTypeManager(ctm).unfreezeChain(chainsToUnfreeze[i]) {} catch {}
         }
 
         if (_unpauseBridges) {

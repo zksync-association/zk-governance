@@ -194,7 +194,6 @@ contract TestProtocolUpgradeHandler is Test {
     ) internal returns (ProtocolUpgradeHandler handler) {
         ProtocolUpgradeHandler impl = new ProtocolUpgradeHandler(
             l2ProtocolGovernor,
-            chainTypeManager,
             bridgeHub,
             l1Nullifier,
             l1AssetRouter,
@@ -236,7 +235,6 @@ contract TestProtocolUpgradeHandler is Test {
         assertEq(testHandler.guardians(), guardians);
         assertEq(testHandler.emergencyUpgradeBoard(), emergencyUpgradeBoard);
         assertEq(testHandler.L2_PROTOCOL_GOVERNOR(), l2ProtocolGovernor);
-        assertEq(address(testHandler.CHAIN_TYPE_MANAGER()), address(chainTypeManager));
         assertEq(address(testHandler.BRIDGE_HUB()), address(bridgeHub));
         assertEq(address(testHandler.L1_NULLIFIER()), address(l1Nullifier));
         assertEq(address(testHandler.L1_ASSET_ROUTER()), address(l1AssetRouter));
@@ -1152,5 +1150,35 @@ contract TestProtocolUpgradeHandler is Test {
 
         // Should not revert and protocol should still be unfrozen
         assertEq(handler.protocolFrozenUntil(), 0);
+    }
+
+    /// @notice Test that freeze reverts when explicitly specifying invalid chain ID
+    function test_RevertWhen_freezeWithInvalidChainId() public {
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true);
+
+        uint256 invalidChainId = 99999; // Non-existent chain
+        uint256[] memory invalidChains = new uint256[](1);
+        invalidChains[0] = invalidChainId;
+
+        vm.expectRevert(abi.encodeWithSelector(IProtocolUpgradeHandler.ChainTypeManagerNotFound.selector, invalidChainId));
+        handler.reinforceFreeze(invalidChains, false);
+    }
+
+    /// @notice Test that unfreeze reverts when explicitly specifying invalid chain ID
+    function test_RevertWhen_unfreezeWithInvalidChainId() public {
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true);
+
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(securityCouncil);
+        handler.unfreeze(new uint256[](0), true);
+
+        uint256 invalidChainId = 99999; // Non-existent chain
+        uint256[] memory invalidChains = new uint256[](1);
+        invalidChains[0] = invalidChainId;
+
+        vm.expectRevert(abi.encodeWithSelector(IProtocolUpgradeHandler.ChainTypeManagerNotFound.selector, invalidChainId));
+        handler.reinforceUnfreeze(invalidChains, false);
     }
 }

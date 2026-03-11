@@ -26,15 +26,15 @@ contract EmergencyUpgradeBoard is EIP712 {
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the guardians.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeGuardians(bytes32 id)");
+        keccak256("ExecuteEmergencyUpgradeGuardians(bytes32 id,uint256[] chainIds,bool unpauseBridges)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the Security Council.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeSecurityCouncil(bytes32 id)");
+        keccak256("ExecuteEmergencyUpgradeSecurityCouncil(bytes32 id,uint256[] chainIds,bool unpauseBridges)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the ZK Foundation.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeZKFoundation(bytes32 id)");
+        keccak256("ExecuteEmergencyUpgradeZKFoundation(bytes32 id,uint256[] chainIds,bool unpauseBridges)");
 
     /// @dev Initializes the Emergency Upgrade Board contract with setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
@@ -74,7 +74,12 @@ contract EmergencyUpgradeBoard is EIP712 {
 
         require(
             GUARDIANS.isValidERC1271SignatureNow(
-                _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH, id))),
+                _hashTypedDataV4(keccak256(abi.encode(
+                    EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH,
+                    id,
+                    keccak256(abi.encodePacked(_chainIds)),
+                    _unpauseBridges
+                ))),
                 _guardiansSignatures
             ),
             "Invalid guardians signatures"
@@ -82,7 +87,12 @@ contract EmergencyUpgradeBoard is EIP712 {
 
         require(
             SECURITY_COUNCIL.isValidERC1271SignatureNow(
-                _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH, id))),
+                _hashTypedDataV4(keccak256(abi.encode(
+                    EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH,
+                    id,
+                    keccak256(abi.encodePacked(_chainIds)),
+                    _unpauseBridges
+                ))),
                 _securityCouncilSignatures
             ),
             "Invalid Security Council signatures"
@@ -90,7 +100,12 @@ contract EmergencyUpgradeBoard is EIP712 {
 
         require(
             ZK_FOUNDATION_SAFE.isValidSignatureNow(
-                _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH, id))),
+                _hashTypedDataV4(keccak256(abi.encode(
+                    EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH,
+                    id,
+                    keccak256(abi.encodePacked(_chainIds)),
+                    _unpauseBridges
+                ))),
                 _zkFoundationSignatures
             ),
             "Invalid ZK Foundation signatures"

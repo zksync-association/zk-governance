@@ -42,7 +42,6 @@ contract Redeploy is Script {
         address[] guardiansMembers;
         address zkFoundationSafe;
         uint256 eraChainId;
-        address stateTransitionManager;
         address bridgehub;
         address sharedBridge;
         address l1Nullifier;
@@ -82,7 +81,6 @@ contract Redeploy is Script {
         EmergencyUpgradeBoard emergencyUpgradeBoard = EmergencyUpgradeBoard(_currentProtocolUpgradeHandler.emergencyUpgradeBoard());
 
         uint256 eraChainId = vm.envUint("ERA_CHAIN_ID");//TODO after the next redeployment, update to _currentProtocolUpgradeHandler.ERA_CHAIN_ID();
-        address stateTransitionManager = address(_currentProtocolUpgradeHandler.CHAIN_TYPE_MANAGER());
         address bridgehub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
         address sharedBridge = address(_currentProtocolUpgradeHandler.L1_ASSET_ROUTER());
         address l1Nullifier = address(_currentProtocolUpgradeHandler.L1_NULLIFIER());
@@ -99,7 +97,6 @@ contract Redeploy is Script {
             guardiansMembers: readMembers(guardians),
             zkFoundationSafe: emergencyUpgradeBoard.ZK_FOUNDATION_SAFE(),
             eraChainId: eraChainId,
-            stateTransitionManager: stateTransitionManager,
             bridgehub: bridgehub,
             sharedBridge: sharedBridge,
             l1Nullifier: l1Nullifier,
@@ -127,9 +124,8 @@ contract Redeploy is Script {
         // Firstly, we deploy the implementation
         {
             bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(
-                l2ProtocolGovernor, 
-                info.stateTransitionManager,
-                info.bridgehub, 
+                l2ProtocolGovernor,
+                info.bridgehub,
                 info.l1Nullifier,
                 info.sharedBridge,
                 info.l1NativeTokenVault,
