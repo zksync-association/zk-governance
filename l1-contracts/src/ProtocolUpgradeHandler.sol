@@ -123,6 +123,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     ) {
         _disableInitializers();
 
+        // Sanity checks to prevent misconfiguration
+        if (address(_bridgeHub).code.length == 0) revert EmptyContract(address(_bridgeHub));
+        if (address(_l1Nullifier).code.length == 0) revert EmptyContract(address(_l1Nullifier));
+        if (address(_l1AssetRouter).code.length == 0) revert EmptyContract(address(_l1AssetRouter));
+        if (address(_l1NativeTokenVault).code.length == 0) revert EmptyContract(address(_l1NativeTokenVault));
+        if (address(_chainAssetHandler).code.length == 0) revert EmptyContract(address(_chainAssetHandler));
+
         // Soft configuration check for contracts that inherit this contract.
         assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
 

@@ -9,6 +9,10 @@ interface IProtocolUpgradeHandler {
     /// @param chainId The chain ID that has no associated chain type manager.
     error ChainTypeManagerNotFound(uint256 chainId);
 
+    /// @notice Thrown when a required contract address has no code deployed.
+    /// @param contractAddress The address that should be a contract but has no code.
+    error EmptyContract(address contractAddress);
+
     /// @dev This enumeration includes the following states:
     /// @param None Default state, indicating the upgrade has not been set.
     /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.
