@@ -95,6 +95,11 @@ interface IProtocolUpgradeHandler {
 
     function execute(UpgradeProposal calldata _proposal) external payable;
 
+    /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
+    /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
+    /// @param _chainIds The array of chain IDs to unfreeze.
+    /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
+    /// @param _unpauseBridges Whether to unpause the bridging contracts.
     function executeEmergencyUpgrade(
         UpgradeProposal calldata _proposal,
         uint256[] calldata _chainIds,
@@ -102,16 +107,38 @@ interface IProtocolUpgradeHandler {
         bool _unpauseBridges
     ) external payable;
 
+    /// @notice Initiates a soft protocol freeze.
+    /// @param _chainIds The array of chain IDs to freeze.
+    /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
     function softFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external;
 
+    /// @notice Initiates a hard protocol freeze.
+    /// @param _chainIds The array of chain IDs to freeze.
+    /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
     function hardFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external;
 
+    /// @notice Reinforces the freezing state of the protocol if it is already within the frozen period.
+    /// @param _chainIds The array of chain IDs to freeze.
+    /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
+    /// @param _pauseBridges Whether to pause the bridging contracts.
     function reinforceFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external;
 
+    /// @notice Unfreezes the protocol and resumes normal operations.
+    /// @param _chainIds The array of chain IDs to unfreeze.
+    /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
+    /// @param _unpauseBridges Whether to unpause the bridging contracts.
     function unfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external;
 
+    /// @notice Reinforces the freezing state of a specific chain if the protocol is already within the frozen period.
+    /// @param _chainId The ID of the chain to freeze.
     function reinforceFreezeOneChain(uint256 _chainId) external;
 
+    /// @notice Reinforces the unfreeze for protocol if it is not in the freeze mode.
+    /// @param _chainIds The array of chain IDs to unfreeze.
+    /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
+    /// @param _unpauseBridges Whether to unpause the bridging contracts.
     function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external;
 
     function upgradeState(bytes32 _id) external view returns (UpgradeState);
