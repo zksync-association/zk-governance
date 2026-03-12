@@ -31,6 +31,25 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 ///
 /// The contract implements the state machine that represents the logic of moving upgrade from each
 /// stage by time changes and Guardians/Security Council actions.
+///
+/// **Freeze Mechanism:**
+/// The contract supports two levels of freeze state management:
+/// 1. **Protocol-level freeze**: Tracked by `lastFreezeStatusInUpgradeCycle` and `protocolFrozenUntil`.
+///    This represents the overall freeze state and upgrade cycle phase.
+/// 2. **Chain-level freeze**: Individual chains can be frozen/unfrozen independently.
+///
+/// These two levels are independent by design. When `unfreeze()` is called:
+/// - Protocol-level state transitions (e.g., Soft -> AfterSoftFreeze)
+/// - `protocolFrozenUntil` is cleared (set to 0)
+/// - Only the specified chains are unfrozen (or all chains if flag is set)
+///
+/// **Partial Freeze Scenario:**
+/// It is possible to have chains in different freeze states simultaneously. For example:
+/// 1. `softFreeze([chain1, chain2, chain3], false, true)` - freezes three chains
+/// 2. `unfreeze([chain1, chain2], false, true)` - unfreezes only two chains
+/// Result: chain3 remains frozen even though `protocolFrozenUntil == 0` and
+/// `lastFreezeStatusInUpgradeCycle == AfterSoftFreeze`. This is intentional to allow
+/// granular control over chain freeze states for handling misbehaving or problematic chains.
 contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Duration of the standard legal veto period.
     /// Note: this value should not exceed EXTENDED_LEGAL_VETO_PERIOD.
@@ -369,6 +388,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Initiates a soft protocol freeze.
+    /// @dev Sets protocol-level freeze state and freezes specified chains. The _chainIds parameter allows
+    /// freezing specific chains when _freezeAllChains is false, enabling targeted freeze operations for
+    /// specific problematic chains rather than affecting all chains in the ecosystem.
     /// @param _chainIds The array of chain IDs to freeze.
     /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
     /// @param _pauseBridges Whether to pause the bridging contracts.
@@ -381,6 +403,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @notice Initiates a hard protocol freeze.
+    /// @dev Sets protocol-level freeze state and freezes specified chains. The _chainIds parameter allows
+    /// freezing specific chains when _freezeAllChains is false, enabling targeted freeze operations for
+    /// specific problematic chains rather than affecting all chains in the ecosystem.
     /// @param _chainIds The array of chain IDs to freeze.
     /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
     /// @param _pauseBridges Whether to pause the bridging contracts.
@@ -455,6 +480,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @dev Unfreezes the protocol and resumes normal operations.
+    /// @dev This function clears the protocol-level freeze state (protocolFrozenUntil = 0) and transitions
+    /// lastFreezeStatusInUpgradeCycle (e.g., Soft -> AfterSoftFreeze). However, it only unfreezes the
+    /// chains specified in _chainIds (or all chains if _unfreezeAllChains is true). This means it's possible
+    /// to have the protocol-level freeze cleared while some individual chains remain frozen. This is intentional
+    /// to allow handling of misbehaving chains that should remain frozen.
     /// @param _chainIds The array of chain IDs to unfreeze.
     /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
     /// @param _unpauseBridges Whether to unpause the bridging contracts (BridgeHub, L1Nullifier,

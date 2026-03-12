@@ -662,6 +662,131 @@ contract TestProtocolUpgradeHandler is Test {
         assertEq(protocolFrozenUntil, handler.protocolFrozenUntil());
     }
 
+    /// @notice Test that softFreeze with specific chain IDs only freezes those chains
+    function test_softFreezeWithSpecificChains() public {
+        _resetUpgradeCycle();
+
+        // Prepare specific chains to freeze (chain 1 and chain 2)
+        uint256[] memory specificChains = new uint256[](2);
+        specificChains[0] = chainIds[0]; // chain 1
+        specificChains[1] = chainIds[1]; // chain 2
+
+        uint256 protocolFrozenUntil = block.timestamp + 12 hours;
+
+        // Expect freeze calls ONLY for the specified chains
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainIds[0])
+        );
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainIds[1])
+        );
+
+        // Should NOT freeze chain 3
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainIds[2]),
+            0 // expect 0 calls
+        );
+
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, specificChains, true);
+
+        vm.prank(securityCouncil);
+        handler.softFreeze(specificChains, false, true);
+
+        assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
+        assertEq(protocolFrozenUntil, handler.protocolFrozenUntil());
+    }
+
+    /// @notice Test that hardFreeze with specific chain IDs only freezes those chains
+    function test_hardFreezeWithSpecificChains() public {
+        _resetUpgradeCycle();
+
+        // Prepare specific chains to freeze (only chain 1)
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0]; // chain 1
+
+        uint256 protocolFrozenUntil = block.timestamp + 7 days;
+
+        // Expect freeze call ONLY for chain 1
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainIds[0])
+        );
+
+        // Should NOT freeze chain 2 or 3
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainIds[1]),
+            0 // expect 0 calls
+        );
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainIds[2]),
+            0 // expect 0 calls
+        );
+
+        vm.expectEmit(true, false, false, true);
+        emit IProtocolUpgradeHandler.HardFreeze(protocolFrozenUntil, specificChains, false);
+
+        vm.prank(securityCouncil);
+        handler.hardFreeze(specificChains, false, false);
+
+        assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Hard));
+        assertEq(protocolFrozenUntil, handler.protocolFrozenUntil());
+    }
+
+    /// @notice Test partial freeze: freeze specific chains, then unfreeze subset
+    function test_partialFreezeUnfreeze() public {
+        _resetUpgradeCycle();
+
+        // Step 1: Freeze chains 1, 2, 3
+        uint256[] memory allChains = new uint256[](3);
+        allChains[0] = chainIds[0];
+        allChains[1] = chainIds[1];
+        allChains[2] = chainIds[2];
+
+        vm.prank(securityCouncil);
+        handler.softFreeze(allChains, false, true);
+
+        assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
+        assertGt(handler.protocolFrozenUntil(), 0);
+
+        // Step 2: Unfreeze only chains 1 and 2 (chain 3 remains frozen)
+        uint256[] memory partialChains = new uint256[](2);
+        partialChains[0] = chainIds[0];
+        partialChains[1] = chainIds[1];
+
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
+        );
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[1])
+        );
+        // Chain 3 should NOT be unfrozen
+        vm.expectCall(
+            address(chainTypeManager),
+            abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[2]),
+            0
+        );
+
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(securityCouncil);
+        handler.unfreeze(partialChains, false, true);
+
+        // Protocol-level freeze status is now "after soft freeze"
+        assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze));
+        // Protocol freeze timer is cleared
+        assertEq(handler.protocolFrozenUntil(), 0);
+
+        // Note: Chain 3 remains individually frozen even though protocol-level freeze is cleared
+        // This is by design - protocol-level and chain-level freeze states are independent
+    }
+
     function test_RevertWhen_ReinforceFreezeWithoutFreeze() public {
         _resetUpgradeCycle();
         vm.expectRevert("Protocol should be already frozen");
