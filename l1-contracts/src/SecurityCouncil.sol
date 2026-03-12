@@ -120,7 +120,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         checkSignatures(digest, _signers, _signatures, softFreezeThreshold);
         // Reset threshold
         softFreezeThreshold = SOFT_FREEZE_CONSERVATIVE_THRESHOLD;
-        PROTOCOL_UPGRADE_HANDLER.softFreeze(_chainIds, _pauseBridges);
+        PROTOCOL_UPGRADE_HANDLER.softFreeze(_chainIds, _chainIds.length == 0, _pauseBridges);
     }
 
     /// @notice Initiates the protocol hard freeze by majority of the Security Council members.
@@ -147,7 +147,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
             ))
         );
         checkSignatures(digest, _signers, _signatures, HARD_FREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, _pauseBridges);
+        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, _chainIds.length == 0, _pauseBridges);
     }
 
     /// @notice Initiates the protocol unfreeze by the Security Council members.
@@ -174,7 +174,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
             ))
         );
         checkSignatures(digest, _signers, _signatures, UNFREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.unfreeze(_chainIds, _unpauseBridges);
+        PROTOCOL_UPGRADE_HANDLER.unfreeze(_chainIds, _chainIds.length == 0, _unpauseBridges);
     }
 
     /// @notice Sets the threshold for triggering a soft freeze.

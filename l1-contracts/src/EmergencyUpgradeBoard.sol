@@ -26,15 +26,15 @@ contract EmergencyUpgradeBoard is EIP712 {
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the guardians.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeGuardians(bytes32 id,uint256[] chainIds,bool unpauseBridges)");
+        keccak256("ExecuteEmergencyUpgradeGuardians(bytes32 id,uint256[] chainIds,uint8 flags)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the Security Council.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeSecurityCouncil(bytes32 id,uint256[] chainIds,bool unpauseBridges)");
+        keccak256("ExecuteEmergencyUpgradeSecurityCouncil(bytes32 id,uint256[] chainIds,uint8 flags)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the ZK Foundation.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeZKFoundation(bytes32 id,uint256[] chainIds,bool unpauseBridges)");
+        keccak256("ExecuteEmergencyUpgradeZKFoundation(bytes32 id,uint256[] chainIds,uint8 flags)");
 
     /// @dev Initializes the Emergency Upgrade Board contract with setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
@@ -56,6 +56,8 @@ contract EmergencyUpgradeBoard is EIP712 {
     /// @notice Executes an emergency protocol upgrade approved by the Security Council, Guardians and ZK Foundation.
     /// @param _calls Array of `Call` structures specifying the calls to be made in the upgrade.
     /// @param _salt A bytes32 value used for creating unique upgrade proposal hashes.
+    /// @param _chainIds The array of chain IDs to unfreeze.
+    /// @param _flags Flags byte where bit 0 = unfreezeAllChains (1 to unfreeze all), bit 1 = unpauseBridges (1 to unpause).
     /// @param _guardiansSignatures Encoded signers & signatures from the guardians multisig, required to authorize the emergency upgrade.
     /// @param _securityCouncilSignatures Encoded signers & signatures from the Security Council multisig, required to authorize the emergency upgrade.
     /// @param _zkFoundationSignatures Signatures from the ZK Foundation multisig, required to authorize the emergency upgrade.
@@ -63,7 +65,7 @@ contract EmergencyUpgradeBoard is EIP712 {
         IProtocolUpgradeHandler.Call[] calldata _calls,
         bytes32 _salt,
         uint256[] calldata _chainIds,
-        bool _unpauseBridges,
+        uint8 _flags,
         bytes calldata _guardiansSignatures,
         bytes calldata _securityCouncilSignatures,
         bytes calldata _zkFoundationSignatures
@@ -78,7 +80,7 @@ contract EmergencyUpgradeBoard is EIP712 {
                     EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH,
                     id,
                     keccak256(abi.encodePacked(_chainIds)),
-                    _unpauseBridges
+                    _flags
                 ))),
                 _guardiansSignatures
             ),
@@ -91,7 +93,7 @@ contract EmergencyUpgradeBoard is EIP712 {
                     EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH,
                     id,
                     keccak256(abi.encodePacked(_chainIds)),
-                    _unpauseBridges
+                    _flags
                 ))),
                 _securityCouncilSignatures
             ),
@@ -104,13 +106,18 @@ contract EmergencyUpgradeBoard is EIP712 {
                     EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH,
                     id,
                     keccak256(abi.encodePacked(_chainIds)),
-                    _unpauseBridges
+                    _flags
                 ))),
                 _zkFoundationSignatures
             ),
             "Invalid ZK Foundation signatures"
         );
 
-        PROTOCOL_UPGRADE_HANDLER.executeEmergencyUpgrade(upgradeProposal, _chainIds, _unpauseBridges);
+        PROTOCOL_UPGRADE_HANDLER.executeEmergencyUpgrade(
+            upgradeProposal,
+            _chainIds,
+            (_flags & 1) != 0,
+            (_flags & 2) != 0
+        );
     }
 }
