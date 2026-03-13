@@ -51,12 +51,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 /// `lastFreezeStatusInUpgradeCycle == AfterSoftFreeze`. This is intentional to allow
 /// granular control over chain freeze states for handling misbehaving or problematic chains.
 contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
-    /// @dev Bit 0 of flags: freeze/unfreeze all chains flag.
-    uint8 internal constant FLAG_ALL_CHAINS = 1;
-
-    /// @dev Bit 1 of flags: pause/unpause bridges flag.
-    uint8 internal constant FLAG_PAUSE_BRIDGES = 2;
-
     /// @dev Duration of the standard legal veto period.
     /// Note: this value should not exceed EXTENDED_LEGAL_VETO_PERIOD.
     function STANDARD_LEGAL_VETO_PERIOD() internal pure virtual returns (uint256) {
