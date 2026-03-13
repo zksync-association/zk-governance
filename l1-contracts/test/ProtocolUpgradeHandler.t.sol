@@ -960,13 +960,10 @@ contract TestProtocolUpgradeHandler is Test {
         // Warp past the freeze period
         vm.warp(block.timestamp + 12 hours + 1);
 
-        uint256[] memory specificChains = new uint256[](1);
-        specificChains[0] = chainIds[0];
-
-        // Anyone can call after freeze expired
+        // Anyone can call after freeze expired, but must unfreeze all chains and unpause bridges
         address randomCaller = makeAddr("randomCaller");
         vm.prank(randomCaller);
-        handler.unfreeze(specificChains, false, true);
+        handler.unfreeze(new uint256[](0), true, true);
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -998,6 +995,60 @@ contract TestProtocolUpgradeHandler is Test {
         vm.prank(randomCaller);
         vm.expectRevert("Only Security Council is allowed to call this function or the protocol should be frozen");
         handler.unfreeze(specificChains, false, true);
+    }
+
+    function test_RevertWhen_unfreezeAfterExpiryWithStrategicChainSelection() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true, true);
+
+        // Warp past the freeze period
+        vm.warp(block.timestamp + 12 hours + 1);
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        // Non-Security Council caller cannot strategically select specific chains
+        address randomCaller = makeAddr("randomCaller");
+        vm.prank(randomCaller);
+        vm.expectRevert("Non-Security Council must unfreeze all chains");
+        handler.unfreeze(specificChains, false, true);
+    }
+
+    function test_RevertWhen_unfreezeAfterExpiryWithoutUnpausingBridges() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true, true);
+
+        // Warp past the freeze period
+        vm.warp(block.timestamp + 12 hours + 1);
+
+        // Non-Security Council caller must unpause bridges
+        address randomCaller = makeAddr("randomCaller");
+        vm.prank(randomCaller);
+        vm.expectRevert("Non-Security Council must unpause bridges");
+        handler.unfreeze(new uint256[](0), true, false);
+    }
+
+    function test_securityCouncilCanUnfreezeSpecificChainsAfterExpiry() public {
+        _resetUpgradeCycle();
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true, true);
+
+        // Warp past the freeze period
+        vm.warp(block.timestamp + 12 hours + 1);
+
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        // Security Council can still strategically select specific chains
+        vm.prank(securityCouncil);
+        handler.unfreeze(specificChains, false, false);
+
+        assertEq(
+            uint256(handler.lastFreezeStatusInUpgradeCycle()),
+            uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze)
+        );
     }
 
     function test_emergencyUpgradeClearsFreezeStateAndUnfreezesAll() public {
@@ -1298,6 +1349,15 @@ contract TestProtocolUpgradeHandler is Test {
         handler.softFreeze(emptyChains, false, false);
     }
 
+    function test_RevertWhen_freezeAllChainsWithNonEmptyChainIds() public {
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+
+        vm.prank(securityCouncil);
+        vm.expectRevert("Cannot specify chain IDs when freezing all chains");
+        handler.softFreeze(specificChains, true, false);
+    }
+
     /// @notice Test that unfreeze reverts when trying to unfreeze zero chains
     function test_RevertWhen_unfreezeZeroChains() public {
         // First freeze with all chains
@@ -1311,6 +1371,21 @@ contract TestProtocolUpgradeHandler is Test {
         vm.prank(securityCouncil);
         vm.expectRevert("Cannot unfreeze zero chains");
         handler.unfreeze(emptyChains, false, false);
+    }
+
+    function test_RevertWhen_unfreezeAllChainsWithNonEmptyChainIds() public {
+        // First freeze with all chains
+        vm.prank(securityCouncil);
+        handler.softFreeze(new uint256[](0), true, true);
+
+        vm.warp(block.timestamp + 1 hours);
+
+        // Try to unfreeze all chains with non-empty chain IDs
+        uint256[] memory specificChains = new uint256[](1);
+        specificChains[0] = chainIds[0];
+        vm.prank(securityCouncil);
+        vm.expectRevert("Cannot specify chain IDs when unfreezing all chains");
+        handler.unfreeze(specificChains, true, false);
     }
 
     /// @notice Test that reinforceFreeze reverts when trying to freeze zero chains

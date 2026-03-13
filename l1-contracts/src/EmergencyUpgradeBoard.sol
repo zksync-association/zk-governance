@@ -5,7 +5,7 @@ pragma solidity 0.8.24;
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
-import {FreezeFlags} from "./interfaces/IFreezeFlags.sol";
+import {FreezeFlags} from "./interfaces/FreezeFlags.sol";
 
 /// @title Emergency Upgrade Board
 /// @author Matter Labs

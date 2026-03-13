@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 
 import {ISecurityCouncil} from "./interfaces/ISecurityCouncil.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
-import {FreezeFlags} from "./interfaces/IFreezeFlags.sol";
+import {FreezeFlags} from "./interfaces/FreezeFlags.sol";
 import {Multisig} from "./Multisig.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 

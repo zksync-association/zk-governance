@@ -5,10 +5,6 @@ pragma solidity 0.8.24;
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 interface IProtocolUpgradeHandler {
-    /// @notice Thrown when a chain type manager is not found for a given chain ID.
-    /// @param chainId The chain ID that has no associated chain type manager.
-    error ChainTypeManagerNotFound(uint256 chainId);
-
     /// @notice Thrown when a required contract address has no code deployed.
     /// @param contractAddress The address that should be a contract but has no code.
     error EmptyContract(address contractAddress);
