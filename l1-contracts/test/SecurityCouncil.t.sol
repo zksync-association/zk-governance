@@ -6,8 +6,8 @@ import {Test, Vm} from "forge-std/Test.sol";
 import {Utils} from "./utils/Utils.t.sol";
 import {EIP712Util} from "./utils/EIP712Util.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
-import {SecurityCouncil} from "../../src/SecurityCouncil.sol";
-import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
+import {SecurityCouncil} from "../src/SecurityCouncil.sol";
+import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract TestSecurityCouncil is Test, EIP712Util {

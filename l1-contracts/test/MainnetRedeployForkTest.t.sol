@@ -8,12 +8,11 @@ import {Callee} from "./utils/Callee.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
 import {StateTransitionManagerMock} from "./mocks/StateTransitionManagerMock.t.sol";
 
-import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
-import {IZKsyncEra} from "../../src/interfaces/IZKsyncEra.sol";
-import {IStateTransitionManager} from "../../src/interfaces/IStateTransitionManager.sol";
-import {IPausable} from "../../src/interfaces/IPausable.sol";
+import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
+import {IStateTransitionManager} from "../src/interfaces/IStateTransitionManager.sol";
+import {IPausable} from "../src/interfaces/IPausable.sol";
 
-import {ProtocolUpgradeHandler} from "../../src/ProtocolUpgradeHandler.sol";
+import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
 
 
 import {MainnetRedeploy} from "../scripts/MainnetRedeploy.s.sol";
