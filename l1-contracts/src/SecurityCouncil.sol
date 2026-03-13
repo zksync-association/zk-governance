@@ -12,6 +12,12 @@ import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 /// @custom:security-contact security@matterlabs.dev
 /// @dev The group of security experts who serve as a technical security service for ZKsync protocol.
 contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
+    /// @dev Bit 0 of flags: freeze/unfreeze all chains flag.
+    uint8 internal constant FLAG_ALL_CHAINS = 1;
+
+    /// @dev Bit 1 of flags: pause/unpause bridges flag.
+    uint8 internal constant FLAG_PAUSE_BRIDGES = 2;
+
     /// @notice Address of the contract, which manages protocol upgrades.
     IProtocolUpgradeHandler public immutable PROTOCOL_UPGRADE_HANDLER;
 
@@ -120,7 +126,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         checkSignatures(digest, _signers, _signatures, softFreezeThreshold);
         // Reset threshold
         softFreezeThreshold = SOFT_FREEZE_CONSERVATIVE_THRESHOLD;
-        PROTOCOL_UPGRADE_HANDLER.softFreeze(_chainIds, (_flags & 1) != 0, (_flags & 2) != 0);
+        PROTOCOL_UPGRADE_HANDLER.softFreeze(_chainIds, (_flags & FLAG_ALL_CHAINS) != 0, (_flags & FLAG_PAUSE_BRIDGES) != 0);
     }
 
     /// @notice Initiates the protocol hard freeze by majority of the Security Council members.
@@ -147,7 +153,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
             ))
         );
         checkSignatures(digest, _signers, _signatures, HARD_FREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, (_flags & 1) != 0, (_flags & 2) != 0);
+        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, (_flags & FLAG_ALL_CHAINS) != 0, (_flags & FLAG_PAUSE_BRIDGES) != 0);
     }
 
     /// @notice Initiates the protocol unfreeze by the Security Council members.
@@ -174,7 +180,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
             ))
         );
         checkSignatures(digest, _signers, _signatures, UNFREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.unfreeze(_chainIds, (_flags & 1) != 0, (_flags & 2) != 0);
+        PROTOCOL_UPGRADE_HANDLER.unfreeze(_chainIds, (_flags & FLAG_ALL_CHAINS) != 0, (_flags & FLAG_PAUSE_BRIDGES) != 0);
     }
 
     /// @notice Sets the threshold for triggering a soft freeze.

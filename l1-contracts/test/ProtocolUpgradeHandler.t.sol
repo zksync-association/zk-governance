@@ -652,7 +652,7 @@ contract TestProtocolUpgradeHandler is Test {
         _resetUpgradeCycle();
         uint256 protocolFrozenUntil = block.timestamp + 12 hours;
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, new uint256[](0), true);
+        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, new uint256[](0), true, true);
         _expectFreezeAttempt();
 
         vm.prank(securityCouncil);
@@ -691,7 +691,7 @@ contract TestProtocolUpgradeHandler is Test {
         );
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, specificChains, true);
+        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, specificChains, false, true);
 
         vm.prank(securityCouncil);
         handler.softFreeze(specificChains, false, true);
@@ -729,7 +729,7 @@ contract TestProtocolUpgradeHandler is Test {
         );
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.HardFreeze(protocolFrozenUntil, specificChains, false);
+        emit IProtocolUpgradeHandler.HardFreeze(protocolFrozenUntil, specificChains, false, false);
 
         vm.prank(securityCouncil);
         handler.hardFreeze(specificChains, false, false);
@@ -793,12 +793,6 @@ contract TestProtocolUpgradeHandler is Test {
         handler.reinforceFreeze(new uint256[](0), true, true);
     }
 
-    function test_RevertWhen_ReinforceFreezeOneChainWithoutFreeze(uint256 _chainId) public {
-        _resetUpgradeCycle();
-        vm.expectRevert("Protocol should be already frozen");
-        handler.reinforceFreezeOneChain(_chainId);
-    }
-
     function test_softFreezeReinforceFreeze(uint256 _timeAfterFreeze) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
@@ -808,35 +802,6 @@ contract TestProtocolUpgradeHandler is Test {
         vm.warp(timeAfterFreeze);
         _expectFreezeAttempt();
         handler.reinforceFreeze(new uint256[](0), true, true);
-    }
-
-    function test_softFreezeReinforceFreezeOneChain(uint256 _timeAfterFreeze, uint8 _chainIdPos) public {
-        _resetUpgradeCycle();
-        vm.prank(securityCouncil);
-        handler.softFreeze(new uint256[](0), true, true);
-
-        uint256 timeAfterFreeze = bound(_timeAfterFreeze, block.timestamp, block.timestamp + 12 hours);
-        vm.warp(timeAfterFreeze);
-        uint256 chainIdPos = bound(_chainIdPos, 0, chainIds.length - 1);
-        uint256 chainId = chainIds[chainIdPos];
-        handler.reinforceFreezeOneChain(chainId);
-    }
-
-    function test_RevertWhen_softFreezeReinforceFreezeOneChainChainIdIsNotRegistered(
-        uint256 _timeAfterFreeze,
-        uint256 _chainId
-    ) public {
-        _resetUpgradeCycle();
-        vm.prank(securityCouncil);
-        handler.softFreeze(new uint256[](0), true, true);
-
-        uint256 timeAfterFreeze = bound(_timeAfterFreeze, block.timestamp, block.timestamp + 12 hours);
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            vm.assume(chainIds[i] != _chainId);
-        }
-        vm.warp(timeAfterFreeze);
-        vm.expectRevert();
-        handler.reinforceFreezeOneChain(_chainId);
     }
 
     function test_unfreezeAfterSoftFreezeSecurityCouncil(uint256 _ufreezeAfter) public {
@@ -925,7 +890,7 @@ contract TestProtocolUpgradeHandler is Test {
 
         // Verify event with correct parameters
         vm.expectEmit(true, true, true, true);
-        emit IProtocolUpgradeHandler.Unfreeze(specificChains, true);
+        emit IProtocolUpgradeHandler.Unfreeze(specificChains, false, true);
 
         vm.prank(securityCouncil);
         handler.unfreeze(specificChains, false, true);
@@ -1070,7 +1035,7 @@ contract TestProtocolUpgradeHandler is Test {
             abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
         );
         vm.expectEmit(true, true, true, true);
-        emit IProtocolUpgradeHandler.Unfreeze(specificChains, false);
+        emit IProtocolUpgradeHandler.Unfreeze(specificChains, false, false);
 
         vm.prank(securityCouncil);
         handler.unfreeze(specificChains, false, false);
@@ -1101,7 +1066,7 @@ contract TestProtocolUpgradeHandler is Test {
             abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[1])
         );
         vm.expectEmit(true, true, true, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(specificChains, true);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(specificChains, false, true);
 
         handler.reinforceUnfreeze(specificChains, false, true);
     }
@@ -1178,7 +1143,7 @@ contract TestProtocolUpgradeHandler is Test {
         firstSet[1] = chainIds[1]; // 300
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceFreeze(firstSet, false);
+        emit IProtocolUpgradeHandler.ReinforceFreeze(firstSet, false, false);
         handler.reinforceFreeze(firstSet, false, false);
 
         // Second reinforceFreeze with chains [300, 324] (overlapping with chain 300)
@@ -1187,12 +1152,12 @@ contract TestProtocolUpgradeHandler is Test {
         secondSet[1] = chainIds[2]; // 324
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceFreeze(secondSet, false);
+        emit IProtocolUpgradeHandler.ReinforceFreeze(secondSet, false, false);
         handler.reinforceFreeze(secondSet, false, false);
 
         // Third reinforceFreeze with all chains (complete overlap)
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceFreeze(chainIds, true);
+        emit IProtocolUpgradeHandler.ReinforceFreeze(chainIds, false, true);
         handler.reinforceFreeze(chainIds, false, true);
 
         // Verify protocol is still frozen
@@ -1219,7 +1184,7 @@ contract TestProtocolUpgradeHandler is Test {
         firstSet[1] = chainIds[1]; // 300
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(firstSet, false);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(firstSet, false, false);
         handler.reinforceUnfreeze(firstSet, false, false);
 
         // Second reinforceUnfreeze with chains [300, 324] (overlapping with chain 300)
@@ -1228,12 +1193,12 @@ contract TestProtocolUpgradeHandler is Test {
         secondSet[1] = chainIds[2]; // 324
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(secondSet, false);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(secondSet, false, false);
         handler.reinforceUnfreeze(secondSet, false, false);
 
         // Third reinforceUnfreeze with all chains (complete overlap)
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(chainIds, true);
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(chainIds, false, true);
         handler.reinforceUnfreeze(chainIds, false, true);
 
         // Verify protocol is still unfrozen

@@ -51,6 +51,12 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 /// `lastFreezeStatusInUpgradeCycle == AfterSoftFreeze`. This is intentional to allow
 /// granular control over chain freeze states for handling misbehaving or problematic chains.
 contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
+    /// @dev Bit 0 of flags: freeze/unfreeze all chains flag.
+    uint8 internal constant FLAG_ALL_CHAINS = 1;
+
+    /// @dev Bit 1 of flags: pause/unpause bridges flag.
+    uint8 internal constant FLAG_PAUSE_BRIDGES = 2;
+
     /// @dev Duration of the standard legal veto period.
     /// Note: this value should not exceed EXTENDED_LEGAL_VETO_PERIOD.
     function STANDARD_LEGAL_VETO_PERIOD() internal pure virtual returns (uint256) {
@@ -147,6 +153,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         if (address(_l1AssetRouter).code.length == 0) revert EmptyContract(address(_l1AssetRouter));
         if (address(_l1NativeTokenVault).code.length == 0) revert EmptyContract(address(_l1NativeTokenVault));
         if (address(_chainAssetHandler).code.length == 0) revert EmptyContract(address(_chainAssetHandler));
+        require(_eraChainId != 0, "Era chain ID cannot be zero");
 
         // Soft configuration check for contracts that inherit this contract.
         assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
@@ -355,7 +362,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         // 3. Interactions
         _unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
         _execute(_proposal.calls);
-        emit Unfreeze(_chainIds, _unpauseBridges);
+        emit Unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
         emit EmergencyUpgradeExecuted(id);
     }
 
@@ -398,7 +405,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Soft;
         protocolFrozenUntil = block.timestamp + SOFT_FREEZE_PERIOD;
         _freeze(_chainIds, _freezeAllChains, _pauseBridges);
-        emit SoftFreeze(protocolFrozenUntil, _chainIds, _pauseBridges);
+        emit SoftFreeze(protocolFrozenUntil, _chainIds, _freezeAllChains, _pauseBridges);
     }
 
     /// @notice Initiates a hard protocol freeze.
@@ -418,7 +425,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
         _freeze(_chainIds, _freezeAllChains, _pauseBridges);
-        emit HardFreeze(protocolFrozenUntil, _chainIds, _pauseBridges);
+        emit HardFreeze(protocolFrozenUntil, _chainIds, _freezeAllChains, _pauseBridges);
     }
 
     /// @dev Reinforces the freezing state of the protocol if it is already within the frozen period. This function
@@ -430,23 +437,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     function reinforceFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
         _freeze(_chainIds, _freezeAllChains, _pauseBridges);
-        emit ReinforceFreeze(_chainIds, _pauseBridges);
-    }
-
-    /// @dev Reinforces the freezing state of a specific chain if the protocol is already within the frozen period.
-    /// Unlike reinforceFreeze which uses try/catch and continues on failure, this function will REVERT
-    /// if the chain fails to freeze. Use this when you need a guarantee that a specific chain was frozen
-    /// successfully, particularly in cases where a chain's freeze operation is critical and failures
-    /// should be explicit rather than silent.
-    /// @param _chainId The ID of the chain to freeze.
-    function reinforceFreezeOneChain(uint256 _chainId) external {
-        require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
-        address ctm = BRIDGE_HUB.chainTypeManager(_chainId);
-        if (ctm == address(0)) {
-            revert ChainTypeManagerNotFound(_chainId);
-        }
-        IChainTypeManager(ctm).freezeChain(_chainId);
-        emit ReinforceFreezeOneChain(_chainId);
+        emit ReinforceFreeze(_chainIds, _freezeAllChains, _pauseBridges);
     }
 
     /// @dev Freeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
@@ -498,7 +489,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         }
         protocolFrozenUntil = 0;
         _unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
-        emit Unfreeze(_chainIds, _unpauseBridges);
+        emit Unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
     }
 
     /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode. This function can be called
@@ -510,7 +501,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
         _unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
-        emit ReinforceUnfreeze(_chainIds, _unpauseBridges);
+        emit ReinforceUnfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
     }
 
     /// @dev Unfreeze ZKsync contracts, including bridges, state transition managers and ZK Chains.

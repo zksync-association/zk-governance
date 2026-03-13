@@ -131,10 +131,6 @@ interface IProtocolUpgradeHandler {
     /// @param _unpauseBridges Whether to unpause the bridging contracts.
     function unfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external;
 
-    /// @notice Reinforces the freezing state of a specific chain if the protocol is already within the frozen period.
-    /// @param _chainId The ID of the chain to freeze.
-    function reinforceFreezeOneChain(uint256 _chainId) external;
-
     /// @notice Reinforces the unfreeze for protocol if it is not in the freeze mode.
     /// @param _chainIds The array of chain IDs to unfreeze.
     /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
@@ -181,30 +177,32 @@ interface IProtocolUpgradeHandler {
     /// @notice Emitted when the protocol became soft frozen.
     /// @param _protocolFrozenUntil The timestamp until which the protocol is frozen.
     /// @param _chainIds The chain IDs that were frozen (may be empty when freezing all chains via flag).
+    /// @param _freezeAllChains Whether all chains were frozen (true) or specific chains (false).
     /// @param _pauseBridges Whether the bridging contracts were paused.
-    event SoftFreeze(uint256 _protocolFrozenUntil, uint256[] _chainIds, bool _pauseBridges);
+    event SoftFreeze(uint256 _protocolFrozenUntil, uint256[] _chainIds, bool _freezeAllChains, bool _pauseBridges);
 
     /// @notice Emitted when the protocol became hard frozen.
     /// @param _protocolFrozenUntil The timestamp until which the protocol is frozen.
     /// @param _chainIds The chain IDs that were frozen (may be empty when freezing all chains via flag).
+    /// @param _freezeAllChains Whether all chains were frozen (true) or specific chains (false).
     /// @param _pauseBridges Whether the bridging contracts were paused.
-    event HardFreeze(uint256 _protocolFrozenUntil, uint256[] _chainIds, bool _pauseBridges);
+    event HardFreeze(uint256 _protocolFrozenUntil, uint256[] _chainIds, bool _freezeAllChains, bool _pauseBridges);
 
     /// @notice Emitted when someone makes an attempt to freeze the protocol when it is frozen already.
     /// @param _chainIds The chain IDs that were frozen (may be empty when freezing all chains via flag).
+    /// @param _freezeAllChains Whether all chains were frozen (true) or specific chains (false).
     /// @param _pauseBridges Whether the bridging contracts were paused.
-    event ReinforceFreeze(uint256[] _chainIds, bool _pauseBridges);
+    event ReinforceFreeze(uint256[] _chainIds, bool _freezeAllChains, bool _pauseBridges);
 
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
     /// @param _chainIds The chain IDs that were unfrozen (may be empty when unfreezing all chains via flag).
+    /// @param _unfreezeAllChains Whether all chains were unfrozen (true) or specific chains (false).
     /// @param _unpauseBridges Whether the bridging contracts were unpaused.
-    event Unfreeze(uint256[] _chainIds, bool _unpauseBridges);
-
-    /// @notice Emitted when someone makes an attempt to freeze the specific chain when the protocol is frozen already.
-    event ReinforceFreezeOneChain(uint256 _chainId);
+    event Unfreeze(uint256[] _chainIds, bool _unfreezeAllChains, bool _unpauseBridges);
 
     /// @notice Emitted when someone makes an attempt to unfreeze the protocol when it is unfrozen already.
     /// @param _chainIds The chain IDs that were unfrozen (may be empty when unfreezing all chains via flag).
+    /// @param _unfreezeAllChains Whether all chains were unfrozen (true) or specific chains (false).
     /// @param _unpauseBridges Whether the bridging contracts were unpaused.
-    event ReinforceUnfreeze(uint256[] _chainIds, bool _unpauseBridges);
+    event ReinforceUnfreeze(uint256[] _chainIds, bool _unfreezeAllChains, bool _unpauseBridges);
 }
