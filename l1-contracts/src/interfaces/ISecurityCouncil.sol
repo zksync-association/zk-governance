@@ -10,7 +10,7 @@ interface ISecurityCouncil {
 
     function softFreeze(
         uint256[] calldata _chainIds,
-        bool _pauseBridges,
+        uint8 _flags,
         uint256 _validUntil,
         address[] calldata _signers,
         bytes[] calldata _signatures
@@ -18,7 +18,7 @@ interface ISecurityCouncil {
 
     function hardFreeze(
         uint256[] calldata _chainIds,
-        bool _pauseBridges,
+        uint8 _flags,
         uint256 _validUntil,
         address[] calldata _signers,
         bytes[] calldata _signatures
@@ -26,7 +26,7 @@ interface ISecurityCouncil {
 
     function unfreeze(
         uint256[] calldata _chainIds,
-        bool _unpauseBridges,
+        uint8 _flags,
         uint256 _validUntil,
         address[] calldata _signers,
         bytes[] calldata _signatures

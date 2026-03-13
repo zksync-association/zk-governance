@@ -21,18 +21,18 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
 
     /// @dev EIP-712 TypeHash for soft emergency freeze approval by the Security Council.
     bytes32 internal constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("SoftFreeze(uint256[] chainIds,bool pauseBridges,uint256 nonce,uint256 validUntil)");
+        keccak256("SoftFreeze(uint256[] chainIds,uint8 flags,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for hard emergency freeze approval by the Security Council.
     bytes32 internal constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("HardFreeze(uint256[] chainIds,bool pauseBridges,uint256 nonce,uint256 validUntil)");
+        keccak256("HardFreeze(uint256[] chainIds,uint8 flags,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for setting threshold for soft freeze approval by the Security Council.
     bytes32 internal constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the Security Council.
-    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256[] chainIds,bool unpauseBridges,uint256 nonce,uint256 validUntil)");
+    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256[] chainIds,uint8 flags,uint256 nonce,uint256 validUntil)");
 
     /// @dev The default threshold for soft freeze initiated by the Security Council.
     uint256 public constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 9;
@@ -95,14 +95,14 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     }
 
     /// @notice Initiates the protocol soft freeze by small threshold of the Security Council members.
-    /// @param _chainIds The array of chain IDs to freeze. If empty, freezes all chains.
-    /// @param _pauseBridges Whether to pause the bridging contracts.
+    /// @param _chainIds The array of chain IDs to freeze.
+    /// @param _flags Flags byte where bit 0 = freezeAllChains (1 to freeze all), bit 1 = pauseBridges (1 to pause).
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
     function softFreeze(
         uint256[] calldata _chainIds,
-        bool _pauseBridges,
+        uint8 _flags,
         uint256 _validUntil,
         address[] calldata _signers,
         bytes[] calldata _signatures
@@ -112,7 +112,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
             keccak256(abi.encode(
                 SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH,
                 keccak256(abi.encodePacked(_chainIds)),
-                _pauseBridges,
+                _flags,
                 softFreezeNonce++,
                 _validUntil
             ))
@@ -120,18 +120,18 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         checkSignatures(digest, _signers, _signatures, softFreezeThreshold);
         // Reset threshold
         softFreezeThreshold = SOFT_FREEZE_CONSERVATIVE_THRESHOLD;
-        PROTOCOL_UPGRADE_HANDLER.softFreeze(_chainIds, _chainIds.length == 0, _pauseBridges);
+        PROTOCOL_UPGRADE_HANDLER.softFreeze(_chainIds, (_flags & 1) != 0, (_flags & 2) != 0);
     }
 
     /// @notice Initiates the protocol hard freeze by majority of the Security Council members.
-    /// @param _chainIds The array of chain IDs to freeze. If empty, freezes all chains.
-    /// @param _pauseBridges Whether to pause the bridging contracts.
+    /// @param _chainIds The array of chain IDs to freeze.
+    /// @param _flags Flags byte where bit 0 = freezeAllChains (1 to freeze all), bit 1 = pauseBridges (1 to pause).
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
     function hardFreeze(
         uint256[] calldata _chainIds,
-        bool _pauseBridges,
+        uint8 _flags,
         uint256 _validUntil,
         address[] calldata _signers,
         bytes[] calldata _signatures
@@ -141,24 +141,24 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
             keccak256(abi.encode(
                 HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH,
                 keccak256(abi.encodePacked(_chainIds)),
-                _pauseBridges,
+                _flags,
                 hardFreezeNonce++,
                 _validUntil
             ))
         );
         checkSignatures(digest, _signers, _signatures, HARD_FREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, _chainIds.length == 0, _pauseBridges);
+        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_chainIds, (_flags & 1) != 0, (_flags & 2) != 0);
     }
 
     /// @notice Initiates the protocol unfreeze by the Security Council members.
-    /// @param _chainIds The array of chain IDs to unfreeze. If empty, unfreezes all chains.
-    /// @param _unpauseBridges Whether to unpause the bridging contracts.
+    /// @param _chainIds The array of chain IDs to unfreeze.
+    /// @param _flags Flags byte where bit 0 = unfreezeAllChains (1 to unfreeze all), bit 1 = unpauseBridges (1 to unpause).
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the unfreeze.
     function unfreeze(
         uint256[] calldata _chainIds,
-        bool _unpauseBridges,
+        uint8 _flags,
         uint256 _validUntil,
         address[] calldata _signers,
         bytes[] calldata _signatures
@@ -168,13 +168,13 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
             keccak256(abi.encode(
                 UNFREEZE_TYPEHASH,
                 keccak256(abi.encodePacked(_chainIds)),
-                _unpauseBridges,
+                _flags,
                 unfreezeNonce++,
                 _validUntil
             ))
         );
         checkSignatures(digest, _signers, _signatures, UNFREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.unfreeze(_chainIds, _chainIds.length == 0, _unpauseBridges);
+        PROTOCOL_UPGRADE_HANDLER.unfreeze(_chainIds, (_flags & 1) != 0, (_flags & 2) != 0);
     }
 
     /// @notice Sets the threshold for triggering a soft freeze.
