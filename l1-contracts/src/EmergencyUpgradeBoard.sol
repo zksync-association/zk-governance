@@ -5,18 +5,13 @@ pragma solidity 0.8.24;
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
+import {FreezeFlags} from "./interfaces/IFreezeFlags.sol";
 
 /// @title Emergency Upgrade Board
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 contract EmergencyUpgradeBoard is EIP712 {
     using SignatureChecker for address;
-
-    /// @dev Bit 0 of flags: unfreeze all chains flag.
-    uint8 internal constant FLAG_ALL_CHAINS = 1;
-
-    /// @dev Bit 1 of flags: unpause bridges flag.
-    uint8 internal constant FLAG_PAUSE_BRIDGES = 2;
 
     /// @notice Address of the contract, which manages protocol upgrades.
     IProtocolUpgradeHandler public immutable PROTOCOL_UPGRADE_HANDLER;
@@ -122,8 +117,8 @@ contract EmergencyUpgradeBoard is EIP712 {
         PROTOCOL_UPGRADE_HANDLER.executeEmergencyUpgrade(
             upgradeProposal,
             _chainIds,
-            (_flags & FLAG_ALL_CHAINS) != 0,
-            (_flags & FLAG_PAUSE_BRIDGES) != 0
+            (_flags & FreezeFlags.FLAG_ALL_CHAINS) != 0,
+            (_flags & FreezeFlags.FLAG_AFFECT_BRIDGES) != 0
         );
     }
 }

@@ -422,13 +422,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         emit HardFreeze(protocolFrozenUntil, _chainIds, _freezeAllChains, _pauseBridges);
     }
 
-    /// @dev Reinforces the freezing state of the protocol if it is already within the frozen period. This function
-    /// can be called by anyone to ensure the protocol remains in a frozen state, particularly useful if there is a need
-    /// to confirm or re-apply the freeze due to partial or incomplete application during the initial freeze.
+    /// @dev Reinforces the freezing state of the protocol if it is already within the frozen period.
+    /// @dev Only Security Council can call this to prevent unauthorized strategic selection of chains to freeze.
     /// @param _chainIds The array of chain IDs to freeze.
     /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
     /// @param _pauseBridges Whether to pause the bridging contracts.
-    function reinforceFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external {
+    function reinforceFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external onlySecurityCouncil {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
         _freeze(_chainIds, _freezeAllChains, _pauseBridges);
         emit ReinforceFreeze(_chainIds, _freezeAllChains, _pauseBridges);
@@ -449,7 +448,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         for (uint256 i = 0; i < len; ++i) {
             address ctm = BRIDGE_HUB.chainTypeManager(chainsToFreeze[i]);
             if (ctm == address(0)) {
-                revert ChainTypeManagerNotFound(chainsToFreeze[i]);
+                // Skip chains without a CTM instead of reverting to maintain operational resilience
+                emit ChainSkippedNoChainTypeManager(chainsToFreeze[i]);
+                continue;
             }
             try IChainTypeManager(ctm).freezeChain(chainsToFreeze[i]) {} catch {}
         }
@@ -486,13 +487,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         emit Unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
     }
 
-    /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode. This function can be called
-    /// by anyone to ensure the protocol remains in an unfrozen state, particularly useful if there is a need
-    /// to confirm or re-apply the unfreeze due to partial or incomplete application during the initial unfreeze.
+    /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode.
+    /// @dev Only Security Council can call this to prevent unauthorized strategic selection of chains to unfreeze.
     /// @param _chainIds The array of chain IDs to unfreeze.
     /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
     /// @param _unpauseBridges Whether to unpause the bridging contracts.
-    function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external {
+    function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external onlySecurityCouncil {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
         _unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
         emit ReinforceUnfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
@@ -513,7 +513,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         for (uint256 i = 0; i < len; ++i) {
             address ctm = BRIDGE_HUB.chainTypeManager(chainsToUnfreeze[i]);
             if (ctm == address(0)) {
-                revert ChainTypeManagerNotFound(chainsToUnfreeze[i]);
+                // Skip chains without a CTM instead of reverting to maintain operational resilience
+                emit ChainSkippedNoChainTypeManager(chainsToUnfreeze[i]);
+                continue;
             }
             try IChainTypeManager(ctm).unfreezeChain(chainsToUnfreeze[i]) {} catch {}
         }

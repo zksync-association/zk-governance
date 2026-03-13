@@ -205,4 +205,8 @@ interface IProtocolUpgradeHandler {
     /// @param _unfreezeAllChains Whether all chains were unfrozen (true) or specific chains (false).
     /// @param _unpauseBridges Whether the bridging contracts were unpaused.
     event ReinforceUnfreeze(uint256[] _chainIds, bool _unfreezeAllChains, bool _unpauseBridges);
+
+    /// @notice Emitted when a chain is skipped during freeze/unfreeze because it has no chain type manager.
+    /// @param _chainId The chain ID that was skipped.
+    event ChainSkippedNoChainTypeManager(uint256 _chainId);
 }
