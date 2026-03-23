@@ -79,7 +79,10 @@ contract TestProtocolUpgradeHandler is Test {
             );
         }
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1Nullifier), abi.encodeWithSelector(IPausable.pause.selector));
         vm.expectCall(address(l1AssetRouter), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(l1NativeTokenVault), abi.encodeWithSelector(IPausable.pause.selector));
+        vm.expectCall(address(chainAssetHandler), abi.encodeWithSelector(MockChainAssetHandler.pauseMigration.selector));
     }
 
     /// @dev Returns FreezeParams that affect all chains and all bridges — the most common case.
