@@ -110,7 +110,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @dev The Security Council members sign the soft freeze as a whole, representing their authorization
     /// to freeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
     /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
-    /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail).
+    /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail) without the need to re-collect signatures.
     /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
@@ -135,7 +135,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @dev The Security Council members sign the hard freeze as a whole, representing their authorization
     /// to freeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
     /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
-    /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail).
+    /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail) without the need to re-collect signatures.
     /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
@@ -158,7 +158,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @dev The Security Council members sign the unfreeze as a whole, representing their authorization
     /// to unfreeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
     /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
-    /// (e.g. those that would burn all gas and cause a full-ecosystem unfreeze to fail).
+    /// (e.g. those that would burn all gas and cause a full-ecosystem unfreeze to fail) without the need to re-collect signatures.
     /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.

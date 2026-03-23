@@ -385,8 +385,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
     /// @notice Initiates a soft protocol freeze.
     /// @dev Sets protocol-level freeze state and freezes specified chains. The `_params.chainIds` field allows
-    /// freezing specific chains when `_params.affectAllChains` is false, enabling targeted freeze operations for
-    /// specific problematic chains rather than affecting all chains in the ecosystem.
+    /// freezing specific chains when `_params.affectAllChains` is false, enabling skipping freeze operations for
+    /// specific problematic chains to prevent them from stalling the freeze for the entire ecosystem.
     /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function softFreeze(FreezeParams calldata _params) external onlySecurityCouncil {
         require(lastFreezeStatusInUpgradeCycle == FreezeStatus.None, "Protocol already frozen");
@@ -398,8 +398,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
     /// @notice Initiates a hard protocol freeze.
     /// @dev Sets protocol-level freeze state and freezes specified chains. The `_params.chainIds` field allows
-    /// freezing specific chains when `_params.affectAllChains` is false, enabling targeted freeze operations for
-    /// specific problematic chains rather than affecting all chains in the ecosystem.
+    /// freezing specific chains when `_params.affectAllChains` is false, enabling skipping freeze operations for
+    /// specific problematic chains to prevent them from stalling the freeze for the entire ecosystem.
     /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function hardFreeze(FreezeParams calldata _params) external onlySecurityCouncil {
         FreezeStatus freezeStatus = lastFreezeStatusInUpgradeCycle;
@@ -415,9 +415,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @notice Reinforces the freezing state of the protocol if it is already within the frozen period.
-    /// @dev Callable by anyone — since the protocol is already frozen, there is no risk of unauthorized
-    /// state transitions. This allows any actor to freeze additional chains that may have been missed
-    /// or that became problematic after the initial freeze.
+    /// @dev Callable by anyone — this allows any actor to freeze additional chains that may have been missed
+    /// or that became problematic after the initial freeze. Note, that since freezing is authorized for the entire 
+    /// ecosystem it is okay to make this function public.
     /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function reinforceFreeze(FreezeParams calldata _params) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
@@ -464,7 +464,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// lastFreezeStatusInUpgradeCycle (e.g., Soft -> AfterSoftFreeze). However, it only unfreezes the
     /// chains specified in `_params.chainIds` (or all chains if `_params.affectAllChains` is true). This means
     /// it is possible to have the protocol-level freeze cleared while some individual chains remain frozen.
-    /// This is intentional to allow handling of misbehaving chains that should remain frozen.
+    /// This is intentional to allow handling of misbehaving chains that can block the unfreeze operation for the entire ecosystem.
+    /// If a chain has been left frozen after the main unfreeze operation, anyone can call `reinforceUnfreeze()` to unfreeze it later.
     /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function unfreeze(FreezeParams calldata _params) external onlySecurityCouncilOrProtocolFreezeExpired {
         // Prevent front-running attack after freeze expiry:
