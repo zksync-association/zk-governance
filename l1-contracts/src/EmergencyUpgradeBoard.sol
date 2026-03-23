@@ -87,36 +87,23 @@ contract EmergencyUpgradeBoard is EIP712 {
             IProtocolUpgradeHandler.UpgradeProposal({calls: _calls, salt: _salt, executor: address(this)});
         bytes32 id = keccak256(abi.encode(upgradeProposal));
 
+        bytes32 guardiansDigest =
+            _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH, id)));
         require(
-            GUARDIANS.isValidERC1271SignatureNow(
-                _hashTypedDataV4(keccak256(abi.encode(
-                    EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH,
-                    id
-                ))),
-                _guardiansSignatures
-            ),
-            "Invalid guardians signatures"
+            GUARDIANS.isValidERC1271SignatureNow(guardiansDigest, _guardiansSignatures), "Invalid guardians signatures"
         );
 
+        bytes32 securityCouncilDigest =
+            _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH, id)));
         require(
-            SECURITY_COUNCIL.isValidERC1271SignatureNow(
-                _hashTypedDataV4(keccak256(abi.encode(
-                    EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH,
-                    id
-                ))),
-                _securityCouncilSignatures
-            ),
+            SECURITY_COUNCIL.isValidERC1271SignatureNow(securityCouncilDigest, _securityCouncilSignatures),
             "Invalid Security Council signatures"
         );
 
+        bytes32 zkFoundationDigest =
+            _hashTypedDataV4(keccak256(abi.encode(EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH, id)));
         require(
-            ZK_FOUNDATION_SAFE.isValidSignatureNow(
-                _hashTypedDataV4(keccak256(abi.encode(
-                    EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH,
-                    id
-                ))),
-                _zkFoundationSignatures
-            ),
+            ZK_FOUNDATION_SAFE.isValidSignatureNow(zkFoundationDigest, _zkFoundationSignatures),
             "Invalid ZK Foundation signatures"
         );
 
