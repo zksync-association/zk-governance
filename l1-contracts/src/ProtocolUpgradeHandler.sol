@@ -332,16 +332,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
     /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
     /// @dev This function clears the freeze state and unfreezes the specified chains.
-    /// Misbehaving chains can be skipped by not including them in `_chainIds`.
+    /// Misbehaving chains can be skipped by not including them in `_params.chainIds`.
     /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
-    /// @param _chainIds The array of chain IDs to unfreeze.
-    /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _unpauseBridges Whether to unpause the bridging contracts.
+    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
     function executeEmergencyUpgrade(
         UpgradeProposal calldata _proposal,
-        uint256[] calldata _chainIds,
-        bool _unfreezeAllChains,
-        bool _unpauseBridges
+        FreezeParams calldata _params
     ) external payable onlyEmergencyUpgradeBoard {
         bytes32 id = keccak256(abi.encode(_proposal));
         UpgradeState upgState = upgradeState(id);
@@ -354,9 +350,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         lastFreezeStatusInUpgradeCycle = FreezeStatus.None;
         protocolFrozenUntil = 0;
         // 3. Interactions
-        _unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
+        _unfreeze(_params);
         _execute(_proposal.calls);
-        emit Unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
+        emit Unfreeze(_params);
         emit EmergencyUpgradeExecuted(id);
     }
 
@@ -388,28 +384,24 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Initiates a soft protocol freeze.
-    /// @dev Sets protocol-level freeze state and freezes specified chains. The _chainIds parameter allows
-    /// freezing specific chains when _freezeAllChains is false, enabling targeted freeze operations for
+    /// @dev Sets protocol-level freeze state and freezes specified chains. The `_params.chainIds` field allows
+    /// freezing specific chains when `_params.affectAllChains` is false, enabling targeted freeze operations for
     /// specific problematic chains rather than affecting all chains in the ecosystem.
-    /// @param _chainIds The array of chain IDs to freeze.
-    /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _pauseBridges Whether to pause the bridging contracts.
-    function softFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external onlySecurityCouncil {
+    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    function softFreeze(FreezeParams calldata _params) external onlySecurityCouncil {
         require(lastFreezeStatusInUpgradeCycle == FreezeStatus.None, "Protocol already frozen");
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Soft;
         protocolFrozenUntil = block.timestamp + SOFT_FREEZE_PERIOD;
-        _freeze(_chainIds, _freezeAllChains, _pauseBridges);
-        emit SoftFreeze(protocolFrozenUntil, _chainIds, _freezeAllChains, _pauseBridges);
+        _freeze(_params);
+        emit SoftFreeze(protocolFrozenUntil, _params);
     }
 
     /// @notice Initiates a hard protocol freeze.
-    /// @dev Sets protocol-level freeze state and freezes specified chains. The _chainIds parameter allows
-    /// freezing specific chains when _freezeAllChains is false, enabling targeted freeze operations for
+    /// @dev Sets protocol-level freeze state and freezes specified chains. The `_params.chainIds` field allows
+    /// freezing specific chains when `_params.affectAllChains` is false, enabling targeted freeze operations for
     /// specific problematic chains rather than affecting all chains in the ecosystem.
-    /// @param _chainIds The array of chain IDs to freeze.
-    /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _pauseBridges Whether to pause the bridging contracts.
-    function hardFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external onlySecurityCouncil {
+    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    function hardFreeze(FreezeParams calldata _params) external onlySecurityCouncil {
         FreezeStatus freezeStatus = lastFreezeStatusInUpgradeCycle;
         require(
             freezeStatus == FreezeStatus.None || freezeStatus == FreezeStatus.Soft
@@ -418,36 +410,32 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         );
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Hard;
         protocolFrozenUntil = block.timestamp + HARD_FREEZE_PERIOD;
-        _freeze(_chainIds, _freezeAllChains, _pauseBridges);
-        emit HardFreeze(protocolFrozenUntil, _chainIds, _freezeAllChains, _pauseBridges);
+        _freeze(_params);
+        emit HardFreeze(protocolFrozenUntil, _params);
     }
 
-    /// @dev Reinforces the freezing state of the protocol if it is already within the frozen period.
-    /// @dev Only Security Council can call this to prevent unauthorized strategic selection of chains to freeze.
-    /// @param _chainIds The array of chain IDs to freeze.
-    /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _pauseBridges Whether to pause the bridging contracts.
-    function reinforceFreeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) external onlySecurityCouncil {
+    /// @notice Reinforces the freezing state of the protocol if it is already within the frozen period.
+    /// @dev Callable by anyone — since the protocol is already frozen, there is no risk of unauthorized
+    /// state transitions. This allows any actor to freeze additional chains that may have been missed
+    /// or that became problematic after the initial freeze.
+    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    function reinforceFreeze(FreezeParams calldata _params) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
-        _freeze(_chainIds, _freezeAllChains, _pauseBridges);
-        emit ReinforceFreeze(_chainIds, _freezeAllChains, _pauseBridges);
+        _freeze(_params);
+        emit ReinforceFreeze(_params);
     }
 
     /// @dev Freeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
-    /// @param _chainIds The array of chain IDs to freeze.
-    /// @param _freezeAllChains Whether to freeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _pauseBridges Whether to pause the bridging contracts.
-    function _freeze(uint256[] calldata _chainIds, bool _freezeAllChains, bool _pauseBridges) internal {
+    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    function _freeze(FreezeParams calldata _params) internal {
         // Validate parameters to prevent caller confusion
-        if (_freezeAllChains) {
-            require(_chainIds.length == 0, "Cannot specify chain IDs when freezing all chains");
-        } else {
-            require(_chainIds.length > 0, "Cannot freeze zero chains");
+        if (_params.affectAllChains) {
+            require(_params.chainIds.length == 0, "Cannot specify chain IDs when freezing all chains");
         }
 
-        uint256[] memory chainsToFreeze = _freezeAllChains
+        uint256[] memory chainsToFreeze = _params.affectAllChains
             ? BRIDGE_HUB.getAllZKChainChainIDs()
-            : _chainIds;
+            : _params.chainIds;
 
         uint256 len = chainsToFreeze.length;
         for (uint256 i = 0; i < len; ++i) {
@@ -460,7 +448,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
             try IChainTypeManager(ctm).freezeChain(chainsToFreeze[i]) {} catch {}
         }
 
-        if (_pauseBridges) {
+        if (_params.affectBridges) {
             try BRIDGE_HUB.pause() {} catch {}
             try L1_NULLIFIER.pause() {} catch {}
             try L1_ASSET_ROUTER.pause() {} catch {}
@@ -469,29 +457,26 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         }
     }
 
-    /// @dev Unfreezes the protocol and resumes normal operations.
+    /// @notice Unfreezes the protocol and resumes normal operations.
     /// @dev This function clears the protocol-level freeze state (protocolFrozenUntil = 0) and transitions
     /// lastFreezeStatusInUpgradeCycle (e.g., Soft -> AfterSoftFreeze). However, it only unfreezes the
-    /// chains specified in _chainIds (or all chains if _unfreezeAllChains is true). This means it's possible
-    /// to have the protocol-level freeze cleared while some individual chains remain frozen. This is intentional
-    /// to allow handling of misbehaving chains that should remain frozen.
-    /// @param _chainIds The array of chain IDs to unfreeze.
-    /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _unpauseBridges Whether to unpause the bridging contracts (BridgeHub, L1Nullifier,
-    /// L1AssetRouter, L1NativeTokenVault, ChainAssetHandler).
-    function unfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external onlySecurityCouncilOrProtocolFreezeExpired {
+    /// chains specified in `_params.chainIds` (or all chains if `_params.affectAllChains` is true). This means
+    /// it is possible to have the protocol-level freeze cleared while some individual chains remain frozen.
+    /// This is intentional to allow handling of misbehaving chains that should remain frozen.
+    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    function unfreeze(FreezeParams calldata _params) external onlySecurityCouncilOrProtocolFreezeExpired {
         // Prevent front-running attack after freeze expiry:
         // After a freeze period expires, anyone can call unfreeze(). Without this check, an attacker could:
-        // 1. Call unfreeze() with strategically chosen subset of chains (_unfreezeAllChains=false)
+        // 1. Call unfreeze() with strategically chosen subset of chains (affectAllChains=false)
         // 2. Consume the one-time state transition (e.g., Soft → AfterSoftFreeze)
         // 3. Set protocolFrozenUntil = 0
         // 4. Leave all unchosen chains frozen
         // After this, unfreeze() can't be called again (would revert with "Unexpected last freeze status").
-        // Only reinforceUnfreeze() (Security Council only) could fix remaining chains.
+        // Only reinforceUnfreeze() (callable by anyone) could fix remaining chains.
         // Therefore, non-Security Council callers must use the all-or-nothing behavior.
         if (msg.sender != securityCouncil) {
-            require(_unfreezeAllChains, "Non-Security Council must unfreeze all chains");
-            require(_unpauseBridges, "Non-Security Council must unpause bridges");
+            require(_params.affectAllChains, "Non-Security Council must unfreeze all chains");
+            require(_params.affectBridges, "Non-Security Council must unpause bridges");
         }
 
         if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Soft) {
@@ -502,36 +487,32 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
             revert("Unexpected last freeze status");
         }
         protocolFrozenUntil = 0;
-        _unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
-        emit Unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
+        _unfreeze(_params);
+        emit Unfreeze(_params);
     }
 
-    /// @dev Reinforces the unfreeze for protocol if it is not in the freeze mode.
-    /// @dev Only Security Council can call this to prevent unauthorized strategic selection of chains to unfreeze.
-    /// @param _chainIds The array of chain IDs to unfreeze.
-    /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _unpauseBridges Whether to unpause the bridging contracts.
-    function reinforceUnfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) external onlySecurityCouncil {
+    /// @notice Reinforces the unfreeze for protocol if it is not in the freeze mode.
+    /// @dev Callable by anyone — since the protocol is already unfrozen, there is no risk of unauthorized
+    /// state transitions. This allows any actor to unfreeze chains that were left frozen due to misbehavior
+    /// (e.g. running out of gas) during the main unfreeze operation.
+    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    function reinforceUnfreeze(FreezeParams calldata _params) external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
-        _unfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
-        emit ReinforceUnfreeze(_chainIds, _unfreezeAllChains, _unpauseBridges);
+        _unfreeze(_params);
+        emit ReinforceUnfreeze(_params);
     }
 
     /// @dev Unfreeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
-    /// @param _chainIds The array of chain IDs to unfreeze.
-    /// @param _unfreezeAllChains Whether to unfreeze all chains from the Bridgehub. If true, _chainIds is ignored.
-    /// @param _unpauseBridges Whether to unpause the bridging contracts.
-    function _unfreeze(uint256[] calldata _chainIds, bool _unfreezeAllChains, bool _unpauseBridges) internal {
+    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    function _unfreeze(FreezeParams calldata _params) internal {
         // Validate parameters to prevent caller confusion
-        if (_unfreezeAllChains) {
-            require(_chainIds.length == 0, "Cannot specify chain IDs when unfreezing all chains");
-        } else {
-            require(_chainIds.length > 0, "Cannot unfreeze zero chains");
+        if (_params.affectAllChains) {
+            require(_params.chainIds.length == 0, "Cannot specify chain IDs when unfreezing all chains");
         }
 
-        uint256[] memory chainsToUnfreeze = _unfreezeAllChains
+        uint256[] memory chainsToUnfreeze = _params.affectAllChains
             ? BRIDGE_HUB.getAllZKChainChainIDs()
-            : _chainIds;
+            : _params.chainIds;
 
         uint256 len = chainsToUnfreeze.length;
         for (uint256 i = 0; i < len; ++i) {
@@ -544,7 +525,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
             try IChainTypeManager(ctm).unfreezeChain(chainsToUnfreeze[i]) {} catch {}
         }
 
-        if (_unpauseBridges) {
+        if (_params.affectBridges) {
             try BRIDGE_HUB.unpause() {} catch {}
             try L1_NULLIFIER.unpause() {} catch {}
             try L1_ASSET_ROUTER.unpause() {} catch {}

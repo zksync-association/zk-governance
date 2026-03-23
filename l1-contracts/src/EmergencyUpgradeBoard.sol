@@ -5,7 +5,6 @@ pragma solidity 0.8.24;
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IProtocolUpgradeHandler} from "./interfaces/IProtocolUpgradeHandler.sol";
-import {FreezeFlags} from "./interfaces/FreezeFlags.sol";
 
 /// @title Emergency Upgrade Board
 /// @author Matter Labs
@@ -26,16 +25,28 @@ contract EmergencyUpgradeBoard is EIP712 {
     address public immutable ZK_FOUNDATION_SAFE;
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the guardians.
+    /// @dev The Guardians sign the emergency upgrade as a whole, authorizing the ability to perform the
+    /// emergency upgrade and unfreeze the ecosystem. The specific chain IDs to unfreeze and whether to
+    /// unpause bridges are not part of the signature — they are provided separately to allow skipping
+    /// misbehaving chains (e.g. those that would burn all gas) when doing the unfreeze.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeGuardians(bytes32 id,uint256[] chainIds,uint8 flags)");
+        keccak256("ExecuteEmergencyUpgradeGuardians(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the Security Council.
+    /// @dev The Security Council signs the emergency upgrade as a whole, authorizing the ability to perform
+    /// the emergency upgrade and unfreeze the ecosystem. The specific chain IDs to unfreeze and whether to
+    /// unpause bridges are not part of the signature — they are provided separately to allow skipping
+    /// misbehaving chains (e.g. those that would burn all gas) when doing the unfreeze.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeSecurityCouncil(bytes32 id,uint256[] chainIds,uint8 flags)");
+        keccak256("ExecuteEmergencyUpgradeSecurityCouncil(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for the emergency protocol upgrade execution approved by the ZK Foundation.
+    /// @dev The ZK Foundation signs the emergency upgrade as a whole, authorizing the ability to perform
+    /// the emergency upgrade and unfreeze the ecosystem. The specific chain IDs to unfreeze and whether to
+    /// unpause bridges are not part of the signature — they are provided separately to allow skipping
+    /// misbehaving chains (e.g. those that would burn all gas) when doing the unfreeze.
     bytes32 internal constant EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH =
-        keccak256("ExecuteEmergencyUpgradeZKFoundation(bytes32 id,uint256[] chainIds,uint8 flags)");
+        keccak256("ExecuteEmergencyUpgradeZKFoundation(bytes32 id)");
 
     /// @dev Initializes the Emergency Upgrade Board contract with setup for EIP-712.
     /// @param _protocolUpgradeHandler The address of the protocol upgrade handler contract, responsible for executing the upgrades.
@@ -57,16 +68,17 @@ contract EmergencyUpgradeBoard is EIP712 {
     /// @notice Executes an emergency protocol upgrade approved by the Security Council, Guardians and ZK Foundation.
     /// @param _calls Array of `Call` structures specifying the calls to be made in the upgrade.
     /// @param _salt A bytes32 value used for creating unique upgrade proposal hashes.
-    /// @param _chainIds The array of chain IDs to unfreeze.
-    /// @param _flags Flags byte where bit 0 = unfreezeAllChains (1 to unfreeze all), bit 1 = unpauseBridges (1 to unpause).
+    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze after the upgrade.
+    ///        The chain IDs are not part of any signature — they are provided to allow skipping misbehaving
+    ///        chains that would cause a full-ecosystem unfreeze to fail. All three parties sign the emergency
+    ///        upgrade as a whole (identified by the upgrade `id`), giving the ability to unfreeze the ecosystem.
     /// @param _guardiansSignatures Encoded signers & signatures from the guardians multisig, required to authorize the emergency upgrade.
     /// @param _securityCouncilSignatures Encoded signers & signatures from the Security Council multisig, required to authorize the emergency upgrade.
     /// @param _zkFoundationSignatures Signatures from the ZK Foundation multisig, required to authorize the emergency upgrade.
     function executeEmergencyUpgrade(
         IProtocolUpgradeHandler.Call[] calldata _calls,
         bytes32 _salt,
-        uint256[] calldata _chainIds,
-        uint8 _flags,
+        IProtocolUpgradeHandler.FreezeParams calldata _params,
         bytes calldata _guardiansSignatures,
         bytes calldata _securityCouncilSignatures,
         bytes calldata _zkFoundationSignatures
@@ -79,9 +91,7 @@ contract EmergencyUpgradeBoard is EIP712 {
             GUARDIANS.isValidERC1271SignatureNow(
                 _hashTypedDataV4(keccak256(abi.encode(
                     EXECUTE_EMERGENCY_UPGRADE_GUARDIANS_TYPEHASH,
-                    id,
-                    keccak256(abi.encodePacked(_chainIds)),
-                    _flags
+                    id
                 ))),
                 _guardiansSignatures
             ),
@@ -92,9 +102,7 @@ contract EmergencyUpgradeBoard is EIP712 {
             SECURITY_COUNCIL.isValidERC1271SignatureNow(
                 _hashTypedDataV4(keccak256(abi.encode(
                     EXECUTE_EMERGENCY_UPGRADE_SECURITY_COUNCIL_TYPEHASH,
-                    id,
-                    keccak256(abi.encodePacked(_chainIds)),
-                    _flags
+                    id
                 ))),
                 _securityCouncilSignatures
             ),
@@ -105,20 +113,13 @@ contract EmergencyUpgradeBoard is EIP712 {
             ZK_FOUNDATION_SAFE.isValidSignatureNow(
                 _hashTypedDataV4(keccak256(abi.encode(
                     EXECUTE_EMERGENCY_UPGRADE_ZK_FOUNDATION_TYPEHASH,
-                    id,
-                    keccak256(abi.encodePacked(_chainIds)),
-                    _flags
+                    id
                 ))),
                 _zkFoundationSignatures
             ),
             "Invalid ZK Foundation signatures"
         );
 
-        PROTOCOL_UPGRADE_HANDLER.executeEmergencyUpgrade(
-            upgradeProposal,
-            _chainIds,
-            (_flags & FreezeFlags.FLAG_ALL_CHAINS) != 0,
-            (_flags & FreezeFlags.FLAG_AFFECT_BRIDGES) != 0
-        );
+        PROTOCOL_UPGRADE_HANDLER.executeEmergencyUpgrade(upgradeProposal, _params);
     }
 }

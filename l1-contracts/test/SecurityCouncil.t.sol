@@ -23,18 +23,18 @@ contract TestSecurityCouncil is Test, EIP712Util {
 
     /// @dev EIP-712 TypeHash for soft emergency freeze approval by the Security Council.
     bytes32 internal constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("SoftFreeze(uint256[] chainIds,uint8 flags,uint256 nonce,uint256 validUntil)");
+        keccak256("SoftFreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for hard emergency freeze approval by the Security Council.
     bytes32 internal constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
-        keccak256("HardFreeze(uint256[] chainIds,uint8 flags,uint256 nonce,uint256 validUntil)");
+        keccak256("HardFreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for setting threshold for soft freeze approval by the Security Council.
     bytes32 internal constant SET_SOFT_FREEZE_THRESHOLD_TYPEHASH =
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the Security Council.
-    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256[] chainIds,uint8 flags,uint256 nonce,uint256 validUntil)");
+    bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
     constructor() {
         Vm.Wallet[] memory wallets_ = new Vm.Wallet[](12);
@@ -73,22 +73,34 @@ contract TestSecurityCouncil is Test, EIP712Util {
     function test_RevertWhen_softFreezeSignatureExpired(uint256 _timestamp) public {
         _timestamp = bound(_timestamp, 0, block.timestamp);
         vm.expectRevert("Signature expired");
-        // flags = 3 (bit 0: freezeAllChains=1, bit 1: pauseBridges=1)
-        securityCouncil.softFreeze(new uint256[](0), 3, _timestamp, members, new bytes[](0));
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: new uint256[](0),
+            affectAllChains: true,
+            affectBridges: true
+        });
+        securityCouncil.softFreeze(params, _timestamp, members, new bytes[](0));
     }
 
     function test_RevertWhen_hardFreezeSignatureExpired(uint256 _timestamp) public {
         _timestamp = bound(_timestamp, 0, block.timestamp);
         vm.expectRevert("Signature expired");
-        // flags = 3 (bit 0: freezeAllChains=1, bit 1: pauseBridges=1)
-        securityCouncil.hardFreeze(new uint256[](0), 3, _timestamp, members, new bytes[](0));
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: new uint256[](0),
+            affectAllChains: true,
+            affectBridges: true
+        });
+        securityCouncil.hardFreeze(params, _timestamp, members, new bytes[](0));
     }
 
     function test_RevertWhen_unfreezeSignatureExpired(uint256 _timestamp) public {
         _timestamp = bound(_timestamp, 0, block.timestamp);
         vm.expectRevert("Signature expired");
-        // flags = 3 (bit 0: unfreezeAllChains=1, bit 1: unpauseBridges=1)
-        securityCouncil.unfreeze(new uint256[](0), 3, _timestamp, members, new bytes[](0));
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: new uint256[](0),
+            affectAllChains: true,
+            affectBridges: true
+        });
+        securityCouncil.unfreeze(params, _timestamp, members, new bytes[](0));
     }
 
     function test_RevertWhen_setSoftFreezeThresholdSignatureExpired(uint256 _timestamp) public {
@@ -126,19 +138,21 @@ contract TestSecurityCouncil is Test, EIP712Util {
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.softFreezeNonce();
 
-        uint256[] memory chainIds = new uint256[](0);
-        uint8 flags = 3; // bit 0: freezeAllChains=1, bit 1: pauseBridges=1
+        // affectAllChains=true, affectBridges=true
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: new uint256[](0),
+            affectAllChains: true,
+            affectBridges: true
+        });
         bytes32 message = keccak256(abi.encode(
             SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH,
-            keccak256(abi.encodePacked(chainIds)),
-            flags,
             nonceBefore,
             _validUntil
         ));
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.softFreeze(chainIds, flags, _validUntil, signers, signatures);
+        securityCouncil.softFreeze(params, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.softFreezeNonce());
     }
 
@@ -147,19 +161,21 @@ contract TestSecurityCouncil is Test, EIP712Util {
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.hardFreezeNonce();
 
-        uint256[] memory chainIds = new uint256[](0);
-        uint8 flags = 3; // bit 0: freezeAllChains=1, bit 1: pauseBridges=1
+        // affectAllChains=true, affectBridges=true
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: new uint256[](0),
+            affectAllChains: true,
+            affectBridges: true
+        });
         bytes32 message = keccak256(abi.encode(
             HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH,
-            keccak256(abi.encodePacked(chainIds)),
-            flags,
             nonceBefore,
             _validUntil
         ));
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.hardFreeze(chainIds, flags, _validUntil, signers, signatures);
+        securityCouncil.hardFreeze(params, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.hardFreezeNonce());
     }
 
@@ -168,33 +184,37 @@ contract TestSecurityCouncil is Test, EIP712Util {
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.unfreezeNonce();
 
-        uint256[] memory chainIds = new uint256[](0);
-        uint8 flags = 3; // bit 0: unfreezeAllChains=1, bit 1: unpauseBridges=1
+        // affectAllChains=true, affectBridges=true
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: new uint256[](0),
+            affectAllChains: true,
+            affectBridges: true
+        });
         bytes32 message = keccak256(abi.encode(
             UNFREEZE_TYPEHASH,
-            keccak256(abi.encodePacked(chainIds)),
-            flags,
             nonceBefore,
             _validUntil
         ));
         (address[] memory signers, bytes[] memory signatures) =
             _prepareSignersAndSignatures(_numberOfSignatures, _isEOAOrEIP712Mask, message);
 
-        securityCouncil.unfreeze(chainIds, flags, _validUntil, signers, signatures);
+        securityCouncil.unfreeze(params, _validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.unfreezeNonce());
     }
 
-    /// @notice Test softFreeze with flags=1 (freezeAllChains=true, pauseBridges=false)
+    /// @notice Test softFreeze with affectAllChains=true, affectBridges=false
     function test_softFreezeWithOnlyFreezeAllChainsFlag() public {
         uint256 validUntil = block.timestamp + 1 hours;
         uint256 nonceBefore = securityCouncil.softFreezeNonce();
 
-        uint256[] memory chainIds = new uint256[](0);
-        uint8 flags = 1; // bit 0: freezeAllChains=1, bit 1: pauseBridges=0
+        // affectAllChains=true, affectBridges=false
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: new uint256[](0),
+            affectAllChains: true,
+            affectBridges: false
+        });
         bytes32 message = keccak256(abi.encode(
             SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH,
-            keccak256(abi.encodePacked(chainIds)),
-            flags,
             nonceBefore,
             validUntil
         ));
@@ -202,11 +222,11 @@ contract TestSecurityCouncil is Test, EIP712Util {
             _prepareSignersAndSignatures(9, 0, message);
 
         // Should freeze all chains but not pause bridges
-        securityCouncil.softFreeze(chainIds, flags, validUntil, signers, signatures);
+        securityCouncil.softFreeze(params, validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.softFreezeNonce());
     }
 
-    /// @notice Test hardFreeze with flags=2 (freezeAllChains=false, pauseBridges=true)
+    /// @notice Test hardFreeze with specific chains and affectBridges=true
     function test_hardFreezeWithSpecificChainsAndPauseBridges() public {
         uint256 validUntil = block.timestamp + 1 hours;
         uint256 nonceBefore = securityCouncil.hardFreezeNonce();
@@ -214,11 +234,14 @@ contract TestSecurityCouncil is Test, EIP712Util {
         uint256[] memory chainIds = new uint256[](2);
         chainIds[0] = 1;
         chainIds[1] = 2;
-        uint8 flags = 2; // bit 0: freezeAllChains=0, bit 1: pauseBridges=1
+        // affectAllChains=false (specific chains), affectBridges=true
+        IProtocolUpgradeHandler.FreezeParams memory params = IProtocolUpgradeHandler.FreezeParams({
+            chainIds: chainIds,
+            affectAllChains: false,
+            affectBridges: true
+        });
         bytes32 message = keccak256(abi.encode(
             HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH,
-            keccak256(abi.encodePacked(chainIds)),
-            flags,
             nonceBefore,
             validUntil
         ));
@@ -226,7 +249,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
             _prepareSignersAndSignatures(9, 0, message);
 
         // Should freeze only specified chains but pause bridges
-        securityCouncil.hardFreeze(chainIds, flags, validUntil, signers, signatures);
+        securityCouncil.hardFreeze(params, validUntil, signers, signatures);
         assertEq(nonceBefore + 1, securityCouncil.hardFreezeNonce());
     }
 
