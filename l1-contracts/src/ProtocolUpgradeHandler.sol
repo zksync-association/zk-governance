@@ -45,8 +45,8 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 ///
 /// **Partial Freeze Scenario:**
 /// It is possible to have chains in different freeze states simultaneously. For example:
-/// 1. `softFreeze([chain1, chain2, chain3], false, true)` - freezes three chains
-/// 2. `unfreeze([chain1, chain2], false, true)` - unfreezes only two chains
+/// 1. `softFreeze({chainIds: [chain1, chain2, chain3], affectAllChains: false, ...})` - freezes three chains
+/// 2. `unfreeze({chainIds: [chain1, chain2], affectAllChains: false, ...})` - unfreezes only two chains
 /// Result: chain3 remains frozen even though `protocolFrozenUntil == 0` and
 /// `lastFreezeStatusInUpgradeCycle == AfterSoftFreeze`. This is intentional to allow
 /// granular control over chain freeze states for handling misbehaving or problematic chains.
@@ -142,11 +142,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
         _disableInitializers();
 
         // Sanity checks to prevent misconfiguration
-        if (address(_bridgeHub).code.length == 0) revert EmptyContract(address(_bridgeHub));
-        if (address(_l1Nullifier).code.length == 0) revert EmptyContract(address(_l1Nullifier));
-        if (address(_l1AssetRouter).code.length == 0) revert EmptyContract(address(_l1AssetRouter));
-        if (address(_l1NativeTokenVault).code.length == 0) revert EmptyContract(address(_l1NativeTokenVault));
-        if (address(_chainAssetHandler).code.length == 0) revert EmptyContract(address(_chainAssetHandler));
+        require(address(_bridgeHub).code.length != 0, "BridgeHub has no code");
+        require(address(_l1Nullifier).code.length != 0, "L1Nullifier has no code");
+        require(address(_l1AssetRouter).code.length != 0, "L1AssetRouter has no code");
+        require(address(_l1NativeTokenVault).code.length != 0, "L1NativeTokenVault has no code");
+        require(address(_chainAssetHandler).code.length != 0, "ChainAssetHandler has no code");
         require(_eraChainId != 0, "Era chain ID cannot be zero");
 
         // Soft configuration check for contracts that inherit this contract.
