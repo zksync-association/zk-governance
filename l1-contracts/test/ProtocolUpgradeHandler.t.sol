@@ -82,17 +82,9 @@ contract TestProtocolUpgradeHandler is Test {
         vm.expectCall(address(l1AssetRouter), abi.encodeWithSelector(IPausable.pause.selector));
     }
 
-    /// @dev Helper to build a FreezeParams struct, mirroring the old 3-argument call style.
-    function _fp(uint256[] memory _chainIds, bool _affectAllChains, bool _affectBridges)
-        internal
-        pure
-        returns (IProtocolUpgradeHandler.FreezeParams memory)
-    {
-        return IProtocolUpgradeHandler.FreezeParams({
-            chainIds: _chainIds,
-            affectAllChains: _affectAllChains,
-            affectBridges: _affectBridges
-        });
+    /// @dev Returns FreezeParams that affect all chains and all bridges — the most common case.
+    function _freezeAllParams() internal pure returns (IProtocolUpgradeHandler.FreezeParams memory) {
+        return IProtocolUpgradeHandler.FreezeParams({chainIds: new uint256[](0), affectAllChains: true, affectBridges: true});
     }
 
     function _emptyProposal(bytes32 _salt) internal returns (IProtocolUpgradeHandler.UpgradeProposal memory) {
@@ -347,12 +339,12 @@ contract TestProtocolUpgradeHandler is Test {
 
     function test_RevertWhen_SoftFreezeOnlySecurityCouncil() public {
         vm.expectRevert("Only Security Council is allowed to call this function");
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
     }
 
     function test_RevertWhen_HardFreezeOnlySecurityCouncil() public {
         vm.expectRevert("Only Security Council is allowed to call this function");
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
     }
 
     function test_RevertWhen_ExtendLegalVetoOnlyGuardians() public {
@@ -665,11 +657,11 @@ contract TestProtocolUpgradeHandler is Test {
         _resetUpgradeCycle();
         uint256 protocolFrozenUntil = block.timestamp + 12 hours;
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, _fp(new uint256[](0), true, true));
+        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, _freezeAllParams());
         _expectFreezeAttempt();
 
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
         assertEq(protocolFrozenUntil, handler.protocolFrozenUntil());
@@ -704,10 +696,10 @@ contract TestProtocolUpgradeHandler is Test {
         );
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, _fp(specificChains, false, true));
+        emit IProtocolUpgradeHandler.SoftFreeze(protocolFrozenUntil, IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
 
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(specificChains, false, true));
+        handler.softFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
 
         assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
         assertEq(protocolFrozenUntil, handler.protocolFrozenUntil());
@@ -742,10 +734,10 @@ contract TestProtocolUpgradeHandler is Test {
         );
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.HardFreeze(protocolFrozenUntil, _fp(specificChains, false, false));
+        emit IProtocolUpgradeHandler.HardFreeze(protocolFrozenUntil, IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: false}));
 
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(specificChains, false, false));
+        handler.hardFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: false}));
 
         assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Hard));
         assertEq(protocolFrozenUntil, handler.protocolFrozenUntil());
@@ -762,7 +754,7 @@ contract TestProtocolUpgradeHandler is Test {
         allChains[2] = chainIds[2];
 
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(allChains, false, true));
+        handler.softFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: allChains, affectAllChains: false, affectBridges: true}));
 
         assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
         assertGt(handler.protocolFrozenUntil(), 0);
@@ -789,7 +781,7 @@ contract TestProtocolUpgradeHandler is Test {
 
         vm.warp(block.timestamp + 1 hours);
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(partialChains, false, true));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: partialChains, affectAllChains: false, affectBridges: true}));
 
         // Protocol-level freeze status is now "after soft freeze"
         assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze));
@@ -804,29 +796,29 @@ contract TestProtocolUpgradeHandler is Test {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
         vm.expectRevert("Protocol should be already frozen");
-        handler.reinforceFreeze(_fp(new uint256[](0), true, true));
+        handler.reinforceFreeze(_freezeAllParams());
     }
 
     function test_softFreezeReinforceFreeze(uint256 _timeAfterFreeze) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         uint256 timeAfterFreeze = bound(_timeAfterFreeze, block.timestamp, block.timestamp + 12 hours);
         vm.warp(timeAfterFreeze);
         _expectFreezeAttempt();
         vm.prank(securityCouncil);
-        handler.reinforceFreeze(_fp(new uint256[](0), true, true));
+        handler.reinforceFreeze(_freezeAllParams());
     }
 
     function test_unfreezeAfterSoftFreezeSecurityCouncil(uint256 _ufreezeAfter) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
         _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_ufreezeAfter);
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(new uint256[](0), true, true));
+        handler.unfreeze(_freezeAllParams());
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
             uint256(IProtocolUpgradeHandler.FreezeStatus.AfterSoftFreeze)
@@ -837,11 +829,11 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeAfterHardFreezeSecurityCouncil(uint256 _ufreezeAfter) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
         _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_ufreezeAfter);
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(new uint256[](0), true, true));
+        handler.unfreeze(_freezeAllParams());
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
             uint256(IProtocolUpgradeHandler.FreezeStatus.AfterHardFreeze)
@@ -852,12 +844,12 @@ contract TestProtocolUpgradeHandler is Test {
     function test_RevertWhen_hardFreezeAfterHardFreezeSecurityCouncil(uint256 _hardFreezeAfter) public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
         _hardFreezeAfter = bound(_hardFreezeAfter, block.timestamp, type(uint256).max);
         vm.warp(_hardFreezeAfter);
         vm.expectRevert("Protocol can't be hard frozen");
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
     }
 
     function test_Receive() public {
@@ -873,18 +865,18 @@ contract TestProtocolUpgradeHandler is Test {
         bytes32 id = keccak256(abi.encode(proposal));
         vm.startPrank(proposal.executor);
         // once
-        handler.executeEmergencyUpgrade(proposal, _fp(new uint256[](0), true, true));
+        handler.executeEmergencyUpgrade(proposal, _freezeAllParams());
         // state is done
         assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Done));
         vm.expectRevert("Upgrade already exists");
         // Try second time
-        handler.executeEmergencyUpgrade(proposal, _fp(new uint256[](0), true, true));
+        handler.executeEmergencyUpgrade(proposal, _freezeAllParams());
     }
 
     function test_unfreezeWithSpecificChains() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         // Create array with only first two chain IDs (simulating skipping one chain)
         uint256[] memory specificChains = new uint256[](2);
@@ -905,10 +897,10 @@ contract TestProtocolUpgradeHandler is Test {
 
         // Verify event with correct parameters
         vm.expectEmit(true, true, true, true);
-        emit IProtocolUpgradeHandler.Unfreeze(_fp(specificChains, false, true));
+        emit IProtocolUpgradeHandler.Unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
 
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(specificChains, false, true));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -920,13 +912,13 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeWithSpecificChainsAfterHardFreeze() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
 
         uint256[] memory specificChains = new uint256[](1);
         specificChains[0] = chainIds[0];
 
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(specificChains, false, true));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -938,7 +930,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeEmptyArrayQueriesBridgehub() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         // Empty array with _unfreezeAllChains=true queries Bridgehub and unfreezes ALL chains
         uint256[] memory emptyChains = new uint256[](0);
@@ -956,7 +948,7 @@ contract TestProtocolUpgradeHandler is Test {
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.unpause.selector));
 
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(emptyChains, true, true));
+        handler.unfreeze(_freezeAllParams());
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -968,7 +960,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_unfreezeAfterFreezeExpired() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         // Warp past the freeze period
         vm.warp(block.timestamp + 12 hours + 1);
@@ -976,7 +968,7 @@ contract TestProtocolUpgradeHandler is Test {
         // Anyone can call after freeze expired, but must unfreeze all chains and unpause bridges
         address randomCaller = makeAddr("randomCaller");
         vm.prank(randomCaller);
-        handler.unfreeze(_fp(new uint256[](0), true, true));
+        handler.unfreeze(_freezeAllParams());
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -992,13 +984,13 @@ contract TestProtocolUpgradeHandler is Test {
 
         vm.prank(securityCouncil);
         vm.expectRevert("Unexpected last freeze status");
-        handler.unfreeze(_fp(specificChains, false, true));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
     }
 
     function test_RevertWhen_unfreezeUnauthorized() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         uint256[] memory specificChains = new uint256[](1);
         specificChains[0] = chainIds[0];
@@ -1007,13 +999,13 @@ contract TestProtocolUpgradeHandler is Test {
         address randomCaller = makeAddr("randomCaller");
         vm.prank(randomCaller);
         vm.expectRevert("Only Security Council is allowed to call this function or the protocol should be frozen");
-        handler.unfreeze(_fp(specificChains, false, true));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
     }
 
     function test_RevertWhen_unfreezeAfterExpiryWithStrategicChainSelection() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         // Warp past the freeze period
         vm.warp(block.timestamp + 12 hours + 1);
@@ -1025,13 +1017,13 @@ contract TestProtocolUpgradeHandler is Test {
         address randomCaller = makeAddr("randomCaller");
         vm.prank(randomCaller);
         vm.expectRevert("Non-Security Council must unfreeze all chains");
-        handler.unfreeze(_fp(specificChains, false, true));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
     }
 
     function test_RevertWhen_unfreezeAfterExpiryWithoutUnpausingBridges() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         // Warp past the freeze period
         vm.warp(block.timestamp + 12 hours + 1);
@@ -1040,13 +1032,13 @@ contract TestProtocolUpgradeHandler is Test {
         address randomCaller = makeAddr("randomCaller");
         vm.prank(randomCaller);
         vm.expectRevert("Non-Security Council must unpause bridges");
-        handler.unfreeze(_fp(new uint256[](0), true, false));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: new uint256[](0), affectAllChains: true, affectBridges: false}));
     }
 
     function test_securityCouncilCanUnfreezeSpecificChainsAfterExpiry() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         // Warp past the freeze period
         vm.warp(block.timestamp + 12 hours + 1);
@@ -1056,7 +1048,7 @@ contract TestProtocolUpgradeHandler is Test {
 
         // Security Council can still strategically select specific chains
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(specificChains, false, false));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: false}));
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -1067,14 +1059,14 @@ contract TestProtocolUpgradeHandler is Test {
     function test_emergencyUpgradeClearsFreezeStateAndUnfreezesAll() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
 
         // Execute emergency upgrade with unfreezeAllChains=true and unpauseBridges=true
         IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencyUnfreezeAll");
         proposal.executor = emergencyUpgradeBoard;
 
         vm.prank(emergencyUpgradeBoard);
-        handler.executeEmergencyUpgrade(proposal, _fp(new uint256[](0), true, true));
+        handler.executeEmergencyUpgrade(proposal, _freezeAllParams());
 
         // Verify freeze state is cleared
         assertEq(
@@ -1086,13 +1078,13 @@ contract TestProtocolUpgradeHandler is Test {
         // Now we can call reinforceUnfreeze since protocol is unfrozen
         // (this verifies the protocol is actually in unfrozen state)
         vm.prank(securityCouncil);
-        handler.reinforceUnfreeze(_fp(new uint256[](0), true, true));
+        handler.reinforceUnfreeze(_freezeAllParams());
     }
 
     function test_unfreezeWithUnpauseBridgesFalse() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         uint256[] memory specificChains = new uint256[](1);
         specificChains[0] = chainIds[0];
@@ -1102,10 +1094,10 @@ contract TestProtocolUpgradeHandler is Test {
             abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[0])
         );
         vm.expectEmit(true, true, true, true);
-        emit IProtocolUpgradeHandler.Unfreeze(_fp(specificChains, false, false));
+        emit IProtocolUpgradeHandler.Unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: false}));
 
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(specificChains, false, false));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: false}));
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -1116,9 +1108,9 @@ contract TestProtocolUpgradeHandler is Test {
     function test_reinforceUnfreezeWithSpecificChains() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(new uint256[](0), true, true));
+        handler.unfreeze(_freezeAllParams());
 
         uint256[] memory specificChains = new uint256[](2);
         specificChains[0] = chainIds[0];
@@ -1133,16 +1125,16 @@ contract TestProtocolUpgradeHandler is Test {
             abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[1])
         );
         vm.expectEmit(true, true, true, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(_fp(specificChains, false, true));
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
 
         vm.prank(securityCouncil);
-        handler.reinforceUnfreeze(_fp(specificChains, false, true));
+        handler.reinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
     }
 
     function test_executeEmergencyUpgradeWithSpecificChains() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
 
         IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencySpecificChains");
         proposal.executor = emergencyUpgradeBoard;
@@ -1165,7 +1157,7 @@ contract TestProtocolUpgradeHandler is Test {
         emit IProtocolUpgradeHandler.EmergencyUpgradeExecuted(id);
 
         vm.prank(emergencyUpgradeBoard);
-        handler.executeEmergencyUpgrade(proposal, _fp(specificChains, false, true));
+        handler.executeEmergencyUpgrade(proposal, IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: true}));
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -1177,7 +1169,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_executeEmergencyUpgradeWithUnpauseBridgesFalse() public {
         _resetUpgradeCycle();
         vm.prank(securityCouncil);
-        handler.hardFreeze(_fp(new uint256[](0), true, true));
+        handler.hardFreeze(_freezeAllParams());
 
         IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("emergencyNoBridgeUnpause");
         proposal.executor = emergencyUpgradeBoard;
@@ -1191,7 +1183,7 @@ contract TestProtocolUpgradeHandler is Test {
         );
 
         vm.prank(emergencyUpgradeBoard);
-        handler.executeEmergencyUpgrade(proposal, _fp(specificChains, false, false));
+        handler.executeEmergencyUpgrade(proposal, IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: false, affectBridges: false}));
 
         assertEq(
             uint256(handler.lastFreezeStatusInUpgradeCycle()),
@@ -1203,7 +1195,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_reinforceFreezeWithOverlappingChains() public {
         // Setup: Soft freeze first
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         // First reinforceFreeze with chains [1, 300]
         uint256[] memory firstSet = new uint256[](2);
@@ -1211,9 +1203,9 @@ contract TestProtocolUpgradeHandler is Test {
         firstSet[1] = chainIds[1]; // 300
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceFreeze(_fp(firstSet, false, false));
+        emit IProtocolUpgradeHandler.ReinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: firstSet, affectAllChains: false, affectBridges: false}));
         vm.prank(securityCouncil);
-        handler.reinforceFreeze(_fp(firstSet, false, false));
+        handler.reinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: firstSet, affectAllChains: false, affectBridges: false}));
 
         // Second reinforceFreeze with chains [300, 324] (overlapping with chain 300)
         uint256[] memory secondSet = new uint256[](2);
@@ -1221,15 +1213,15 @@ contract TestProtocolUpgradeHandler is Test {
         secondSet[1] = chainIds[2]; // 324
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceFreeze(_fp(secondSet, false, false));
+        emit IProtocolUpgradeHandler.ReinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: secondSet, affectAllChains: false, affectBridges: false}));
         vm.prank(securityCouncil);
-        handler.reinforceFreeze(_fp(secondSet, false, false));
+        handler.reinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: secondSet, affectAllChains: false, affectBridges: false}));
 
         // Third reinforceFreeze with all chains (complete overlap)
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceFreeze(_fp(chainIds, false, true));
+        emit IProtocolUpgradeHandler.ReinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: chainIds, affectAllChains: false, affectBridges: true}));
         vm.prank(securityCouncil);
-        handler.reinforceFreeze(_fp(chainIds, false, true));
+        handler.reinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: chainIds, affectAllChains: false, affectBridges: true}));
 
         // Verify protocol is still frozen
         assertEq(uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.Soft));
@@ -1240,11 +1232,11 @@ contract TestProtocolUpgradeHandler is Test {
     function test_reinforceUnfreezeWithOverlappingChains() public {
         // Setup: Freeze and then unfreeze
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         vm.warp(block.timestamp + 1 hours);
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(new uint256[](0), true, true));
+        handler.unfreeze(_freezeAllParams());
 
         // Protocol should be unfrozen now
         assertEq(handler.protocolFrozenUntil(), 0);
@@ -1255,9 +1247,9 @@ contract TestProtocolUpgradeHandler is Test {
         firstSet[1] = chainIds[1]; // 300
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(_fp(firstSet, false, false));
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: firstSet, affectAllChains: false, affectBridges: false}));
         vm.prank(securityCouncil);
-        handler.reinforceUnfreeze(_fp(firstSet, false, false));
+        handler.reinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: firstSet, affectAllChains: false, affectBridges: false}));
 
         // Second reinforceUnfreeze with chains [300, 324] (overlapping with chain 300)
         uint256[] memory secondSet = new uint256[](2);
@@ -1265,15 +1257,15 @@ contract TestProtocolUpgradeHandler is Test {
         secondSet[1] = chainIds[2]; // 324
 
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(_fp(secondSet, false, false));
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: secondSet, affectAllChains: false, affectBridges: false}));
         vm.prank(securityCouncil);
-        handler.reinforceUnfreeze(_fp(secondSet, false, false));
+        handler.reinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: secondSet, affectAllChains: false, affectBridges: false}));
 
         // Third reinforceUnfreeze with all chains (complete overlap)
         vm.expectEmit(true, false, false, true);
-        emit IProtocolUpgradeHandler.ReinforceUnfreeze(_fp(chainIds, false, true));
+        emit IProtocolUpgradeHandler.ReinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: chainIds, affectAllChains: false, affectBridges: true}));
         vm.prank(securityCouncil);
-        handler.reinforceUnfreeze(_fp(chainIds, false, true));
+        handler.reinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: chainIds, affectAllChains: false, affectBridges: true}));
 
         // Verify protocol is still unfrozen
         assertEq(handler.protocolFrozenUntil(), 0);
@@ -1283,7 +1275,7 @@ contract TestProtocolUpgradeHandler is Test {
     function test_reinforceFreezeSameChainsMultipleTimes() public {
         // Setup: Soft freeze first
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         uint256[] memory sameChains = new uint256[](1);
         sameChains[0] = chainIds[0]; // chain 1
@@ -1291,7 +1283,7 @@ contract TestProtocolUpgradeHandler is Test {
         // Call reinforceFreeze 5 times with the same chain
         for (uint256 i = 0; i < 5; i++) {
             vm.prank(securityCouncil);
-            handler.reinforceFreeze(_fp(sameChains, false, false));
+            handler.reinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: sameChains, affectAllChains: false, affectBridges: false}));
         }
 
         // Should not revert and protocol should still be frozen
@@ -1302,11 +1294,11 @@ contract TestProtocolUpgradeHandler is Test {
     function test_reinforceUnfreezeSameChainsMultipleTimes() public {
         // Setup: Freeze and then unfreeze
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         vm.warp(block.timestamp + 1 hours);
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(new uint256[](0), true, true));
+        handler.unfreeze(_freezeAllParams());
 
         uint256[] memory sameChains = new uint256[](1);
         sameChains[0] = chainIds[0]; // chain 1
@@ -1314,7 +1306,7 @@ contract TestProtocolUpgradeHandler is Test {
         // Call reinforceUnfreeze 5 times with the same chain
         for (uint256 i = 0; i < 5; i++) {
             vm.prank(securityCouncil);
-            handler.reinforceUnfreeze(_fp(sameChains, false, false));
+            handler.reinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: sameChains, affectAllChains: false, affectBridges: false}));
         }
 
         // Should not revert and protocol should still be unfrozen
@@ -1324,7 +1316,7 @@ contract TestProtocolUpgradeHandler is Test {
     /// @notice Test that freeze skips chains without CTM instead of reverting
     function test_freezeWithInvalidChainIdSkipsGracefully() public {
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         uint256 invalidChainId = 99999; // Non-existent chain
         uint256[] memory invalidChains = new uint256[](1);
@@ -1332,17 +1324,17 @@ contract TestProtocolUpgradeHandler is Test {
 
         // Should not revert - invalid chains are skipped for operational resilience
         vm.prank(securityCouncil);
-        handler.reinforceFreeze(_fp(invalidChains, false, false));
+        handler.reinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: invalidChains, affectAllChains: false, affectBridges: false}));
     }
 
     /// @notice Test that unfreeze skips chains without CTM instead of reverting
     function test_unfreezeWithInvalidChainIdSkipsGracefully() public {
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, false));
+        handler.softFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: new uint256[](0), affectAllChains: true, affectBridges: false}));
 
         vm.warp(block.timestamp + 1 hours);
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(new uint256[](0), true, false));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: new uint256[](0), affectAllChains: true, affectBridges: false}));
 
         uint256 invalidChainId = 99999; // Non-existent chain
         uint256[] memory invalidChains = new uint256[](1);
@@ -1350,7 +1342,7 @@ contract TestProtocolUpgradeHandler is Test {
 
         // Should not revert - invalid chains are skipped for operational resilience
         vm.prank(securityCouncil);
-        handler.reinforceUnfreeze(_fp(invalidChains, false, false));
+        handler.reinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: invalidChains, affectAllChains: false, affectBridges: false}));
     }
 
     /// @notice Test that freeze with empty chainIds and affectAllChains=false only pauses bridges (no chains frozen)
@@ -1363,7 +1355,7 @@ contract TestProtocolUpgradeHandler is Test {
             vm.expectCall(address(chainTypeManager), abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainIds[i]), 0);
         }
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(emptyChains, false, true));
+        handler.softFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: emptyChains, affectAllChains: false, affectBridges: true}));
     }
 
     function test_RevertWhen_freezeAllChainsWithNonEmptyChainIds() public {
@@ -1372,14 +1364,14 @@ contract TestProtocolUpgradeHandler is Test {
 
         vm.prank(securityCouncil);
         vm.expectRevert("Cannot specify chain IDs when freezing all chains");
-        handler.softFreeze(_fp(specificChains, true, false));
+        handler.softFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: true, affectBridges: false}));
     }
 
     /// @notice Test that unfreeze with empty chainIds and affectAllChains=false only unpauses bridges (no chains unfrozen)
     function test_unfreezeEmptyChainsOnlyAffectsBridges() public {
         // First freeze with all chains and bridges
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         vm.warp(block.timestamp + 1 hours);
 
@@ -1390,13 +1382,13 @@ contract TestProtocolUpgradeHandler is Test {
             vm.expectCall(address(chainTypeManager), abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainIds[i]), 0);
         }
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(emptyChains, false, true));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: emptyChains, affectAllChains: false, affectBridges: true}));
     }
 
     function test_RevertWhen_unfreezeAllChainsWithNonEmptyChainIds() public {
         // First freeze with all chains
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, true));
+        handler.softFreeze(_freezeAllParams());
 
         vm.warp(block.timestamp + 1 hours);
 
@@ -1405,32 +1397,33 @@ contract TestProtocolUpgradeHandler is Test {
         specificChains[0] = chainIds[0];
         vm.prank(securityCouncil);
         vm.expectRevert("Cannot specify chain IDs when unfreezing all chains");
-        handler.unfreeze(_fp(specificChains, true, false));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: specificChains, affectAllChains: true, affectBridges: false}));
     }
 
     /// @notice Test that reinforceFreeze with empty chainIds and affectAllChains=false only pauses bridges
     function test_reinforceFreezeEmptyChainsOnlyAffectsBridges() public {
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, false));
+        handler.softFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: new uint256[](0), affectAllChains: true, affectBridges: false}));
 
         uint256[] memory emptyChains = new uint256[](0);
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.pause.selector));
-        handler.reinforceFreeze(_fp(emptyChains, false, true));
+        handler.reinforceFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: emptyChains, affectAllChains: false, affectBridges: true}));
     }
 
     /// @notice Test that reinforceUnfreeze with empty chainIds and affectAllChains=false only unpauses bridges
     function test_reinforceUnfreezeEmptyChainsOnlyAffectsBridges() public {
         // First freeze and unfreeze with all chains
         vm.prank(securityCouncil);
-        handler.softFreeze(_fp(new uint256[](0), true, false));
+        handler.softFreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: new uint256[](0), affectAllChains: true, affectBridges: false}));
 
         vm.warp(block.timestamp + 1 hours);
         vm.prank(securityCouncil);
-        handler.unfreeze(_fp(new uint256[](0), true, false));
+        handler.unfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: new uint256[](0), affectAllChains: true, affectBridges: false}));
 
         // reinforceUnfreeze with empty chainIds — only bridges are unpaused
         uint256[] memory emptyChains = new uint256[](0);
         vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.unpause.selector));
-        handler.reinforceUnfreeze(_fp(emptyChains, false, true));
+        handler.reinforceUnfreeze(IProtocolUpgradeHandler.FreezeParams({chainIds: emptyChains, affectAllChains: false, affectBridges: true}));
     }
+
 }
