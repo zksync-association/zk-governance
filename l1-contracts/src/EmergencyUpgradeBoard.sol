@@ -68,7 +68,7 @@ contract EmergencyUpgradeBoard is EIP712 {
     /// @notice Executes an emergency protocol upgrade approved by the Security Council, Guardians and ZK Foundation.
     /// @param _calls Array of `Call` structures specifying the calls to be made in the upgrade.
     /// @param _salt A bytes32 value used for creating unique upgrade proposal hashes.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze after the upgrade.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze after the upgrade.
     ///        The chain IDs are not part of any signature — they are provided to allow skipping misbehaving
     ///        chains that would cause a full-ecosystem unfreeze to fail. All three parties sign the emergency
     ///        upgrade as a whole (identified by the upgrade `id`), giving the ability to unfreeze the ecosystem.

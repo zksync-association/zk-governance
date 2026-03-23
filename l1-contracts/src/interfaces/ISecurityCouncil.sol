@@ -15,7 +15,7 @@ interface ISecurityCouncil {
         external;
 
     /// @notice Initiates the protocol soft freeze.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
@@ -27,7 +27,7 @@ interface ISecurityCouncil {
     ) external;
 
     /// @notice Initiates the protocol hard freeze.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
@@ -39,7 +39,7 @@ interface ISecurityCouncil {
     ) external;
 
     /// @notice Initiates the protocol unfreeze.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the unfreeze.

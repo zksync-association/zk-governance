@@ -111,7 +111,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// to freeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
     /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
     /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail).
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
@@ -140,7 +140,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// to freeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
     /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
     /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail).
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
@@ -167,7 +167,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// to unfreeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
     /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
     /// (e.g. those that would burn all gas and cause a full-ecosystem unfreeze to fail).
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the unfreeze.

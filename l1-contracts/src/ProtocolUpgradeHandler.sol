@@ -334,7 +334,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev This function clears the freeze state and unfreezes the specified chains.
     /// Misbehaving chains can be skipped by not including them in `_params.chainIds`.
     /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function executeEmergencyUpgrade(
         UpgradeProposal calldata _proposal,
         FreezeParams calldata _params
@@ -387,7 +387,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Sets protocol-level freeze state and freezes specified chains. The `_params.chainIds` field allows
     /// freezing specific chains when `_params.affectAllChains` is false, enabling targeted freeze operations for
     /// specific problematic chains rather than affecting all chains in the ecosystem.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function softFreeze(FreezeParams calldata _params) external onlySecurityCouncil {
         require(lastFreezeStatusInUpgradeCycle == FreezeStatus.None, "Protocol already frozen");
         lastFreezeStatusInUpgradeCycle = FreezeStatus.Soft;
@@ -400,7 +400,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Sets protocol-level freeze state and freezes specified chains. The `_params.chainIds` field allows
     /// freezing specific chains when `_params.affectAllChains` is false, enabling targeted freeze operations for
     /// specific problematic chains rather than affecting all chains in the ecosystem.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function hardFreeze(FreezeParams calldata _params) external onlySecurityCouncil {
         FreezeStatus freezeStatus = lastFreezeStatusInUpgradeCycle;
         require(
@@ -418,7 +418,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Callable by anyone — since the protocol is already frozen, there is no risk of unauthorized
     /// state transitions. This allows any actor to freeze additional chains that may have been missed
     /// or that became problematic after the initial freeze.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function reinforceFreeze(FreezeParams calldata _params) external {
         require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
         _freeze(_params);
@@ -426,13 +426,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @dev Freeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function _freeze(FreezeParams calldata _params) internal {
         // Validate parameters to prevent caller confusion
         if (_params.affectAllChains) {
             require(_params.chainIds.length == 0, "Cannot specify chain IDs when freezing all chains");
         }
 
+        // Note, that it is possible that the chain Ids array is empty and `affectAllChains` is false
+        // (e.g. the caller wants to freeze bridges only).
         uint256[] memory chainsToFreeze = _params.affectAllChains
             ? BRIDGE_HUB.getAllZKChainChainIDs()
             : _params.chainIds;
@@ -463,7 +465,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// chains specified in `_params.chainIds` (or all chains if `_params.affectAllChains` is true). This means
     /// it is possible to have the protocol-level freeze cleared while some individual chains remain frozen.
     /// This is intentional to allow handling of misbehaving chains that should remain frozen.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function unfreeze(FreezeParams calldata _params) external onlySecurityCouncilOrProtocolFreezeExpired {
         // Prevent front-running attack after freeze expiry:
         // After a freeze period expires, anyone can call unfreeze(). Without this check, an attacker could:
@@ -495,7 +497,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// @dev Callable by anyone — since the protocol is already unfrozen, there is no risk of unauthorized
     /// state transitions. This allows any actor to unfreeze chains that were left frozen due to misbehavior
     /// (e.g. running out of gas) during the main unfreeze operation.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function reinforceUnfreeze(FreezeParams calldata _params) external {
         require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
         _unfreeze(_params);
@@ -503,7 +505,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     /// @dev Unfreeze ZKsync contracts, including bridges, state transition managers and ZK Chains.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function _unfreeze(FreezeParams calldata _params) internal {
         // Validate parameters to prevent caller confusion
         if (_params.affectAllChains) {

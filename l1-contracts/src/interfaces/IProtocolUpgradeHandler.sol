@@ -107,34 +107,34 @@ interface IProtocolUpgradeHandler {
 
     /// @notice Executes an emergency upgrade proposal initiated by the emergency upgrade board.
     /// @param _proposal The upgrade proposal details including proposed actions and the executor address.
-    /// @param _params Freeze/unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function executeEmergencyUpgrade(
         UpgradeProposal calldata _proposal,
         FreezeParams calldata _params
     ) external payable;
 
     /// @notice Initiates a soft protocol freeze.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function softFreeze(FreezeParams calldata _params) external;
 
     /// @notice Initiates a hard protocol freeze.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function hardFreeze(FreezeParams calldata _params) external;
 
     /// @notice Reinforces the freezing state of the protocol if it is already within the frozen period.
     /// @dev Callable by anyone to allow freezing additional chains when the protocol is already frozen.
     ///      Useful when specific chains are misbehaving after the initial freeze.
-    /// @param _params Freeze parameters specifying which chains and bridges to freeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     function reinforceFreeze(FreezeParams calldata _params) external;
 
     /// @notice Unfreezes the protocol and resumes normal operations.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function unfreeze(FreezeParams calldata _params) external;
 
     /// @notice Reinforces the unfreeze for protocol if it is not in the freeze mode.
     /// @dev Callable by anyone to allow unfreezing chains that were left frozen after the main unfreeze.
     ///      Useful when specific chains remained frozen due to misbehavior during the unfreeze operation.
-    /// @param _params Unfreeze parameters specifying which chains and bridges to unfreeze.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function reinforceUnfreeze(FreezeParams calldata _params) external;
 
     function upgradeState(bytes32 _id) external view returns (UpgradeState);
