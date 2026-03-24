@@ -468,20 +468,6 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// If a chain has been left frozen after the main unfreeze operation, anyone can call `reinforceUnfreeze()` to unfreeze it later.
     /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     function unfreeze(FreezeParams calldata _params) external onlySecurityCouncilOrProtocolFreezeExpired {
-        // Prevent front-running attack after freeze expiry:
-        // After a freeze period expires, anyone can call unfreeze(). Without this check, an attacker could:
-        // 1. Call unfreeze() with strategically chosen subset of chains (affectAllChains=false)
-        // 2. Consume the one-time state transition (e.g., Soft → AfterSoftFreeze)
-        // 3. Set protocolFrozenUntil = 0
-        // 4. Leave all unchosen chains frozen
-        // After this, unfreeze() can't be called again (would revert with "Unexpected last freeze status").
-        // Only reinforceUnfreeze() (callable by anyone) could fix remaining chains.
-        // Therefore, non-Security Council callers must use the all-or-nothing behavior.
-        if (msg.sender != securityCouncil) {
-            require(_params.affectAllChains, "Non-Security Council must unfreeze all chains");
-            require(_params.affectBridges, "Non-Security Council must unpause bridges");
-        }
-
         if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Soft) {
             lastFreezeStatusInUpgradeCycle = FreezeStatus.AfterSoftFreeze;
         } else if (lastFreezeStatusInUpgradeCycle == FreezeStatus.Hard) {
