@@ -122,11 +122,11 @@ contract ZkCappedMinterV2 is AccessControl, Pausable {
   /// @dev This implementation was modeled off of code that can be found
   /// [here](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/contracts/access/AccessControlDefaultAdminRules.sol#L82).
 
-  function grantRole(bytes32 role, address account) public virtual override {
-    if (role == DEFAULT_ADMIN_ROLE) {
+  function grantRole(bytes32 _role, address _account) public virtual override {
+    if (_role == DEFAULT_ADMIN_ROLE) {
       revert ZkCappedMinterV2__CannotGrantDefaultAdmin();
     }
-    AccessControl.grantRole(role, account);
+    AccessControl.grantRole(_role, _account);
   }
 
   /// @notice Reverts if the amount of new tokens will increase the minted tokens beyond the mint cap.

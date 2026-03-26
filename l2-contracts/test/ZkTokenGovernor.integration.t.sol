@@ -20,7 +20,7 @@ contract ZkTokenGovernorIntegrationBase is IntegrationTest {
     timelock = new TimelockController(0, new address[](0), new address[](0), admin);
 
     // Deploy the token governor
-    ZkTokenGovernor.ConstructorParams memory params = ZkTokenGovernor.ConstructorParams({
+    ZkTokenGovernor.ConstructorParams memory _params = ZkTokenGovernor.ConstructorParams({
       name: "Example Gov",
       token: IVotes(DEPLOYED_TOKEN_ADDRESS),
       timelock: timelock,
@@ -33,7 +33,7 @@ contract ZkTokenGovernorIntegrationBase is IntegrationTest {
       proposeGuardian: proposeGuardian,
       isProposeGuarded: false
     });
-    governor = new ZkTokenGovernor(params);
+    governor = new ZkTokenGovernor(_params);
     console2.logAddress(address(governor));
 
     vm.prank(admin);
@@ -55,13 +55,13 @@ contract ZkTokenGovernorTest is ZkTokenGovernorIntegrationBase {
     _grantTimelockDefaultAdmin();
     _setGovernorAndDelegates();
 
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(
       DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("grantRole(bytes32,address)", MINTER_ADMIN_ROLE, _minterAdmin)
     );
 
     vm.startPrank(proposeGuardian);
-    _queueAndExecuteProposal(builder, _description);
+    _queueAndExecuteProposal(_builder, _description);
 
     assertTrue(token.hasRole(MINTER_ADMIN_ROLE, _minterAdmin));
   }
@@ -71,11 +71,13 @@ contract ZkTokenGovernorTest is ZkTokenGovernorIntegrationBase {
     _grantTimelockMinterAdmin();
 
     _setGovernorAndDelegates();
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("grantRole(bytes32,address)", MINTER_ROLE, _minter));
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(
+      DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("grantRole(bytes32,address)", MINTER_ROLE, _minter)
+    );
 
     vm.startPrank(proposeGuardian);
-    _queueAndExecuteProposal(builder, _description);
+    _queueAndExecuteProposal(_builder, _description);
     assertTrue(token.hasRole(MINTER_ROLE, _minter));
   }
 
@@ -83,13 +85,13 @@ contract ZkTokenGovernorTest is ZkTokenGovernorIntegrationBase {
     _grantTimelockDefaultAdmin();
 
     _setGovernorAndDelegates();
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(
       DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("grantRole(bytes32,address)", BURNER_ADMIN_ROLE, _burner)
     );
 
     vm.startPrank(proposeGuardian);
-    _queueAndExecuteProposal(builder, _description);
+    _queueAndExecuteProposal(_builder, _description);
     assertTrue(token.hasRole(BURNER_ADMIN_ROLE, _burner));
   }
 
@@ -98,11 +100,13 @@ contract ZkTokenGovernorTest is ZkTokenGovernorIntegrationBase {
     _grantTimelockBurnerAdmin();
 
     _setGovernorAndDelegates();
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("grantRole(bytes32,address)", BURNER_ROLE, _burner));
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(
+      DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("grantRole(bytes32,address)", BURNER_ROLE, _burner)
+    );
 
     vm.startPrank(proposeGuardian);
-    _queueAndExecuteProposal(builder, _description);
+    _queueAndExecuteProposal(_builder, _description);
 
     assertTrue(token.hasRole(BURNER_ROLE, _burner));
   }
@@ -115,11 +119,11 @@ contract ZkTokenGovernorTest is ZkTokenGovernorIntegrationBase {
     _grantTimelockMinterRole();
 
     _setGovernorAndDelegates();
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("mint(address,uint256)", _mintee, _amount));
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("mint(address,uint256)", _mintee, _amount));
 
     vm.startPrank(proposeGuardian);
-    _queueAndExecuteProposal(builder, _description);
+    _queueAndExecuteProposal(_builder, _description);
 
     assertEq(token.balanceOf(_mintee), _amount);
   }
@@ -143,11 +147,13 @@ contract ZkTokenGovernorTest is ZkTokenGovernorIntegrationBase {
     token.mint(_tokenHolder, _mintAmount);
 
     _setGovernorAndDelegates();
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("burn(address,uint256)", _tokenHolder, _burnAmount));
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(
+      DEPLOYED_TOKEN_ADDRESS, 0, abi.encodeWithSignature("burn(address,uint256)", _tokenHolder, _burnAmount)
+    );
 
     vm.startPrank(proposeGuardian);
-    _queueAndExecuteProposal(builder, _description);
+    _queueAndExecuteProposal(_builder, _description);
 
     assertEq(token.balanceOf(_tokenHolder), _mintAmount - _burnAmount);
   }
