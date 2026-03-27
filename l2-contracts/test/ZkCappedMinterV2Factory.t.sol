@@ -8,6 +8,9 @@ import {IMintable} from "src/interfaces/IMintable.sol";
 
 import {stdJson} from "forge-std/StdJson.sol";
 
+/// @dev Error emitted by the ZKsync CREATE2 deployer when a contract is already deployed at the target address.
+error HashIsNonZero(bytes32);
+
 contract ZkCappedMinterV2FactoryTest is ZkTokenTest {
   bytes32 bytecodeHash;
   ZkCappedMinterV2Factory factory;
@@ -109,7 +112,7 @@ contract CreateCappedMinter is ZkCappedMinterV2FactoryTest {
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
 
-    vm.expectRevert("Code hash is non-zero");
+    vm.expectRevert(abi.encodeWithSelector(HashIsNonZero.selector, bytecodeHash));
     factory.createCappedMinter(
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
