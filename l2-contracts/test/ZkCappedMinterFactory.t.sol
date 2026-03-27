@@ -70,7 +70,7 @@ contract CreateCappedMinter is ZkCappedMinterFactoryTest {
 
     factory.createCappedMinter(IMintableAndDelegatable(address(token)), _cappedMinterAdmin, _cap, _saltNonce);
 
-    vm.expectRevert("Code hash is non-zero");
+    vm.expectRevert(abi.encodeWithSelector(bytes4(0x9e4a3c8a), bytecodeHash));
     factory.createCappedMinter(IMintableAndDelegatable(address(token)), _cappedMinterAdmin, _cap, _saltNonce);
   }
 }
