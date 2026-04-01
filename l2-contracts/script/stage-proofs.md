@@ -8,7 +8,7 @@
 | ZkTokenV2 implementation (active) | `0xE51447a23A8f9064F2241e60c56b1918F63FD89C` |
 | ZkTokenV1 implementation (initial) | `0xA627e7C4b0AB0acc5e166C7fe04D5a3295dE1E6d` |
 | ProxyAdmin | `0x9380789287AB044A7A316672Fe565d8df35A1d8B` |
-| Proxy owner / admin | `0xD742604A657A114ca6d59b4B0eA541ced7Bd9413` |
+| Proxy owner / admin | `0x1454c35737130eB8700e5d0e7a6C44e8aE00aB10` |
 | L2NativeTokenVault (predeploy) | `0x0000000000000000000000000000000000010004` |
 
 ## Token details
@@ -46,11 +46,13 @@ Explorer: `https://dev-api-explorer.era-stage-proofs.zksync.dev`
 
 ## Verifying the deployment
 
-Run `CheckZkTokenState.ts` to verify that the proxy, implementation, and ProxyAdmin have the correct bytecode, that `initializeV2` was called, and that the proxy owner holds all expected roles:
+Run `CheckZkTokenState.ts` to verify that the proxy, implementation, and ProxyAdmin have the correct bytecode, that `initializeV2` was called, that the governance owner holds all roles, and that the deployer holds none:
 
 ```bash
 ZK_TOKEN_PROXY=0xf491d1aE752cad884238933BeD15863C5EE22f12 \
 L2_RPC=<stage-proofs-rpc-url> \
+EXPECTED_ROLE_HOLDERS=0x1454c35737130eB8700e5d0e7a6C44e8aE00aB10 \
+EXPECTED_NO_ROLES=0xD742604A657A114ca6d59b4B0eA541ced7Bd9413 \
   npx hardhat run script/CheckZkTokenState.ts --network stageProofs
 ```
 

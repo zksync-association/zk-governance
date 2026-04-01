@@ -160,7 +160,7 @@ async function main() {
   console.log(`Total supply   : ${ethers.formatUnits(totalSupply, decimals)} ${symbol}`);
 
   // ------------------------------------------------------------------
-  // 4. ProxyAdmin owner and their roles
+  // 4. Role checks: expected owner has all roles, no-role accounts have none
   // ------------------------------------------------------------------
   const proxyAdmin = new ethers.Contract(proxyAdminAddress, PROXY_ADMIN_ABI, provider);
   const proxyOwner = await proxyAdmin.owner();
@@ -181,20 +181,43 @@ async function main() {
     { name: "BURNER_ROLE",        id: BURNER },
   ];
 
-  const hasRoles = await Promise.all(roles.map(r => token.hasRole(r.id, proxyOwner)));
+  // Accounts that must hold ALL roles (ProxyAdmin owner is always included)
+  const EXPECTED_ROLE_HOLDERS: string[] = [
+    proxyOwner,
+    ...(process.env.EXPECTED_ROLE_HOLDERS ?? "").split(",").map(s => s.trim()).filter(Boolean),
+  ].map(ethers.getAddress).filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
-  console.log("\n--- ProxyAdmin owner ---");
-  console.log(`Owner          : ${proxyOwner}`);
-  console.log("Roles:");
-  roles.forEach((r, i) => {
-    console.log(`  ${hasRoles[i] ? "✅" : "❌"} ${r.name}`);
-  });
+  // Accounts that must hold NO roles (comma-separated env var or empty)
+  const EXPECTED_NO_ROLES: string[] = (process.env.EXPECTED_NO_ROLES ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean).map(ethers.getAddress);
+
+  console.log("\n--- Role holders (must have ALL roles) ---");
+  let rolesOk = true;
+  for (const holder of EXPECTED_ROLE_HOLDERS) {
+    console.log(`${holder}:`);
+    const results = await Promise.all(roles.map(r => token.hasRole(r.id, holder)));
+    roles.forEach((r, i) => {
+      const ok = results[i];
+      if (!ok) rolesOk = false;
+      console.log(`  ${ok ? "✅" : "❌"} ${r.name}`);
+    });
+  }
+
+  console.log("\n--- Accounts that must hold NO roles ---");
+  for (const account of EXPECTED_NO_ROLES) {
+    console.log(`${account}:`);
+    const results = await Promise.all(roles.map(r => token.hasRole(r.id, account)));
+    roles.forEach((r, i) => {
+      const hasIt = results[i];
+      if (hasIt) rolesOk = false;
+      console.log(`  ${hasIt ? "❌ STILL HAS" : "✅ none"} ${r.name}`);
+    });
+  }
 
   // ------------------------------------------------------------------
   // Summary
   // ------------------------------------------------------------------
-  const allRoles = hasRoles.every(Boolean);
-  const ok = implOk && adminOk && proxyOk && initialized === 2 && allRoles;
+  const ok = implOk && adminOk && proxyOk && initialized === 2 && rolesOk;
   console.log("\n" + "=".repeat(60));
   console.log(ok ? "✅  All checks passed." : "⚠️  Some checks failed – see above.");
   console.log("=".repeat(60));
