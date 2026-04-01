@@ -66,11 +66,14 @@ async function main() {
     to: address,
   });
   console.log(`L1 tx hash     : ${depositTx.hash}`);
-  await depositTx.wait();
+  await depositTx.waitL1Commit();
   console.log("L1 confirmed.");
 
-  console.log("Waiting for L2 credit…");
-  await depositTx.waitFinalize();
+  // wait() on PriorityOpResponse fetches the corresponding L2 tx and waits
+  // for it to be included in an L2 block (~minutes). This is NOT waitFinalize()
+  // which would wait for the full proof cycle (~hours).
+  console.log("Waiting for L2 inclusion…");
+  await depositTx.wait();
   console.log("L2 confirmed.");
 
   const l2BalanceAfter = await l2Provider.getBalance(address);
