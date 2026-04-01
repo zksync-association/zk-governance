@@ -11,6 +11,8 @@ import { config as dotEnvConfig } from "dotenv";
 import { Provider } from "zksync-ethers";
 import { ethers } from "ethers";
 import * as hre from "hardhat";
+import * as path from "path";
+import * as fs from "fs";
 
 dotEnvConfig();
 
@@ -39,6 +41,52 @@ const PROXY_ADMIN_ABI = [
 
 function slotToAddress(slot: string): string {
   return ethers.getAddress("0x" + slot.slice(-40));
+}
+
+/** keccak256 of the deployed bytecode, used as a fingerprint. */
+function codeHash(bytecode: string): string {
+  return ethers.keccak256(bytecode);
+}
+
+/** Load the deployedBytecode from a zk artifact (artifacts-zk directory). */
+function loadArtifactBytecode(contractName: string): string {
+  // Search artifacts-zk recursively for <ContractName>.json
+  const base = path.join(__dirname, "..", "artifacts-zk");
+  const found = findFile(base, `${contractName}.json`);
+  if (!found) throw new Error(`Artifact not found for ${contractName}`);
+  const artifact = JSON.parse(fs.readFileSync(found, "utf-8"));
+  const deployed = artifact.deployedBytecode ?? artifact.bytecode;
+  if (!deployed) throw new Error(`No bytecode in artifact for ${contractName}`);
+  return deployed;
+}
+
+function findFile(dir: string, name: string): string | null {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const result = findFile(full, name);
+      if (result) return result;
+    } else if (entry.name === name && !entry.name.endsWith(".dbg.json")) {
+      return full;
+    }
+  }
+  return null;
+}
+
+function checkCode(label: string, deployed: string, expectedBytecode: string): boolean {
+  if (deployed === "0x") {
+    console.log(`  ❌ ${label}: no code deployed`);
+    return false;
+  }
+  const deployedHash  = codeHash(deployed);
+  const expectedHash  = codeHash(expectedBytecode);
+  const match = deployedHash === expectedHash;
+  console.log(`  ${match ? "✅" : "❌"} ${label}: bytecode hash ${match ? "matches artifact" : "MISMATCH"}`);
+  if (!match) {
+    console.log(`       deployed : ${deployedHash}`);
+    console.log(`       expected : ${expectedHash}`);
+  }
+  return match;
 }
 
 async function main() {
@@ -73,12 +121,16 @@ async function main() {
   console.log(`ProxyAdmin     : ${proxyAdminAddress}`);
 
   // Confirm both have code
-  const [implCode, adminCode] = await Promise.all([
+  const [implCode, adminCode, proxyCode] = await Promise.all([
     provider.getCode(implAddress),
     provider.getCode(proxyAdminAddress),
+    provider.getCode(proxyAddress),
   ]);
-  console.log(`Impl has code  : ${implCode.length > 2 ? "✅ yes" : "❌ NO CODE"}`);
-  console.log(`Admin has code : ${adminCode.length > 2 ? "✅ yes" : "❌ NO CODE"}`);
+
+  console.log("Bytecode verification:");
+  const implOk  = checkCode("Implementation (ZkTokenV2)", implCode,  loadArtifactBytecode("ZkTokenV2"));
+  const adminOk = checkCode("ProxyAdmin",                 adminCode, loadArtifactBytecode("ProxyAdmin"));
+  const proxyOk = checkCode("Proxy (TransparentUpgradeableProxy)", proxyCode, loadArtifactBytecode("TransparentUpgradeableProxy"));
 
   // ------------------------------------------------------------------
   // 2. Check _initialized == 2  (slot 0, byte 0 of the proxy storage)
@@ -142,7 +194,7 @@ async function main() {
   // Summary
   // ------------------------------------------------------------------
   const allRoles = hasRoles.every(Boolean);
-  const ok = implCode.length > 2 && adminCode.length > 2 && initialized === 2 && allRoles;
+  const ok = implOk && adminOk && proxyOk && initialized === 2 && allRoles;
   console.log("\n" + "=".repeat(60));
   console.log(ok ? "✅  All checks passed." : "⚠️  Some checks failed – see above.");
   console.log("=".repeat(60));
