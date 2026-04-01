@@ -44,6 +44,18 @@
 
 Explorer: `https://dev-api-explorer.era-stage-proofs.zksync.dev`
 
+## Verifying the deployment
+
+Run `CheckZkTokenState.ts` to verify that the proxy, implementation, and ProxyAdmin have the correct bytecode, that `initializeV2` was called, and that the proxy owner holds all expected roles:
+
+```bash
+ZK_TOKEN_PROXY=0xf491d1aE752cad884238933BeD15863C5EE22f12 \
+L2_RPC=<stage-proofs-rpc-url> \
+  npx hardhat run script/CheckZkTokenState.ts --network stageProofs
+```
+
+Expected output: `✅  All checks passed.`
+
 ## Test withdrawal
 
 | Field | Value |
