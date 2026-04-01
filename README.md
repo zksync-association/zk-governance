@@ -98,3 +98,53 @@ Running the deploy scripts will produce deployment logs locally in either the `.
 Each deploy scripts hardcodes deployment parameters as simple constants at the top of each file. Before executing a real deployment, be sure to set these values as appropriate for the environment you're deploying to.
 
 In addition to the deploy scripts, there are also utility scripts for interacting with the deployed contracts, for the purposes of granting roles to accounts, transferring ownership of the token contract, and so on. These scripts are located in the `script` subdirectory, can be run in the same way as the deploy scripts, and also have hardedcoded parameters at the top of each file that should be changed for non-local deployments.
+
+#### Deploying ZkTokenV2 from scratch
+
+`DeployZkTokenV2FromScratch.ts` deploys ZkTokenV2 behind a Transparent Upgradeable Proxy in a single run. It deploys the V1 implementation, initialises the proxy, upgrades to V2, grants all access-control roles to the hardcoded `PROXY_OWNER`, and registers the token on the L2NativeTokenVault so it can be bridged back to L1.
+
+The script is resumable: it persists completed steps to `script/.deploy-state.json` and skips them on re-runs, so it is safe to interrupt and restart.
+
+Required env vars:
+- `DEPLOYER_PRIVATE_KEY` – private key of the deploying wallet
+- `L2_RPC` – ZKsync Era JSON-RPC endpoint
+
+```bash
+L2_RPC=<l2-rpc-url> \
+  npx hardhat run script/DeployZkTokenV2FromScratch.ts --network <network>
+```
+
+#### Withdrawing ZK tokens from L2 to L1
+
+`WithdrawZkToken.ts` supports two commands that together complete an L2→L1 bridge withdrawal.
+
+**Step 1 – initiate the withdrawal on L2**
+
+```bash
+COMMAND=withdraw \
+L2_WALLET_PRIVATE_KEY=<private-key> \
+ZK_TOKEN_ADDRESS=<proxy-address> \
+WITHDRAW_AMOUNT=<amount>          \
+L1_RECEIVER=<l1-address>          \
+L2_RPC=<l2-rpc-url>               \
+L1_RPC=<l1-rpc-url>               \
+  npx hardhat run script/WithdrawZkToken.ts --network <network>
+```
+
+`L1_RECEIVER` defaults to the L2 wallet address if omitted. The command prints a `WITHDRAWAL_TX_HASH` to use in step 2.
+
+**Step 2 – finalise the withdrawal on L1**
+
+Finalisation can only be submitted after the ZKsync proof window has elapsed (~24 h on mainnet, ~1 h on Sepolia testnet). Re-run the command after that window; it will print a clear message if the proof is not yet available.
+
+```bash
+COMMAND=finalize \
+L2_WALLET_PRIVATE_KEY=<private-key> \
+L1_WALLET_PRIVATE_KEY=<private-key> \
+WITHDRAWAL_TX_HASH=<hash-from-step-1> \
+L2_RPC=<l2-rpc-url>                   \
+L1_RPC=<l1-rpc-url>                   \
+  npx hardhat run script/WithdrawZkToken.ts --network <network>
+```
+
+`L1_WALLET_PRIVATE_KEY` is the wallet that pays for the L1 finalisation gas. It can be the same key as `L2_WALLET_PRIVATE_KEY`.
