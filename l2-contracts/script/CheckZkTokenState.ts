@@ -153,11 +153,20 @@ async function main() {
     token.totalSupply(),
   ]);
 
+  // Fetch assetId from L2NativeTokenVault
+  const L2_NTV = "0x0000000000000000000000000000000000010004";
+  const ntvAssetId: string = await new ethers.Contract(
+    L2_NTV,
+    ["function assetId(address token) view returns (bytes32)"],
+    provider,
+  ).assetId(proxyAddress);
+
   console.log("\n--- Token info ---");
   console.log(`Name           : ${name}`);
   console.log(`Symbol         : ${symbol}`);
   console.log(`Decimals       : ${decimals}`);
   console.log(`Total supply   : ${ethers.formatUnits(totalSupply, decimals)} ${symbol}`);
+  console.log(`Asset ID (NTV) : ${ntvAssetId === ethers.ZeroHash ? "⚠️  not registered" : ntvAssetId}`);
 
   // ------------------------------------------------------------------
   // 4. Role checks: expected owner has all roles, no-role accounts have none
