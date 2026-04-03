@@ -15,6 +15,11 @@
  *   DEPOSIT_AMOUNT   – ETH amount to bridge (human-readable, e.g. "0.01")
  *   L1_RPC           – L1 Ethereum JSON-RPC endpoint
  *   L2_RPC           – ZKsync Era JSON-RPC endpoint
+ *
+ * Note: wallet.deposit() issues several sequential L1 RPC calls (nonce, gas
+ * estimate, base cost, send). Rate-limited endpoints (e.g. Tenderly public
+ * gateway) may cause it to hang or fail. Use a non-rate-limited endpoint for
+ * L1_RPC, e.g. https://ethereum-sepolia-rpc.publicnode.com for Sepolia.
  */
 
 import { config as dotEnvConfig } from "dotenv";
