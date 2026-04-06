@@ -58,7 +58,71 @@ EXPECTED_NO_ROLES=0xD742604A657A114ca6d59b4B0eA541ced7Bd9413 \
 
 Expected output: `✅  All checks passed.`
 
-## Test withdrawal
+## Minting ZK tokens
+
+Use `MintZkToken.ts` to mint additional ZK to any address. The caller must hold `MINTER_ROLE` on the proxy.
+
+```bash
+OWNER_PRIVATE_KEY=<private-key-with-MINTER_ROLE> \
+ZK_TOKEN_PROXY=0xf491d1aE752cad884238933BeD15863C5EE22f12 \
+MINT_TO=<recipient-address> \
+MINT_AMOUNT=<amount-in-ZK> \
+L2_RPC=<stage-proofs-rpc-url> \
+  npx hardhat run script/MintZkToken.ts --network stageProofs
+```
+
+The script pre-flight checks that the caller actually holds `MINTER_ROLE` and prints the recipient balance before and after.
+
+## Depositing ETH from Sepolia to Stage Proofs
+
+Use `DepositEthToL2.ts` to bridge ETH from Sepolia L1 to the same wallet address on Stage Proofs (chain 499).
+
+```bash
+PRIVATE_KEY=<private-key> \
+DEPOSIT_AMOUNT=<amount-in-ETH> \
+L1_RPC=<sepolia-rpc-url> \
+L2_RPC=<stage-proofs-rpc-url> \
+  npx hardhat run script/DepositEthToL2.ts --network stageProofs
+```
+
+The script calls `Bridgehub.requestL2TransactionDirect` (the universal path for ETH / base-token deposits). It waits for L1 confirmation and then for L2 block inclusion (~minutes).
+
+> **Note:** Use a non-rate-limited Sepolia RPC. The Tenderly public gateway will 429 on the multiple sequential calls. A reliable public alternative: `https://ethereum-sepolia-rpc.publicnode.com`
+
+## Withdrawing ZK tokens from Stage Proofs to Sepolia
+
+### Step 1 – initiate the withdrawal on L2
+
+```bash
+COMMAND=withdraw \
+L2_WALLET_PRIVATE_KEY=<private-key> \
+ZK_TOKEN_ADDRESS=0xf491d1aE752cad884238933BeD15863C5EE22f12 \
+WITHDRAW_AMOUNT=<amount-in-ZK> \
+L1_RECEIVER=<sepolia-address> \
+L2_RPC=<stage-proofs-rpc-url> \
+L1_RPC=<sepolia-rpc-url> \
+  npx hardhat run script/WithdrawZkToken.ts --network stageProofs
+```
+
+`L1_RECEIVER` defaults to the L2 wallet address if omitted. Copy the printed `WITHDRAWAL_TX_HASH` for step 2.
+
+### Step 2 – finalise the withdrawal on Sepolia
+
+Finalisation can only be submitted after the ZKsync proof window has elapsed (~1 h on Sepolia testnet). The script prints a clear message if the proof is not yet available — re-run after the window.
+
+```bash
+COMMAND=finalize \
+L2_WALLET_PRIVATE_KEY=<private-key> \
+L1_WALLET_PRIVATE_KEY=<private-key> \
+WITHDRAWAL_TX_HASH=<hash-from-step-1> \
+L2_RPC=<stage-proofs-rpc-url> \
+L1_RPC=<sepolia-rpc-url> \
+  npx hardhat run script/WithdrawZkToken.ts --network stageProofs
+```
+
+`L1_WALLET_PRIVATE_KEY` is the wallet that pays for L1 finalisation gas; it can be the same as `L2_WALLET_PRIVATE_KEY`.
+
+## Test withdrawal record
 
 | Field | Value |
 |---|---|
