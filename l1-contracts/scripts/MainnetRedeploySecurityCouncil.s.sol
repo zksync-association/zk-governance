@@ -17,8 +17,8 @@ import {RedeploySecurityCouncil} from "./RedeploySecurityCouncil.s.sol";
 ///     --rpc-url <L1_MAINNET_RPC> --broadcast --verify --etherscan-api-key <KEY> -vvvv
 contract MainnetRedeploySecurityCouncil is RedeploySecurityCouncil {
     // Current ProtocolUpgradeHandler proxy on mainnet
-    // (the proxy deployed by the last Redeploy)
-    address constant CURRENT_PROTOCOL_UPGRADE_HANDLER = 0x8f7a9912416e8AdC4D9c21FAe1415D3318A11897;
+    // (verified via Bridgehub.owner() at 0x303a465B659cBB0ab36eE643eA362c509EEb5213)
+    address constant CURRENT_PROTOCOL_UPGRADE_HANDLER = 0xE30Dca3047B37dc7d88849dE4A4Dc07937ad5Ab3;
 
     function run() external {
         // The 8 retained ZKSC members

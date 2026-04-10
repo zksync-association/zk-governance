@@ -19,7 +19,8 @@ import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
 ///     --rpc-url <L1_STAGE_RPC> --broadcast --verify --etherscan-api-key <KEY> -vvvv
 contract StageRedeploySecurityCouncil is RedeploySecurityCouncil {
     // Current ProtocolUpgradeHandler on stage (testnet)
-    address constant CURRENT_PROTOCOL_UPGRADE_HANDLER = 0x9B956d242e6806044877C7C1B530D475E371d544;
+    // (verified via stage Bridgehub.owner() at 0x236D1c3Ff32Bd0Ca26b72Af287E895627c0478cE)
+    address constant CURRENT_PROTOCOL_UPGRADE_HANDLER = 0x8f08627524aeD610192132A425D6b9C32a1727EF;
 
     function run() external {
         ProtocolUpgradeHandler currentHandler = ProtocolUpgradeHandler(payable(CURRENT_PROTOCOL_UPGRADE_HANDLER));
