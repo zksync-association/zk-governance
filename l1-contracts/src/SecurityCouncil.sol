@@ -35,19 +35,19 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev The default threshold for soft freeze initiated by the Security Council.
-    uint256 public constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 9;
+    uint256 public constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 6;
 
     /// @dev The recommended threshold parameter for soft freeze initiated by the Security Council.
     uint256 public constant RECOMMENDED_SOFT_FREEZE_THRESHOLD = 3;
 
     /// @dev The number of signatures needed to trigger hard freeze.
-    uint256 public constant HARD_FREEZE_THRESHOLD = 9;
+    uint256 public constant HARD_FREEZE_THRESHOLD = 6;
 
     /// @dev The number of signatures needed to approve upgrade.
     uint256 public constant APPROVE_UPGRADE_SECURITY_COUNCIL_THRESHOLD = 6;
 
     /// @dev The number of signatures needed to unfreeze the protocol.
-    uint256 public constant UNFREEZE_THRESHOLD = 9;
+    uint256 public constant UNFREEZE_THRESHOLD = 6;
 
     /// @dev Tracks the unique identifier used in the last successful soft emergency freeze,
     /// to ensure each request is unique.
@@ -74,11 +74,11 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     /// @param _members Array of addresses representing the members of the Security Council.
     /// Expected to be sorted in ascending order without duplicates.
     constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, address[] memory _members)
-        Multisig(_members, 9)
+        Multisig(_members, 6)
         EIP712("SecurityCouncil", "1")
     {
         PROTOCOL_UPGRADE_HANDLER = _protocolUpgradeHandler;
-        require(_members.length == 12, "SecurityCouncil requires exactly 12 members");
+        require(_members.length == 8, "SecurityCouncil requires exactly 8 members");
         softFreezeThreshold = RECOMMENDED_SOFT_FREEZE_THRESHOLD;
     }
 

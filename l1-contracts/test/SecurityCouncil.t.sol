@@ -6,8 +6,8 @@ import {Test, Vm} from "forge-std/Test.sol";
 import {Utils} from "./utils/Utils.t.sol";
 import {EIP712Util} from "./utils/EIP712Util.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
-import {SecurityCouncil} from "../../src/SecurityCouncil.sol";
-import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
+import {SecurityCouncil} from "../src/SecurityCouncil.sol";
+import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract TestSecurityCouncil is Test, EIP712Util {
@@ -37,13 +37,13 @@ contract TestSecurityCouncil is Test, EIP712Util {
     bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
     constructor() {
-        Vm.Wallet[] memory wallets_ = new Vm.Wallet[](12);
-        for (uint256 i = 0; i < 12; i++) {
+        Vm.Wallet[] memory wallets_ = new Vm.Wallet[](8);
+        for (uint256 i = 0; i < 8; i++) {
             wallets_[i] = vm.createWallet(string(abi.encodePacked("Account: ", i)));
         }
         wallets_ = Utils.sortWalletsByAddress(wallets_);
 
-        for (uint256 i = 0; i < 12; i++) {
+        for (uint256 i = 0; i < 8; i++) {
             wallets.push(wallets_[i]);
             members.push(wallets_[i].addr);
         }
@@ -52,17 +52,17 @@ contract TestSecurityCouncil is Test, EIP712Util {
         securityCouncilDomainHash = _buildDomainHash(address(securityCouncil), "SecurityCouncil", "1");
     }
 
-    function test_RevertWhen_NotTwelveMembers(uint256 _numberOfMembers) public {
+    function test_RevertWhen_NotEightMembers(uint256 _numberOfMembers) public {
         _numberOfMembers = bound(_numberOfMembers, 0, 100);
-        vm.assume(_numberOfMembers != 12);
+        vm.assume(_numberOfMembers != 8);
         address[] memory members = new address[](_numberOfMembers);
 
         for (uint256 i = 0; i < _numberOfMembers; i++) {
             members[i] = address(uint160(i + 1));
         }
 
-        if (_numberOfMembers >= 9) {
-            vm.expectRevert("SecurityCouncil requires exactly 12 members");
+        if (_numberOfMembers >= 6) {
+            vm.expectRevert("SecurityCouncil requires exactly 8 members");
         } else {
             vm.expectRevert("EIP-1271 threshold is too big");
         }
@@ -95,7 +95,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
     }
 
     function test_RevertWhen_tryToSetTooBigThresholdForSoftFreeze(uint256 _newThreshold, uint256 _validUntil) public {
-        _newThreshold = bound(_newThreshold, 10, 12);
+        _newThreshold = bound(_newThreshold, 7, 8);
         vm.expectRevert("Threshold is too big");
         securityCouncil.setSoftFreezeThreshold(_newThreshold, _validUntil, members, new bytes[](0));
     }
@@ -108,7 +108,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
     function test_approveUpgradeSecurityCouncil(bytes32 _id, uint256 _numberOfSignatures, uint256 _isEOAOrEIP712Mask)
         public
     {
-        _numberOfSignatures = bound(_numberOfSignatures, 6, 12);
+        _numberOfSignatures = bound(_numberOfSignatures, 6, 8);
 
         bytes32 message = keccak256(abi.encode(APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH, _id));
         (address[] memory signers, bytes[] memory signatures) =
@@ -119,7 +119,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
 
     // TODO: better test threshold
     function test_softFreeze(uint256 _validUntil, uint256 _numberOfSignatures, uint256 _isEOAOrEIP712Mask) public {
-        _numberOfSignatures = bound(_numberOfSignatures, 6, 12);
+        _numberOfSignatures = bound(_numberOfSignatures, 6, 8);
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.softFreezeNonce();
 
@@ -132,7 +132,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
     }
 
     function test_hardFreeze(uint256 _validUntil, uint256 _numberOfSignatures, uint256 _isEOAOrEIP712Mask) public {
-        _numberOfSignatures = bound(_numberOfSignatures, 9, 12);
+        _numberOfSignatures = bound(_numberOfSignatures, 6, 8);
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.hardFreezeNonce();
 
@@ -145,7 +145,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
     }
 
     function test_unfreeze(uint256 _validUntil, uint256 _numberOfSignatures, uint256 _isEOAOrEIP712Mask) public {
-        _numberOfSignatures = bound(_numberOfSignatures, 9, 12);
+        _numberOfSignatures = bound(_numberOfSignatures, 6, 8);
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.unfreezeNonce();
 
@@ -163,8 +163,8 @@ contract TestSecurityCouncil is Test, EIP712Util {
         uint256 _numberOfSignatures,
         uint256 _isEOAOrEIP712Mask
     ) public {
-        _newThreshold = bound(_newThreshold, 1, 9);
-        _numberOfSignatures = bound(_numberOfSignatures, 9, 12);
+        _newThreshold = bound(_newThreshold, 1, 6);
+        _numberOfSignatures = bound(_numberOfSignatures, 6, 8);
         _validUntil = bound(_validUntil, block.timestamp + 1, type(uint256).max);
         uint256 nonceBefore = securityCouncil.softFreezeThresholdSettingNonce();
 
