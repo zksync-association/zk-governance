@@ -44,7 +44,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     uint256 public constant HARD_FREEZE_THRESHOLD = 6;
 
     /// @dev The number of signatures needed to approve upgrade.
-    uint256 public constant APPROVE_UPGRADE_SECURITY_COUNCIL_THRESHOLD = 6;
+    uint256 public constant APPROVE_UPGRADE_SECURITY_COUNCIL_THRESHOLD = 4;
 
     /// @dev The number of signatures needed to unfreeze the protocol.
     uint256 public constant UNFREEZE_THRESHOLD = 6;
@@ -82,7 +82,7 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         softFreezeThreshold = RECOMMENDED_SOFT_FREEZE_THRESHOLD;
     }
 
-    /// @notice Approves ZKsync protocol upgrade, by the 6 out of 12 Security Council approvals.
+    /// @notice Approves ZKsync protocol upgrade, by the 4 out of 8 Security Council approvals.
     /// @param _id Unique identifier of the upgrade proposal to be approved.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the upgrade.

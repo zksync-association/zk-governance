@@ -108,7 +108,7 @@ contract TestSecurityCouncil is Test, EIP712Util {
     function test_approveUpgradeSecurityCouncil(bytes32 _id, uint256 _numberOfSignatures, uint256 _isEOAOrEIP712Mask)
         public
     {
-        _numberOfSignatures = bound(_numberOfSignatures, 6, 8);
+        _numberOfSignatures = bound(_numberOfSignatures, 4, 8);
 
         bytes32 message = keccak256(abi.encode(APPROVE_UPGRADE_SECURITY_COUNCIL_TYPEHASH, _id));
         (address[] memory signers, bytes[] memory signatures) =
