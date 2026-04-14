@@ -65,8 +65,8 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     uint256 public unfreezeNonce;
 
     /// @dev Represents the number of signatures needed to trigger soft freeze.
-    /// This value is automatically reset to 9 after each soft freeze, but it can be
-    /// set by the 9 SC members and requires to be not bigger than 9.
+    /// This value is automatically reset to 6 after each soft freeze, but it can be
+    /// set by the 6 SC members and requires to be not bigger than 6.
     uint256 public softFreezeThreshold;
 
     /// @dev Initializes the Security Council contract with predefined members and setup for EIP-712.

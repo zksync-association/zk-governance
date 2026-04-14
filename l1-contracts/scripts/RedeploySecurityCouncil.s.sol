@@ -20,7 +20,7 @@ struct SCRedeployedContracts {
 }
 
 /// @title RedeploySecurityCouncil
-/// @notice Base script for redeploying the SecurityCouncil (8 members, 6/8 thresholds)
+/// @notice Base script for redeploying the SecurityCouncil (8 members, 4/8 upgrade approval threshold)
 /// and EmergencyUpgradeBoard, then generating the Call[] for the ProtocolUpgradeHandler
 /// to update its references.
 contract RedeploySecurityCouncil is Script {
