@@ -8,16 +8,16 @@ import {Callee} from "./utils/Callee.t.sol";
 import {EmptyContract} from "./utils/EmptyContract.t.sol";
 import {StateTransitionManagerMock} from "./mocks/StateTransitionManagerMock.t.sol";
 import {BridgehubMock} from "./mocks/BridgehubMock.t.sol";
-import {IProtocolUpgradeHandler} from "../../src/interfaces/IProtocolUpgradeHandler.sol";
-import {IZKsyncEra} from "../../src/interfaces/IZKsyncEra.sol";
-import {IStateTransitionManager} from "../../src/interfaces/IStateTransitionManager.sol";
-import {IPausable} from "../../src/interfaces/IPausable.sol";
+import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
+import {IZKsyncEra} from "../src/interfaces/IZKsyncEra.sol";
+import {IStateTransitionManager} from "../src/interfaces/IStateTransitionManager.sol";
+import {IPausable} from "../src/interfaces/IPausable.sol";
 
-import {ProtocolUpgradeHandler} from "../../src/ProtocolUpgradeHandler.sol";
+import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
 import {MockChainAssetHandler} from "./mocks/MockChainAssetHandler.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {IChainTypeManager} from "../../src/interfaces/IChainTypeManager.sol";
-import {IBridgeHub} from "../../src/interfaces/IBridgeHub.sol";
+import {IChainTypeManager} from "../src/interfaces/IChainTypeManager.sol";
+import {IBridgeHub} from "../src/interfaces/IBridgeHub.sol";
 
 struct ZkSyncProofData {
     uint256 _l2BatchNumber;
