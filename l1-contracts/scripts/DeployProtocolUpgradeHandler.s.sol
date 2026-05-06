@@ -3,7 +3,6 @@ pragma solidity 0.8.24;
 
 import "forge-std/Script.sol";
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
-import {IChainTypeManager} from "../src/interfaces/IChainTypeManager.sol";
 import {IBridgeHub} from "../src/interfaces/IBridgeHub.sol";
 import {IPausable} from "../src/interfaces/IPausable.sol";
 import {IChainAssetHandler} from "../src/interfaces/IChainAssetHandler.sol";
@@ -49,7 +48,6 @@ contract DeployProtocolUpgradeHandler is Script {
             type(ProtocolUpgradeHandler).creationCode,
             abi.encode(
                 prev.L2_PROTOCOL_GOVERNOR(),
-                prev.CHAIN_TYPE_MANAGER(),
                 prev.BRIDGE_HUB(),
                 prev.L1_NULLIFIER(),
                 prev.L1_ASSET_ROUTER(),

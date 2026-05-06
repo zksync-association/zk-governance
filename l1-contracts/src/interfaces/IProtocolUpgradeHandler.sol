@@ -57,6 +57,20 @@ interface IProtocolUpgradeHandler {
         bytes32 salt;
     }
 
+    /// @dev Parameters controlling which chains and contracts are affected during freeze/unfreeze operations.
+    /// @param chainIds The array of chain IDs to affect. Ignored when affectAllChains is true.
+    ///        May be empty when affectAllChains is false, e.g. to only affect bridges without touching any chains.
+    /// @param affectAllChains If true, all chains registered in the Bridgehub are affected and chainIds must be empty.
+    ///        Set to false to affect only specific chains, e.g. to skip misbehaving chains that would cause
+    ///        a full-ecosystem operation to run out of gas.
+    /// @param affectBridges If true, the bridging contracts (BridgeHub, L1Nullifier, L1AssetRouter,
+    ///        L1NativeTokenVault, ChainAssetHandler) are paused or unpaused depending on the calling context.
+    struct FreezeParams {
+        uint256[] chainIds;
+        bool affectAllChains;
+        bool affectBridges;
+    }
+
     /// @dev This enumeration includes the following states:
     /// @param None Default state, indicating the freeze has not been happening in this upgrade cycle.
     /// @param Soft The protocol is/was frozen for the short time.
@@ -87,21 +101,20 @@ interface IProtocolUpgradeHandler {
 
     function execute(UpgradeProposal calldata _proposal) external payable;
 
-    function executeEmergencyUpgrade(UpgradeProposal calldata _proposal) external payable;
+    function executeEmergencyUpgrade(
+        UpgradeProposal calldata _proposal,
+        FreezeParams calldata _params
+    ) external payable;
 
-    function softFreeze() external;
+    function softFreeze(FreezeParams calldata _params) external;
 
-    function hardFreeze() external;
+    function hardFreeze(FreezeParams calldata _params) external;
 
-    function reinforceFreeze() external;
+    function reinforceFreeze(FreezeParams calldata _params) external;
 
-    function unfreeze() external;
+    function unfreeze(FreezeParams calldata _params) external;
 
-    function reinforceFreezeOneChain(uint256 _chainId) external;
-
-    function reinforceUnfreeze() external;
-
-    function reinforceUnfreezeOneChain(uint256 _chainId) external;
+    function reinforceUnfreeze(FreezeParams calldata _params) external;
 
     function upgradeState(bytes32 _id) external view returns (UpgradeState);
 
@@ -141,23 +154,28 @@ interface IProtocolUpgradeHandler {
     event EmergencyUpgradeExecuted(bytes32 indexed _id);
 
     /// @notice Emitted when the protocol became soft frozen.
-    event SoftFreeze(uint256 _protocolFrozenUntil);
+    /// @param _protocolFrozenUntil The timestamp until which the protocol is frozen.
+    /// @param _params The freeze parameters that were applied.
+    event SoftFreeze(uint256 _protocolFrozenUntil, FreezeParams _params);
 
     /// @notice Emitted when the protocol became hard frozen.
-    event HardFreeze(uint256 _protocolFrozenUntil);
+    /// @param _protocolFrozenUntil The timestamp until which the protocol is frozen.
+    /// @param _params The freeze parameters that were applied.
+    event HardFreeze(uint256 _protocolFrozenUntil, FreezeParams _params);
 
-    /// @notice Emitted when someone makes an attempt to freeze the protocol when it is frozen already.
-    event ReinforceFreeze();
+    /// @notice Emitted when the protocol freeze is reinforced while already frozen.
+    /// @param _params The freeze parameters that were applied.
+    event ReinforceFreeze(FreezeParams _params);
 
     /// @notice Emitted when the protocol became active after the soft/hard freeze.
-    event Unfreeze();
+    /// @param _params The unfreeze parameters that were applied.
+    event Unfreeze(FreezeParams _params);
 
-    /// @notice Emitted when someone makes an attempt to freeze the specific chain when the protocol is frozen already.
-    event ReinforceFreezeOneChain(uint256 _chainId);
+    /// @notice Emitted when the protocol unfreeze is reinforced while already unfrozen.
+    /// @param _params The unfreeze parameters that were applied.
+    event ReinforceUnfreeze(FreezeParams _params);
 
-    /// @notice Emitted when someone makes an attempt to unfreeze the protocol when it is unfrozen already.
-    event ReinforceUnfreeze();
-
-    /// @notice Emitted when someone makes an attempt to unfreeze the specific chain when the protocol is unfrozen already.
-    event ReinforceUnfreezeOneChain(uint256 _chainId);
+    /// @notice Emitted when a chain is skipped during freeze/unfreeze because it has no chain type manager.
+    /// @param _chainId The chain ID that was skipped.
+    event ChainSkippedNoChainTypeManager(uint256 _chainId);
 }

@@ -20,10 +20,18 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         keccak256("ApproveUpgradeSecurityCouncil(bytes32 id)");
 
     /// @dev EIP-712 TypeHash for soft emergency freeze approval by the Security Council.
+    /// @dev The Security Council members sign the soft freeze operation as a whole, representing their
+    /// authorization to freeze the ecosystem. Neither the specific chain IDs nor bridge settings are part
+    /// of the signature — they are provided separately so that misbehaving chains (e.g. those that burn all
+    /// gas) can be skipped without requiring a new round of signatures.
     bytes32 internal constant SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH =
         keccak256("SoftFreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for hard emergency freeze approval by the Security Council.
+    /// @dev The Security Council members sign the hard freeze operation as a whole, representing their
+    /// authorization to freeze the ecosystem. Neither the specific chain IDs nor bridge settings are part
+    /// of the signature — they are provided separately so that misbehaving chains (e.g. those that burn all
+    /// gas) can be skipped without requiring a new round of signatures.
     bytes32 internal constant HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH =
         keccak256("HardFreeze(uint256 nonce,uint256 validUntil)");
 
@@ -32,6 +40,10 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         keccak256("SetSoftFreezeThreshold(uint256 threshold,uint256 nonce,uint256 validUntil)");
 
     /// @dev EIP-712 TypeHash for unfreezing the protocol upgrade by the Security Council.
+    /// @dev The Security Council members sign the unfreeze operation as a whole, representing their
+    /// authorization to unfreeze the ecosystem. Neither the specific chain IDs nor bridge settings are part
+    /// of the signature — they are provided separately so that misbehaving chains (e.g. those that burn all
+    /// gas) can be skipped without requiring a new round of signatures.
     bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
     /// @dev The default threshold for soft freeze initiated by the Security Council.
@@ -95,10 +107,20 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
     }
 
     /// @notice Initiates the protocol soft freeze by small threshold of the Security Council members.
+    /// @dev The Security Council members sign the soft freeze as a whole, representing their authorization
+    /// to freeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
+    /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
+    /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail) without the need to re-collect signatures.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
-    function softFreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external {
+    function softFreeze(
+        IProtocolUpgradeHandler.FreezeParams calldata _params,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external {
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(SOFT_FREEZE_SECURITY_COUNCIL_TYPEHASH, softFreezeNonce++, _validUntil))
@@ -106,31 +128,51 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
         checkSignatures(digest, _signers, _signatures, softFreezeThreshold);
         // Reset threshold
         softFreezeThreshold = SOFT_FREEZE_CONSERVATIVE_THRESHOLD;
-        PROTOCOL_UPGRADE_HANDLER.softFreeze();
+        PROTOCOL_UPGRADE_HANDLER.softFreeze(_params);
     }
 
     /// @notice Initiates the protocol hard freeze by majority of the Security Council members.
+    /// @dev The Security Council members sign the hard freeze as a whole, representing their authorization
+    /// to freeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
+    /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
+    /// (e.g. those that would burn all gas and cause a full-ecosystem freeze to fail) without the need to re-collect signatures.
+    /// @param _params Parameters specifying which parts of the ecosystem to freeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the freeze.
-    function hardFreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external {
+    function hardFreeze(
+        IProtocolUpgradeHandler.FreezeParams calldata _params,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external {
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(HARD_FREEZE_SECURITY_COUNCIL_TYPEHASH, hardFreezeNonce++, _validUntil))
         );
         checkSignatures(digest, _signers, _signatures, HARD_FREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.hardFreeze();
+        PROTOCOL_UPGRADE_HANDLER.hardFreeze(_params);
     }
 
     /// @notice Initiates the protocol unfreeze by the Security Council members.
+    /// @dev The Security Council members sign the unfreeze as a whole, representing their authorization
+    /// to unfreeze the ecosystem. Neither the specific `_params.chainIds` nor `_params.affectBridges` are
+    /// covered by the member signatures — they are provided separately to allow skipping misbehaving chains
+    /// (e.g. those that would burn all gas and cause a full-ecosystem unfreeze to fail) without the need to re-collect signatures.
+    /// @param _params Parameters specifying which parts of the ecosystem to unfreeze.
     /// @param _validUntil The timestamp until which the signature should remain valid.
     /// @param _signers An array of signers associated with the signatures.
     /// @param _signatures An array of signatures from council members approving the unfreeze.
-    function unfreeze(uint256 _validUntil, address[] calldata _signers, bytes[] calldata _signatures) external {
+    function unfreeze(
+        IProtocolUpgradeHandler.FreezeParams calldata _params,
+        uint256 _validUntil,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external {
         require(block.timestamp < _validUntil, "Signature expired");
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(UNFREEZE_TYPEHASH, unfreezeNonce++, _validUntil)));
         checkSignatures(digest, _signers, _signatures, UNFREEZE_THRESHOLD);
-        PROTOCOL_UPGRADE_HANDLER.unfreeze();
+        PROTOCOL_UPGRADE_HANDLER.unfreeze(_params);
     }
 
     /// @notice Sets the threshold for triggering a soft freeze.
