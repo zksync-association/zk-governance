@@ -45,7 +45,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     /// This period is intended to provide a buffer after an upgrade's final approval and before its execution,
     /// allowing for final reviews and preparations for devs and users.
     function UPGRADE_DELAY_PERIOD() internal pure virtual returns (uint256) {
-        return 5 days;
+        return 9 days;
     }
 
     /// @dev Time limit for an upgrade proposal to be approved by guardians or expire, and the waiting period for execution post-guardians approval.
