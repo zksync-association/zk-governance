@@ -35,19 +35,19 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
   bytes32 internal constant UNFREEZE_TYPEHASH = keccak256("Unfreeze(uint256 nonce,uint256 validUntil)");
 
   /// @dev The default threshold for soft freeze initiated by the Security Council.
-  uint256 public constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 9;
+  uint256 public constant SOFT_FREEZE_CONSERVATIVE_THRESHOLD = 6;
 
   /// @dev The recommended threshold parameter for soft freeze initiated by the Security Council.
   uint256 public constant RECOMMENDED_SOFT_FREEZE_THRESHOLD = 3;
 
   /// @dev The number of signatures needed to trigger hard freeze.
-  uint256 public constant HARD_FREEZE_THRESHOLD = 9;
+  uint256 public constant HARD_FREEZE_THRESHOLD = 6;
 
   /// @dev The number of signatures needed to approve upgrade.
-  uint256 public constant APPROVE_UPGRADE_SECURITY_COUNCIL_THRESHOLD = 6;
+  uint256 public constant APPROVE_UPGRADE_SECURITY_COUNCIL_THRESHOLD = 4;
 
   /// @dev The number of signatures needed to unfreeze the protocol.
-  uint256 public constant UNFREEZE_THRESHOLD = 9;
+  uint256 public constant UNFREEZE_THRESHOLD = 6;
 
   /// @dev Tracks the unique identifier used in the last successful soft emergency freeze,
   /// to ensure each request is unique.
@@ -65,8 +65,8 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
   uint256 public unfreezeNonce;
 
   /// @dev Represents the number of signatures needed to trigger soft freeze.
-  /// This value is automatically reset to 9 after each soft freeze, but it can be
-  /// set by the 9 SC members and requires to be not bigger than 9.
+  /// This value is automatically reset to 6 after each soft freeze, but it can be
+  /// set by the 6 SC members and requires to be not bigger than 6.
   uint256 public softFreezeThreshold;
 
   /// @dev Initializes the Security Council contract with predefined members and setup for EIP-712.
@@ -74,15 +74,15 @@ contract SecurityCouncil is ISecurityCouncil, Multisig, EIP712 {
   /// upgrades. @param _members Array of addresses representing the members of the Security Council.
   /// Expected to be sorted in ascending order without duplicates.
   constructor(IProtocolUpgradeHandler _protocolUpgradeHandler, address[] memory _members)
-    Multisig(_members, 9)
+    Multisig(_members, 6)
     EIP712("SecurityCouncil", "1")
   {
     PROTOCOL_UPGRADE_HANDLER = _protocolUpgradeHandler;
-    require(_members.length == 12, "SecurityCouncil requires exactly 12 members");
+    require(_members.length == 8, "SecurityCouncil requires exactly 8 members");
     softFreezeThreshold = RECOMMENDED_SOFT_FREEZE_THRESHOLD;
   }
 
-  /// @notice Approves ZKsync protocol upgrade, by the 6 out of 12 Security Council approvals.
+  /// @notice Approves ZKsync protocol upgrade, by the 4 out of 8 Security Council approvals.
   /// @param _id Unique identifier of the upgrade proposal to be approved.
   /// @param _signers An array of signers associated with the signatures.
   /// @param _signatures An array of signatures from council members approving the upgrade.
