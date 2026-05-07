@@ -22,6 +22,16 @@ contract StateTransitionManagerMock {
     revert();
   }
 
+  function unfreezeChain(uint256 _chainId) external {
+    for (uint256 i = 0; i < chainIds.length; i++) {
+      if (_chainId == chainIds[i]) {
+        return;
+      }
+    }
+
+    revert();
+  }
+
   // add this to be excluded from coverage report
   function test() internal virtual {}
 }

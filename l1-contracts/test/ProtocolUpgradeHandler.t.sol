@@ -33,6 +33,7 @@ contract TestProtocolUpgradeHandler is Test {
   address emergencyUpgradeBoard;
   address l2ProtocolGovernor;
   IChainTypeManager chainTypeManager;
+  IChainTypeManager zksyncOSChainTypeManager;
   IBridgeHub bridgeHub;
   IPausable l1Nullifier;
   IPausable l1AssetRouter;
@@ -73,12 +74,22 @@ contract TestProtocolUpgradeHandler is Test {
 
   function _expectFreezeAttempt() internal {
     for (uint256 i = 0; i < chainIds.length; i++) {
+      address expectedChainTypeManager = bridgeHub.chainTypeManager(chainIds[i]);
       vm.expectCall(
-        address(chainTypeManager), abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, (chainIds[i]))
+        expectedChainTypeManager, abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, (chainIds[i]))
       );
     }
     vm.expectCall(address(bridgeHub), abi.encodeWithSelector(IPausable.pause.selector));
     vm.expectCall(address(l1AssetRouter), abi.encodeWithSelector(IPausable.pause.selector));
+  }
+
+  function _expectUnfreezeAttempt() internal {
+    for (uint256 i = 0; i < chainIds.length; i++) {
+      address expectedChainTypeManager = bridgeHub.chainTypeManager(chainIds[i]);
+      vm.expectCall(
+        expectedChainTypeManager, abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, (chainIds[i]))
+      );
+    }
   }
 
   function _emptyProposal(bytes32 _salt) internal returns (IProtocolUpgradeHandler.UpgradeProposal memory) {
@@ -152,8 +163,22 @@ contract TestProtocolUpgradeHandler is Test {
     guardians = makeAddr("guardians");
     emergencyUpgradeBoard = makeAddr("emergencyUpgradeBoard");
     l2ProtocolGovernor = makeAddr("l2ProtocolGovernor");
-    chainTypeManager = IChainTypeManager(address(new StateTransitionManagerMock(chainIds)));
-    bridgeHub = IBridgeHub(address(new BridgehubMock(chainIds)));
+
+    uint256[] memory eraChainIds = new uint256[](2);
+    eraChainIds[0] = chainIds[1];
+    eraChainIds[1] = chainIds[2];
+
+    uint256[] memory zksyncOSChainIds = new uint256[](1);
+    zksyncOSChainIds[0] = chainIds[0];
+
+    chainTypeManager = IChainTypeManager(address(new StateTransitionManagerMock(eraChainIds)));
+    zksyncOSChainTypeManager = IChainTypeManager(address(new StateTransitionManagerMock(zksyncOSChainIds)));
+
+    BridgehubMock bridgeHubMock = new BridgehubMock(chainIds);
+    bridgeHubMock.setChainTypeManager(chainIds[0], address(zksyncOSChainTypeManager));
+    bridgeHubMock.setChainTypeManager(chainIds[1], address(chainTypeManager));
+    bridgeHubMock.setChainTypeManager(chainIds[2], address(chainTypeManager));
+    bridgeHub = IBridgeHub(address(bridgeHubMock));
     l1Nullifier = IPausable(address(new EmptyContract()));
     l1AssetRouter = IPausable(address(new EmptyContract()));
     l1NativeTokenVault = IPausable(address(new EmptyContract()));
@@ -165,6 +190,7 @@ contract TestProtocolUpgradeHandler is Test {
       emergencyUpgradeBoard,
       l2ProtocolGovernor,
       chainTypeManager,
+      zksyncOSChainTypeManager,
       bridgeHub,
       l1Nullifier,
       l1AssetRouter,
@@ -179,6 +205,7 @@ contract TestProtocolUpgradeHandler is Test {
     address emergencyUpgradeBoard,
     address l2ProtocolGovernor,
     IChainTypeManager chainTypeManager,
+    IChainTypeManager zksyncOSChainTypeManager,
     IBridgeHub bridgeHub,
     IPausable l1Nullifier,
     IPausable l1AssetRouter,
@@ -188,6 +215,7 @@ contract TestProtocolUpgradeHandler is Test {
     ProtocolUpgradeHandler impl = new ProtocolUpgradeHandler(
       l2ProtocolGovernor,
       chainTypeManager,
+      zksyncOSChainTypeManager,
       bridgeHub,
       l1Nullifier,
       l1AssetRouter,
@@ -219,6 +247,7 @@ contract TestProtocolUpgradeHandler is Test {
       emergencyUpgradeBoard,
       l2ProtocolGovernor,
       chainTypeManager,
+      zksyncOSChainTypeManager,
       bridgeHub,
       l1Nullifier,
       l1AssetRouter,
@@ -230,6 +259,7 @@ contract TestProtocolUpgradeHandler is Test {
     assertEq(testHandler.emergencyUpgradeBoard(), emergencyUpgradeBoard);
     assertEq(testHandler.L2_PROTOCOL_GOVERNOR(), l2ProtocolGovernor);
     assertEq(address(testHandler.CHAIN_TYPE_MANAGER()), address(chainTypeManager));
+    assertEq(address(testHandler.ZKSYNC_OS_CHAIN_TYPE_MANAGER()), address(zksyncOSChainTypeManager));
     assertEq(address(testHandler.BRIDGE_HUB()), address(bridgeHub));
     assertEq(address(testHandler.L1_NULLIFIER()), address(l1Nullifier));
     assertEq(address(testHandler.L1_ASSET_ROUTER()), address(l1AssetRouter));
@@ -679,6 +709,8 @@ contract TestProtocolUpgradeHandler is Test {
     vm.warp(timeAfterFreeze);
     uint256 chainIdPos = bound(_chainIdPos, 0, chainIds.length - 1);
     uint256 chainId = chainIds[chainIdPos];
+    address expectedChainTypeManager = bridgeHub.chainTypeManager(chainId);
+    vm.expectCall(expectedChainTypeManager, abi.encodeWithSelector(IChainTypeManager.freezeChain.selector, chainId));
     handler.reinforceFreezeOneChain(chainId);
   }
 
@@ -705,6 +737,7 @@ contract TestProtocolUpgradeHandler is Test {
     handler.softFreeze();
     _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
     vm.warp(_ufreezeAfter);
+    _expectUnfreezeAttempt();
     vm.prank(securityCouncil);
     handler.unfreeze();
     assertEq(
@@ -719,12 +752,28 @@ contract TestProtocolUpgradeHandler is Test {
     handler.hardFreeze();
     _ufreezeAfter = bound(_ufreezeAfter, block.timestamp, type(uint256).max);
     vm.warp(_ufreezeAfter);
+    _expectUnfreezeAttempt();
     vm.prank(securityCouncil);
     handler.unfreeze();
     assertEq(
       uint256(handler.lastFreezeStatusInUpgradeCycle()), uint256(IProtocolUpgradeHandler.FreezeStatus.AfterHardFreeze)
     );
     assertEq(0, handler.protocolFrozenUntil());
+  }
+
+  function test_reinforceUnfreezeOneChainUsesMappedChainTypeManager(uint8 _chainIdPos) public {
+    _resetUpgradeCycle();
+    vm.prank(securityCouncil);
+    handler.softFreeze();
+
+    vm.prank(securityCouncil);
+    handler.unfreeze();
+
+    uint256 chainIdPos = bound(_chainIdPos, 0, chainIds.length - 1);
+    uint256 chainId = chainIds[chainIdPos];
+    address expectedChainTypeManager = bridgeHub.chainTypeManager(chainId);
+    vm.expectCall(expectedChainTypeManager, abi.encodeWithSelector(IChainTypeManager.unfreezeChain.selector, chainId));
+    handler.reinforceUnfreezeOneChain(chainId);
   }
 
   function test_RevertWhen_hardFreezeAfterHardFreezeSecurityCouncil(uint256 _hardFreezeAfter) public {

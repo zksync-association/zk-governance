@@ -6,9 +6,14 @@ pragma solidity 0.8.24;
 
 contract BridgehubMock {
   uint256[] chainIds;
+  mapping(uint256 chainId => address ctm) public chainTypeManager;
 
   constructor(uint256[] memory _chainIds) {
     chainIds = _chainIds;
+  }
+
+  function setChainTypeManager(uint256 _chainId, address _chainTypeManager) external {
+    chainTypeManager[_chainId] = _chainTypeManager;
   }
 
   function getAllZKChainChainIDs() external view returns (uint256[] memory) {

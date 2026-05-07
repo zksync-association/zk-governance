@@ -43,6 +43,7 @@ contract Redeploy is Script {
         address zkFoundationSafe;
         uint256 eraChainId;
         address stateTransitionManager;
+        address zksyncOSChainTypeManager;
         address bridgehub;
         address sharedBridge;
         address l1Nullifier;
@@ -83,6 +84,7 @@ contract Redeploy is Script {
 
         uint256 eraChainId = vm.envUint("ERA_CHAIN_ID");//TODO after the next redeployment, update to _currentProtocolUpgradeHandler.ERA_CHAIN_ID();
         address stateTransitionManager = address(_currentProtocolUpgradeHandler.CHAIN_TYPE_MANAGER());
+        address zksyncOSChainTypeManager = vm.envAddress("ZKSYNC_OS_CHAIN_TYPE_MANAGER");//TODO after the next redeployment, update to _currentProtocolUpgradeHandler.ZKSYNC_OS_CHAIN_TYPE_MANAGER();
         address bridgehub = address(_currentProtocolUpgradeHandler.BRIDGE_HUB());
         address sharedBridge = address(_currentProtocolUpgradeHandler.L1_ASSET_ROUTER());
         address l1Nullifier = address(_currentProtocolUpgradeHandler.L1_NULLIFIER());
@@ -100,6 +102,7 @@ contract Redeploy is Script {
             zkFoundationSafe: emergencyUpgradeBoard.ZK_FOUNDATION_SAFE(),
             eraChainId: eraChainId,
             stateTransitionManager: stateTransitionManager,
+            zksyncOSChainTypeManager: zksyncOSChainTypeManager,
             bridgehub: bridgehub,
             sharedBridge: sharedBridge,
             l1Nullifier: l1Nullifier,
@@ -129,6 +132,7 @@ contract Redeploy is Script {
             bytes memory protocolUpgradeHandlerConstructorArgs = abi.encode(
                 l2ProtocolGovernor, 
                 info.stateTransitionManager,
+                info.zksyncOSChainTypeManager,
                 info.bridgehub, 
                 info.l1Nullifier,
                 info.sharedBridge,
