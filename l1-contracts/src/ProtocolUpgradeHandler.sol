@@ -69,7 +69,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   address public immutable L2_PROTOCOL_GOVERNOR;
 
   /// @dev Era CTM responsible for creating new ZK Chains and changing parameters in existing ones.
-  IChainTypeManager public immutable CHAIN_TYPE_MANAGER;
+  IChainTypeManager public immutable ERA_CHAIN_TYPE_MANAGER;
 
   /// @dev ZKsync OS CTM responsible for creating new ZK Chains and changing parameters in existing ones.
   IChainTypeManager public immutable ZKSYNC_OS_CHAIN_TYPE_MANAGER;
@@ -112,7 +112,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
   /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting
   /// governor. @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
-  /// @param _chainTypeManager The address of the Era chain type manager.
+  /// @param _eraChainTypeManager The address of the Era chain type manager.
   /// @param _zksyncOSChainTypeManager The address of the ZKsync OS chain type manager.
   /// @param _bridgeHub The address of the bridgehub.
   /// @param _l1Nullifier The address of the nullifier
@@ -122,7 +122,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /// @param _eraChainId Chain ID corresponding to ZKsync Era
   constructor(
     address _l2ProtocolGovernor,
-    IChainTypeManager _chainTypeManager,
+    IChainTypeManager _eraChainTypeManager,
     IChainTypeManager _zksyncOSChainTypeManager,
     IBridgeHub _bridgeHub,
     IPausable _l1Nullifier,
@@ -137,7 +137,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
 
     L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
-    CHAIN_TYPE_MANAGER = _chainTypeManager;
+    ERA_CHAIN_TYPE_MANAGER = _eraChainTypeManager;
     ZKSYNC_OS_CHAIN_TYPE_MANAGER = _zksyncOSChainTypeManager;
     BRIDGE_HUB = _bridgeHub;
     L1_NULLIFIER = _l1Nullifier;
@@ -145,6 +145,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     L1_NATIVE_TOKEN_VAULT = _l1NativeTokenVault;
     CHAIN_ASSET_HANDLER = _chainAssetHandler;
     ERA_CHAIN_ID = _eraChainId;
+  }
+
+  /// @dev Legacy getter for deployments that still read the previous ProtocolUpgradeHandler.
+  function CHAIN_TYPE_MANAGER() external view returns (IChainTypeManager) {
+    return ERA_CHAIN_TYPE_MANAGER;
   }
 
   /*//////////////////////////////////////////////////////////////
@@ -401,7 +406,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
   function _isSupportedChainTypeManager(address _chainTypeManager) internal view returns (bool) {
     return _chainTypeManager != address(0)
-      && (_chainTypeManager == address(CHAIN_TYPE_MANAGER)
+      && (_chainTypeManager == address(ERA_CHAIN_TYPE_MANAGER)
         || _chainTypeManager == address(ZKSYNC_OS_CHAIN_TYPE_MANAGER));
   }
 

@@ -258,6 +258,7 @@ contract TestProtocolUpgradeHandler is Test {
     assertEq(testHandler.guardians(), guardians);
     assertEq(testHandler.emergencyUpgradeBoard(), emergencyUpgradeBoard);
     assertEq(testHandler.L2_PROTOCOL_GOVERNOR(), l2ProtocolGovernor);
+    assertEq(address(testHandler.ERA_CHAIN_TYPE_MANAGER()), address(chainTypeManager));
     assertEq(address(testHandler.CHAIN_TYPE_MANAGER()), address(chainTypeManager));
     assertEq(address(testHandler.ZKSYNC_OS_CHAIN_TYPE_MANAGER()), address(zksyncOSChainTypeManager));
     assertEq(address(testHandler.BRIDGE_HUB()), address(bridgeHub));
