@@ -68,8 +68,11 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /// specifically for proposing and approving protocol upgrades.
   address public immutable L2_PROTOCOL_GOVERNOR;
 
-  /// @dev ZKsync smart contract that is responsible for creating new ZK Chains and changing parameters in existent.
-  IChainTypeManager public immutable CHAIN_TYPE_MANAGER;
+  /// @dev Era CTM responsible for creating new ZK Chains and changing parameters in existing ones.
+  IChainTypeManager public immutable ERA_CHAIN_TYPE_MANAGER;
+
+  /// @dev ZKsync OS CTM responsible for creating new ZK Chains and changing parameters in existing ones.
+  IChainTypeManager public immutable ZKSYNC_OS_CHAIN_TYPE_MANAGER;
 
   /// @dev Bridgehub smart contract that is used to operate with L2 via asynchronous L2 <-> L1 communication.
   IBridgeHub public immutable BRIDGE_HUB;
@@ -109,17 +112,18 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
   /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting
   /// governor. @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
-  /// @param _chainTypeManager The address of the state transition manager.
+  /// @param _eraChainTypeManager The address of the Era chain type manager.
+  /// @param _zksyncOSChainTypeManager The address of the ZKsync OS chain type manager.
   /// @param _bridgeHub The address of the bridgehub.
   /// @param _l1Nullifier The address of the nullifier
   /// @param _l1AssetRouter The address of the L1 asset router.
   /// @param _l1NativeTokenVault The address of the L1 native token vault.
   /// @param _chainAssetHandler The address of the L1 chain asset handler.
-  /// @param _chainAssetHandler The address of the L1 chain asset handler.
   /// @param _eraChainId Chain ID corresponding to ZKsync Era
   constructor(
     address _l2ProtocolGovernor,
-    IChainTypeManager _chainTypeManager,
+    IChainTypeManager _eraChainTypeManager,
+    IChainTypeManager _zksyncOSChainTypeManager,
     IBridgeHub _bridgeHub,
     IPausable _l1Nullifier,
     IPausable _l1AssetRouter,
@@ -133,13 +137,19 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     assert(STANDARD_LEGAL_VETO_PERIOD() <= EXTENDED_LEGAL_VETO_PERIOD);
 
     L2_PROTOCOL_GOVERNOR = _l2ProtocolGovernor;
-    CHAIN_TYPE_MANAGER = _chainTypeManager;
+    ERA_CHAIN_TYPE_MANAGER = _eraChainTypeManager;
+    ZKSYNC_OS_CHAIN_TYPE_MANAGER = _zksyncOSChainTypeManager;
     BRIDGE_HUB = _bridgeHub;
     L1_NULLIFIER = _l1Nullifier;
     L1_ASSET_ROUTER = _l1AssetRouter;
     L1_NATIVE_TOKEN_VAULT = _l1NativeTokenVault;
     CHAIN_ASSET_HANDLER = _chainAssetHandler;
     ERA_CHAIN_ID = _eraChainId;
+  }
+
+  /// @dev Legacy getter for deployments that still read the previous ProtocolUpgradeHandler.
+  function CHAIN_TYPE_MANAGER() external view returns (IChainTypeManager) {
+    return ERA_CHAIN_TYPE_MANAGER;
   }
 
   /*//////////////////////////////////////////////////////////////
@@ -390,8 +400,20 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
   function reinforceFreezeOneChain(uint256 _chainId) external {
     require(block.timestamp <= protocolFrozenUntil, "Protocol should be already frozen");
-    CHAIN_TYPE_MANAGER.freezeChain(_chainId);
+    _getChainTypeManager(_chainId).freezeChain(_chainId);
     emit ReinforceFreezeOneChain(_chainId);
+  }
+
+  function _isSupportedChainTypeManager(address _chainTypeManager) internal view returns (bool) {
+    return _chainTypeManager != address(0)
+      && (_chainTypeManager == address(ERA_CHAIN_TYPE_MANAGER)
+        || _chainTypeManager == address(ZKSYNC_OS_CHAIN_TYPE_MANAGER));
+  }
+
+  function _getChainTypeManager(uint256 _chainId) internal view returns (IChainTypeManager) {
+    address chainTypeManager = BRIDGE_HUB.chainTypeManager(_chainId);
+    require(_isSupportedChainTypeManager(chainTypeManager), "Unsupported chain type manager");
+    return IChainTypeManager(chainTypeManager);
   }
 
   /// @dev Freeze all ZKsync contracts, including bridges, state transition managers and all ZK Chains.
@@ -399,7 +421,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
     uint256 len = zkChainIds.length;
     for (uint256 i = 0; i < len; ++i) {
-      try CHAIN_TYPE_MANAGER.freezeChain(zkChainIds[i]) {} catch {}
+      address chainTypeManager = BRIDGE_HUB.chainTypeManager(zkChainIds[i]);
+      if (_isSupportedChainTypeManager(chainTypeManager)) {
+        try IChainTypeManager(chainTypeManager).freezeChain(zkChainIds[i]) {} catch {}
+      }
     }
 
     try BRIDGE_HUB.pause() {} catch {}
@@ -437,7 +462,7 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /// rare case where the execution could get stuck at a particular ID for some unforeseen reason.
   function reinforceUnfreezeOneChain(uint256 _chainId) external {
     require(protocolFrozenUntil == 0, "Protocol should be already unfrozen");
-    CHAIN_TYPE_MANAGER.unfreezeChain(_chainId);
+    _getChainTypeManager(_chainId).unfreezeChain(_chainId);
     emit ReinforceUnfreezeOneChain(_chainId);
   }
 
@@ -446,7 +471,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     uint256[] memory zkChainIds = BRIDGE_HUB.getAllZKChainChainIDs();
     uint256 len = zkChainIds.length;
     for (uint256 i = 0; i < len; ++i) {
-      try CHAIN_TYPE_MANAGER.unfreezeChain(zkChainIds[i]) {} catch {}
+      address chainTypeManager = BRIDGE_HUB.chainTypeManager(zkChainIds[i]);
+      if (_isSupportedChainTypeManager(chainTypeManager)) {
+        try IChainTypeManager(chainTypeManager).unfreezeChain(zkChainIds[i]) {} catch {}
+      }
     }
 
     try BRIDGE_HUB.unpause() {} catch {}

@@ -45,6 +45,7 @@ contract MainnetRedeployForkTest is Test {
 
     vm.setEnv("PRIVATE_KEY", vm.toString(deployerWallet.privateKey));
     vm.setEnv("L2_PROTOCOL_GOVERNOR", vm.toString(address(uint160(1))));
+    vm.setEnv("ZKSYNC_OS_CHAIN_TYPE_MANAGER", vm.toString(address(uint160(2))));
 
     MainnetRedeploy script = new MainnetRedeploy();
     script.run();

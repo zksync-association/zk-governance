@@ -25,7 +25,8 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
   /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting
   /// governor.
   /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
-  /// @param _chainTypeManager The address of the state transition manager.
+  /// @param _eraChainTypeManager The address of the Era chain type manager.
+  /// @param _zksyncOSChainTypeManager The address of the ZKsync OS chain type manager.
   /// @param _bridgeHub The address of the bridgehub.
   /// @param _l1Nullifier The address of the nullifier
   /// @param _l1AssetRouter The address of the L1 asset router.
@@ -34,7 +35,8 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
   /// @param _eraChainId The chain ID of ZKsync Era.
   constructor(
     address _l2ProtocolGovernor,
-    IChainTypeManager _chainTypeManager,
+    IChainTypeManager _eraChainTypeManager,
+    IChainTypeManager _zksyncOSChainTypeManager,
     IBridgeHub _bridgeHub,
     IPausable _l1Nullifier,
     IPausable _l1AssetRouter,
@@ -44,7 +46,8 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
   )
     ProtocolUpgradeHandler(
       _l2ProtocolGovernor,
-      _chainTypeManager,
+      _eraChainTypeManager,
+      _zksyncOSChainTypeManager,
       _bridgeHub,
       _l1Nullifier,
       _l1AssetRouter,

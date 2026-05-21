@@ -39,6 +39,7 @@ contract DeployProtocolUpgradeHandler is Script {
     function run() external {
         address prevHandlerAddr = vm.envAddress("PREV_PROTOCOL_UPGRADE_HANDLER");
         address chainAssetHandlerAddr = vm.envAddress("CHAIN_ASSET_HANDLER");
+        address zksyncOSChainTypeManagerAddr = vm.envAddress("ZKSYNC_OS_CHAIN_TYPE_MANAGER");
         address create2FactoryAddr = vm.envAddress("CREATE2_FACTORY");
         bytes32 salt = vm.envBytes32("CREATE2_SALT");
         uint256 chainId = vm.envUint("ERA_CHAIN_ID");
@@ -50,6 +51,7 @@ contract DeployProtocolUpgradeHandler is Script {
             abi.encode(
                 prev.L2_PROTOCOL_GOVERNOR(),
                 prev.CHAIN_TYPE_MANAGER(),
+                IChainTypeManager(zksyncOSChainTypeManagerAddr),
                 prev.BRIDGE_HUB(),
                 prev.L1_NULLIFIER(),
                 prev.L1_ASSET_ROUTER(),
