@@ -22,6 +22,8 @@ import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler
 /// @dev Required env vars:
 ///   - PREV_PROTOCOL_UPGRADE_HANDLER : current PUH proxy address
 ///   - CHAIN_ASSET_HANDLER           : new ChainAssetHandler proxy (from v31)
+///   - ZKSYNC_OS_CHAIN_TYPE_MANAGER  : new ZKsync OS CTM address (from v31);
+///         the old PUH has no getter for this so it must be passed explicitly.
 ///   - CREATE2_FACTORY               : CREATE2 deployer factory address
 ///   - CREATE2_SALT_PUH              : salt for the new PUH impl
 ///   - CREATE2_SALT_GUARDIANS        : salt for the new Guardians
@@ -73,6 +75,7 @@ contract DeployPUHAndGuardians is Script {
     function run() external {
         address prevHandlerAddr = vm.envAddress("PREV_PROTOCOL_UPGRADE_HANDLER");
         address chainAssetHandlerAddr = vm.envAddress("CHAIN_ASSET_HANDLER");
+        address zksyncOsCtmAddr = vm.envAddress("ZKSYNC_OS_CHAIN_TYPE_MANAGER");
         address create2FactoryAddr = vm.envAddress("CREATE2_FACTORY");
         bytes32 puhSalt = vm.envBytes32("CREATE2_SALT_PUH");
         bytes32 guardiansSalt = vm.envBytes32("CREATE2_SALT_GUARDIANS");
@@ -86,6 +89,7 @@ contract DeployPUHAndGuardians is Script {
             abi.encode(
                 prev.L2_PROTOCOL_GOVERNOR(),
                 prev.CHAIN_TYPE_MANAGER(),
+                IChainTypeManager(zksyncOsCtmAddr),
                 prev.BRIDGE_HUB(),
                 prev.L1_NULLIFIER(),
                 prev.L1_ASSET_ROUTER(),
