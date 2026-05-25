@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {GovernorSettableFixedQuorum} from "src/extensions/GovernorSettableFixedQuorum.sol";
 import {ZkProtocolGovernorHarness} from "test/harnesses/ZkProtocolGovernorHarness.sol";
 import {ProposalTest} from "test/helpers/ProposalTest.sol";
@@ -21,8 +21,8 @@ contract GovernorSettableFixedQuorumTest is Test {
   ZkProtocolGovernorHarness governor;
 
   function setUp() public {
-    address initialOwner = makeAddr("Initial Owner");
-    timelock = new TimelockControllerFake(initialOwner);
+    address _initialOwner = makeAddr("Initial Owner");
+    timelock = new TimelockControllerFake(_initialOwner);
     token = new ERC20VotesFake();
     governor = new ZkProtocolGovernorHarness(
       "Example Gov",
@@ -35,10 +35,10 @@ contract GovernorSettableFixedQuorumTest is Test {
       INITIAL_VOTE_EXTENSION
     );
 
-    vm.prank(initialOwner);
+    vm.prank(_initialOwner);
     timelock.grantRole(keccak256("PROPOSER_ROLE"), address(governor));
 
-    vm.prank(initialOwner);
+    vm.prank(_initialOwner);
     timelock.grantRole(keccak256("EXECUTOR_ROLE"), address(governor));
   }
 }
@@ -46,64 +46,64 @@ contract GovernorSettableFixedQuorumTest is Test {
 contract Quorum is GovernorSettableFixedQuorumTest {
   function testFuzz_SuccessfullyGetLatestQuorumCheckpoint(uint208 _quorum) public {
     governor.exposed_setQuorum(_quorum);
-    uint256 quorum = governor.quorum(block.timestamp);
-    assertEq(quorum, _quorum);
+    uint256 _quorumValue = governor.quorum(block.timestamp);
+    assertEq(_quorumValue, _quorum);
   }
 }
 
 contract SetQuorum is GovernorSettableFixedQuorumTest, ProposalTest {
   function testFuzz_CorrectlySetQuorumCheckpoint(uint224 _quorum) public {
-    address delegate = makeAddr("delegate");
-    token.mint(delegate, governor.proposalThreshold());
-    token.mint(delegate, governor.quorum(block.timestamp));
+    address _delegate = makeAddr("delegate");
+    token.mint(_delegate, governor.proposalThreshold());
+    token.mint(_delegate, governor.quorum(block.timestamp));
 
-    vm.prank(delegate);
-    token.delegate(delegate);
+    vm.prank(_delegate);
+    token.delegate(_delegate);
 
     vm.warp(block.timestamp + 1);
-    address[] memory delegates = new address[](1);
-    delegates[0] = delegate;
+    address[] memory _delegates = new address[](1);
+    _delegates[0] = _delegate;
     _setGovernor(governor);
-    _setDelegates(delegates);
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(address(governor), 0, abi.encodeWithSignature("setQuorum(uint224)", _quorum));
-    _queueAndVoteAndExecuteProposal(builder.targets(), builder.values(), builder.calldatas(), "Description", 1);
+    _setDelegates(_delegates);
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(address(governor), 0, abi.encodeWithSignature("setQuorum(uint224)", _quorum));
+    _queueAndVoteAndExecuteProposal(_builder.targets(), _builder.values(), _builder.calldatas(), "Description", 1);
     assertEq(governor.quorum(block.timestamp), _quorum);
   }
 
   function testFuzz_CorrectlyEmitQuorumUpdatedEvent(uint224 _quorum) public {
-    address delegate = makeAddr("delegate");
-    token.mint(delegate, governor.proposalThreshold());
-    token.mint(delegate, governor.quorum(block.timestamp));
+    address _delegate = makeAddr("delegate");
+    token.mint(_delegate, governor.proposalThreshold());
+    token.mint(_delegate, governor.quorum(block.timestamp));
 
-    vm.prank(delegate);
-    token.delegate(delegate);
+    vm.prank(_delegate);
+    token.delegate(_delegate);
 
     vm.warp(block.timestamp + 1);
-    address[] memory delegates = new address[](1);
-    delegates[0] = delegate;
+    address[] memory _delegates = new address[](1);
+    _delegates[0] = _delegate;
     _setGovernor(governor);
-    _setDelegates(delegates);
-    ProposalBuilder builder = new ProposalBuilder();
-    builder.push(address(governor), 0, abi.encodeWithSignature("setQuorum(uint224)", _quorum));
-    address[] memory targets = builder.targets();
-    uint256[] memory values = builder.values();
-    bytes[] memory calldatas = builder.calldatas();
-    string memory description = "Description";
+    _setDelegates(_delegates);
+    ProposalBuilder _builder = new ProposalBuilder();
+    _builder.push(address(governor), 0, abi.encodeWithSignature("setQuorum(uint224)", _quorum));
+    address[] memory _targets = _builder.targets();
+    uint256[] memory _values = _builder.values();
+    bytes[] memory _calldatas = _builder.calldatas();
+    string memory _description = "Description";
 
-    uint256 proposalId = _propose(targets, values, calldatas, description);
-    _jumpToActiveProposal(proposalId);
+    uint256 _proposalId = _propose(_targets, _values, _calldatas, _description);
+    _jumpToActiveProposal(_proposalId);
 
-    _delegatesVote(proposalId, 1);
-    _jumpPastVoteComplete(proposalId);
+    _delegatesVote(_proposalId, 1);
+    _jumpPastVoteComplete(_proposalId);
 
-    governor.queue(targets, values, calldatas, keccak256(bytes(description)));
+    governor.queue(_targets, _values, _calldatas, keccak256(bytes(_description)));
 
-    _jumpPastProposalEta(proposalId);
+    _jumpPastProposalEta(_proposalId);
 
     vm.expectEmit();
     emit GovernorSettableFixedQuorum.QuorumUpdated(INITIAL_QUORUM, _quorum);
-    governor.execute(targets, values, calldatas, keccak256(bytes(description)));
+    governor.execute(_targets, _values, _calldatas, keccak256(bytes(_description)));
   }
 
   function testFuzz_RevertIf_CallerIsNotAuthorized(uint208 _quorum, address _caller) public {

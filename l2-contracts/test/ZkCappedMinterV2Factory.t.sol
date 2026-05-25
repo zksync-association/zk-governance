@@ -5,9 +5,11 @@ import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
 import {ZkCappedMinterV2Factory} from "src/ZkCappedMinterV2Factory.sol";
 import {ZkCappedMinterV2} from "src/ZkCappedMinterV2.sol";
 import {IMintable} from "src/interfaces/IMintable.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {console2} from "forge-std/console2.sol";
+
 import {stdJson} from "forge-std/StdJson.sol";
+
+/// @dev Error emitted by the ZKsync CREATE2 deployer when a contract is already deployed at the target address.
+error HashIsNonZero(bytes32);
 
 contract ZkCappedMinterV2FactoryTest is ZkTokenTest {
   bytes32 bytecodeHash;
@@ -17,10 +19,10 @@ contract ZkCappedMinterV2FactoryTest is ZkTokenTest {
     super.setUp();
 
     // Read the bytecode hash from the JSON file
-    string memory root = vm.projectRoot();
-    string memory path = string.concat(root, "/zkout/ZkCappedMinterV2.sol/ZkCappedMinterV2.json");
-    string memory json = vm.readFile(path);
-    bytecodeHash = bytes32(stdJson.readBytes(json, ".hash"));
+    string memory _root = vm.projectRoot();
+    string memory _path = string.concat(_root, "/zkout/ZkCappedMinterV2.sol/ZkCappedMinterV2.json");
+    string memory _json = vm.readFile(_path);
+    bytecodeHash = bytes32(stdJson.readBytes(_json, ".hash"));
 
     factory = new ZkCappedMinterV2Factory(bytecodeHash);
   }
@@ -57,14 +59,14 @@ contract CreateCappedMinter is ZkCappedMinterV2FactoryTest {
     _assumeValidAddress(_cappedMinterAdmin);
     _cap = _boundToReasonableCap(_cap);
 
-    address minterAddress = factory.createCappedMinter(
+    address _minterAddress = factory.createCappedMinter(
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
 
-    ZkCappedMinterV2 minter = ZkCappedMinterV2(minterAddress);
-    assertEq(address(minter.MINTABLE()), address(token));
-    assertEq(minter.hasRole(DEFAULT_ADMIN_ROLE, _cappedMinterAdmin), true);
-    assertEq(minter.CAP(), _cap);
+    ZkCappedMinterV2 _minter = ZkCappedMinterV2(_minterAddress);
+    assertEq(address(_minter.MINTABLE()), address(token));
+    assertEq(_minter.hasRole(DEFAULT_ADMIN_ROLE, _cappedMinterAdmin), true);
+    assertEq(_minter.CAP(), _cap);
   }
 
   function testFuzz_EmitsCappedMinterCreatedEvent(
@@ -110,7 +112,7 @@ contract CreateCappedMinter is ZkCappedMinterV2FactoryTest {
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
 
-    vm.expectRevert("Code hash is non-zero");
+    vm.expectRevert(abi.encodeWithSelector(HashIsNonZero.selector, bytecodeHash));
     factory.createCappedMinter(
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
@@ -130,14 +132,14 @@ contract GetMinter is ZkCappedMinterV2FactoryTest {
     _assumeValidAddress(_cappedMinterAdmin);
     _cap = _boundToReasonableCap(_cap);
 
-    address expectedMinterAddress =
+    address _expectedMinterAddress =
       factory.getMinter(IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce);
 
-    address minterAddress = factory.createCappedMinter(
+    address _minterAddress = factory.createCappedMinter(
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
 
-    assertEq(minterAddress, expectedMinterAddress);
+    assertEq(_minterAddress, _expectedMinterAddress);
   }
 
   function testFuzz_GetMinterWithoutDeployment(
@@ -152,23 +154,23 @@ contract GetMinter is ZkCappedMinterV2FactoryTest {
     _assumeValidAddress(_cappedMinterAdmin);
     _cap = _boundToReasonableCap(_cap);
 
-    address expectedMinterAddress =
+    address _expectedMinterAddress =
       factory.getMinter(IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce);
 
-    uint256 codeSize;
+    uint256 _codeSize;
     assembly {
-      codeSize := extcodesize(expectedMinterAddress)
+      _codeSize := extcodesize(_expectedMinterAddress)
     }
-    assertEq(codeSize, 0);
+    assertEq(_codeSize, 0);
 
-    address minterAddress = factory.createCappedMinter(
+    address _minterAddress = factory.createCappedMinter(
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
 
     assembly {
-      codeSize := extcodesize(expectedMinterAddress)
+      _codeSize := extcodesize(_expectedMinterAddress)
     }
-    assertGt(codeSize, 0);
-    assertEq(minterAddress, expectedMinterAddress);
+    assertGt(_codeSize, 0);
+    assertEq(_minterAddress, _expectedMinterAddress);
   }
 }

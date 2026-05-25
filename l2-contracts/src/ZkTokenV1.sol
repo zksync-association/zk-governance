@@ -3,9 +3,10 @@ pragma solidity 0.8.24;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {ERC20VotesUpgradeable} from
-  "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
+
+import {
+  ERC20VotesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
@@ -43,13 +44,13 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
     keccak256("Delegation(address owner,address delegatee,uint256 nonce,uint256 expiry)");
 
   /// @dev The clock was incorrectly modified.
-  error ERC6372InconsistentClock();
+  error ZkTokenV1_ERC6372InconsistentClock();
 
   /// @dev Thrown if a signature for selecting a delegate expired.
-  error DelegateSignatureExpired(uint256 expiry);
+  error ZkTokenV1_DelegateSignatureExpired(uint256 expiry);
 
   /// @dev Thrown if a signature for selecting a delegate is invalid.
-  error DelegateSignatureIsInvalid();
+  error ZkTokenV1_DelegateSignatureIsInvalid();
 
   /// @notice A one-time configuration method meant to be called immediately upon the deployment of ZkTokenV1. It sets
   /// up the token's name and symbol, configures and assigns role admins, and mints the initial token supply.
@@ -77,7 +78,7 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   /// @dev Overriding the clock mode to be timestamp based rather than clock based.
   function CLOCK_MODE() public view virtual override returns (string memory) {
     if (clock() != SafeCastUpgradeable.toUint48(block.timestamp)) {
-      revert ERC6372InconsistentClock();
+      revert ZkTokenV1_ERC6372InconsistentClock();
     }
     return "mode=timestamp";
   }
@@ -108,15 +109,15 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
   /// @param _signature The signature proving the `_signer` has authorized the delegation.
   function delegateOnBehalf(address _signer, address _delegatee, uint256 _expiry, bytes calldata _signature) external {
     if (block.timestamp > _expiry) {
-      revert DelegateSignatureExpired(_expiry);
+      revert ZkTokenV1_DelegateSignatureExpired(_expiry);
     }
+    uint256 _nonce = _useNonce(_signer);
     bool _isSignatureValid = _signer.isValidSignatureNow(
-      _hashTypedDataV4(keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, _useNonce(_signer), _expiry))),
-      _signature
+      _hashTypedDataV4(keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, _nonce, _expiry))), _signature
     );
 
     if (!_isSignatureValid) {
-      revert DelegateSignatureIsInvalid();
+      revert ZkTokenV1_DelegateSignatureIsInvalid();
     }
     _delegate(_signer, _delegatee);
   }
