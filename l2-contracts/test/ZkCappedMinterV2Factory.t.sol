@@ -5,8 +5,6 @@ import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
 import {ZkCappedMinterV2Factory} from "src/ZkCappedMinterV2Factory.sol";
 import {ZkCappedMinterV2} from "src/ZkCappedMinterV2.sol";
 import {IMintable} from "src/interfaces/IMintable.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {console2} from "forge-std/console2.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
 contract ZkCappedMinterV2FactoryTest is ZkTokenTest {

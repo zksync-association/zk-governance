@@ -5,12 +5,10 @@ import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
 import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 import {ZkMerkleDistributor} from "src/ZkMerkleDistributor.sol";
 import {Merkle} from "@murky/src/Merkle.sol";
-import {console2, stdStorage, StdStorage} from "forge-std/Test.sol";
+import {stdStorage, StdStorage} from "forge-std/Test.sol";
 
 contract ZkMerkleDistributorTest is ZkTokenTest {
   Merkle merkle;
-
-  error ZkMerkleDistributor__InvalidProof();
 
   /// @notice Type hash of the data that makes up the claim request.
   bytes32 public constant ZK_CLAIM_TYPEHASH =

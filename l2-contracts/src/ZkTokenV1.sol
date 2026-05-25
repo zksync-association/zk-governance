@@ -3,7 +3,6 @@ pragma solidity 0.8.24;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20VotesUpgradeable} from
   "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -110,8 +109,9 @@ contract ZkTokenV1 is Initializable, ERC20VotesUpgradeable, AccessControlUpgrade
     if (block.timestamp > _expiry) {
       revert DelegateSignatureExpired(_expiry);
     }
+    uint256 _nonce = _useNonce(_signer);
     bool _isSignatureValid = _signer.isValidSignatureNow(
-      _hashTypedDataV4(keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, _useNonce(_signer), _expiry))),
+      _hashTypedDataV4(keccak256(abi.encode(DELEGATION_TYPEHASH, _signer, _delegatee, _nonce, _expiry))),
       _signature
     );
 

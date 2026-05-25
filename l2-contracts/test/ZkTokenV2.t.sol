@@ -4,7 +4,6 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ZkTokenV1} from "src/ZkTokenV1.sol";
 import {ZkTokenV2} from "src/ZkTokenV2.sol";
-import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {
   TransparentUpgradeableProxy,
   ITransparentUpgradeableProxy

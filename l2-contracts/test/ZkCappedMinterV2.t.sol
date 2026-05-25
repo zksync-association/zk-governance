@@ -5,7 +5,6 @@ import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IMintable} from "src/interfaces/IMintable.sol";
 import {ZkCappedMinterV2} from "src/ZkCappedMinterV2.sol";
-import {console2} from "forge-std/Test.sol";
 
 contract ZkCappedMinterV2Test is ZkTokenTest {
   ZkCappedMinterV2 public cappedMinter;

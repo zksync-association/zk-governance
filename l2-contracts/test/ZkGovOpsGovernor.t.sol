@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {ZkGovOpsGovernor} from "src/ZkGovOpsGovernor.sol";
 import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
