@@ -6,14 +6,19 @@ name: Regenerate AllContractsHashes
 # so maintainers can refresh after a foundry version bump, dependency
 # update, or whenever the `hashes` check on a feature branch fails.
 #
-# IMPORTANT: this workflow only lives on `master` for UI visibility. The
-# actual `package.json` + `scripts/calculate-hashes.ts` + AllContractsHashes.json
-# live on the feature branch the run targets — pick that branch in the
-# "Use workflow from" dropdown when triggering, and `actions/checkout`
-# below picks up its tree. Running this against `master` itself will
-# fail at the `yarn install` step (no `package.json` there).
+# This workflow file only lives on `master` (where Actions' "Run workflow"
+# UI is rendered from). The actual `package.json` + `scripts/calculate-hashes.ts`
+# + `AllContractsHashes.json` live on the feature branch passed via the
+# `target_ref` input — `actions/checkout` below picks up that branch's
+# tree, runs the regen against it, and opens the resulting PR back into
+# the same branch.
 on:
   workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Branch to regenerate AllContractsHashes.json on (e.g. kl/v31-puh-guardians-redeploy)"
+        required: true
+        type: string
 
 jobs:
   regenerate:
@@ -24,6 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
+          ref: ${{ inputs.target_ref }}
           submodules: true
           fetch-depth: 1
 
@@ -51,13 +57,13 @@ jobs:
           title: "chore: regenerate AllContractsHashes.json"
           body: |
             Automated refresh of `AllContractsHashes.json` triggered from
-            the Actions tab against `${{ github.ref_name }}`.
+            the Actions tab against `${{ inputs.target_ref }}`.
 
             Run `yarn calculate-hashes:check` locally on this branch to
             confirm the same diff before merging.
           # Target the branch we ran against, not master (which doesn't
           # have the calculate-hashes script).
-          base: ${{ github.ref_name }}
-          branch: automation/regenerate-hashes-${{ github.ref_name }}
+          base: ${{ inputs.target_ref }}
+          branch: automation/regenerate-hashes-${{ inputs.target_ref }}
           delete-branch: true
           add-paths: AllContractsHashes.json
