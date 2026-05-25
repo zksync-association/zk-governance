@@ -150,12 +150,17 @@ type SourceAndZKCompilationDetails = SourceContractDetails & ZKCompilation;
 
 type ContractsInfo = SourceContractDetails & EvmCompilations & ZKCompilation;
 
-const findDirsEndingWith = (path: string, endingWith: string): fs.Dirent[] => {
+type ArtifactDir = {
+  name: string;
+  path: string;
+};
+
+const findDirsEndingWith = (path: string, endingWith: string): ArtifactDir[] => {
   const absolutePath = makePathAbsolute(path);
   try {
     const dirs = fs.readdirSync(absolutePath, { withFileTypes: true }).filter((dirent) => dirent.isDirectory());
     const dirsEndingWithSol = dirs.filter((dirent) => dirent.name.endsWith(endingWith));
-    return dirsEndingWithSol;
+    return dirsEndingWithSol.map((dirent) => ({ name: dirent.name, path: absolutePath }));
   } catch (err) {
     return [];
   }
