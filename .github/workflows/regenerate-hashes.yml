@@ -1,0 +1,53 @@
+name: Regenerate AllContractsHashes
+
+# Rebuild both projects from source, recompute every contract's bytecode
+# hash, and — if AllContractsHashes.json has drifted — open a PR with the
+# refreshed snapshot. Manual trigger (Actions tab → "Run workflow") so
+# maintainers can refresh after a foundry version bump, dependency update,
+# or whenever the `hashes` check on the main CI fails.
+on:
+  workflow_dispatch:
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install Foundry
+        uses: dutterbutter/foundry-zksync-toolchain@v1
+
+      - name: Install l1-contracts deps + build (EVM)
+        working-directory: ./l1-contracts
+        run: forge install && forge build
+
+      - name: Install l2-contracts deps + build (EVM + zkSync)
+        working-directory: ./l2-contracts
+        run: forge install && npm install && npm run compile
+
+      - name: Install root deps
+        run: yarn install --frozen-lockfile
+
+      - name: Regenerate AllContractsHashes.json
+        run: yarn calculate-hashes:fix
+
+      - name: Open PR with refreshed hashes
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: regenerate AllContractsHashes.json"
+          title: "chore: regenerate AllContractsHashes.json"
+          body: |
+            Automated refresh of `AllContractsHashes.json` triggered from
+            the Actions tab.
+
+            Run `yarn calculate-hashes:check` locally on this branch to
+            confirm the same diff before merging.
+          branch: automation/regenerate-hashes
+          delete-branch: true
+          add-paths: AllContractsHashes.json

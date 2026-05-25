@@ -93,3 +93,33 @@ jobs:
         run: |
           scopelint --version
           scopelint check
+
+  hashes:
+    # Rebuild both projects from source, recompute every contract's
+    # bytecode hash, and fail the build if AllContractsHashes.json doesn't
+    # match. Mirrors era-contracts' `calculate-hashes:check` so reviewers
+    # can spot any unexpected bytecode drift across PRs without doing a
+    # fresh build locally.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install Foundry
+        uses: dutterbutter/foundry-zksync-toolchain@v1
+
+      - name: Install l1-contracts deps + build (EVM)
+        working-directory: ./l1-contracts
+        run: forge install && forge build
+
+      - name: Install l2-contracts deps + build (EVM + zkSync)
+        working-directory: ./l2-contracts
+        run: forge install && npm install && npm run compile
+
+      - name: Install root deps
+        run: yarn install --frozen-lockfile
+
+      - name: Check AllContractsHashes.json is up to date
+        run: yarn calculate-hashes:check

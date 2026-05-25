@@ -1,0 +1,460 @@
+// Walk every compiled Solidity artifact in `l1-contracts/{out,zkout}` and
+// `l2-contracts/{out,zkout}`, hash the bytecode, and emit a sorted snapshot at
+// `AllContractsHashes.json`. Mirrors the same script in `era-contracts`
+// (`contracts/scripts/calculate-hashes.ts`) so reviewers can spot any unexpected
+// bytecode drift across PRs without diffing against a fresh `forge build`.
+//
+// Usage:
+//   yarn calculate-hashes:fix     # update AllContractsHashes.json
+//   yarn calculate-hashes:check   # fail if it would change (for CI)
+//
+// Prerequisite: artifacts must exist. Run `yarn build-all-contracts` first.
+
+import { ethers } from "ethers";
+import * as fs from "fs";
+import _ from "lodash";
+import os from "os";
+import { join } from "path";
+import * as blakejs from "blakejs";
+import { hashBytecode } from "zksync-ethers/build/utils";
+
+// Per-project source roots. `getCanonicalPathsFromFile` derives the expected
+// `out/`-and-`zkout/` artifact paths under each root so the skipped-folder
+// list (`SKIPPED_FOLDERS`) can be expressed as source dirs rather than
+// post-build artifact paths.
+const SOLIDITY_SOURCE_CODE_PATHS = ["l1-contracts/", "l2-contracts/"];
+const OUTPUT_FILE_PATH = "AllContractsHashes.json";
+
+// Source folders whose artifacts are not part of the deployed surface (tests
+// and deploy scripts). `getIgnoredFiles` resolves these to artifact paths via
+// `getCanonicalPathsFromFile`, then `shouldSkipFolderOrFile` filters them out
+// during the artifact walk.
+const SKIPPED_FOLDERS = [
+  "l1-contracts/scripts",
+  "l1-contracts/test",
+  "l2-contracts/script",
+  "l2-contracts/test",
+];
+
+// Sources that live inside a `SKIPPED_FOLDERS` entry but should still be
+// hashed (e.g. helpers force-deployed by the upgrade itself). Empty for now.
+const FORCE_INCLUDE: string[] = [];
+
+// Opens a Solidity file and returns all the contracts/libraries created inside of it.
+function parseSolFile(filePath: string): string[] {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const regex = /(?:^|\s)(contract|library)\s+(\w+)/g;
+  const matches: string[] = [];
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    matches.push(match[2]);
+  }
+
+  return matches;
+}
+
+// Returns paths where all the foundry compiled artifacts related to the file can be stored
+function getCanonicalPathsFromFile(directory: string, fileName: string, fullPath: string) {
+  const folderName = SOLIDITY_SOURCE_CODE_PATHS.find((x) => directory.startsWith(x));
+  if (!folderName) {
+    throw new Error("Unknown directory");
+  }
+
+  const res: string[] = [];
+
+  const parsed = parseSolFile(fullPath);
+
+  for (const item of parsed) {
+    res.push(`/${folderName}out/${fileName}/${item}.json`);
+    res.push(`/${folderName}zkout/${fileName}/${item}.json`);
+  }
+
+  return res;
+}
+
+function listSolFiles(directory: string): string[] {
+  const solFiles: string[] = [];
+
+  function searchDir(dir: string) {
+    if (!fs.existsSync(dir)) {
+      return;
+    }
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        searchDir(fullPath);
+      } else if (entry.isFile() && fullPath.endsWith(".sol")) {
+        solFiles.push(...getCanonicalPathsFromFile(directory, entry.name, fullPath));
+      }
+    }
+  }
+
+  searchDir(directory);
+  return solFiles;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedIgnoredFiles: any = null;
+
+function shouldForceIncludeFile(filePath: string) {
+  return FORCE_INCLUDE.some((x) => filePath.includes(x));
+}
+
+function getIgnoredFiles() {
+  if (cachedIgnoredFiles) {
+    return cachedIgnoredFiles;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const res: any = {};
+
+  for (const dir of SKIPPED_FOLDERS) {
+    const files = listSolFiles(dir);
+    for (const f of files) {
+      if (!shouldForceIncludeFile(f)) {
+        res[f] = true;
+      }
+    }
+  }
+
+  cachedIgnoredFiles = res;
+
+  return res;
+}
+
+function shouldSkipFolderOrFile(filePath: string): boolean {
+  return !!getIgnoredFiles()[filePath];
+}
+
+type SourceContractDetails = {
+  contractName: string;
+};
+
+type EvmCompilations = {
+  evmBytecodePath: string | null;
+  evmBytecodeHash: string | null;
+  evmDeployedBytecodeHash: string | null;
+  evmDeployedBytecodeBlakeHash: string | null;
+  evmDeployedBytecodeLength: number | null;
+};
+
+type ZKCompilation = {
+  zkBytecodePath: string | null;
+  zkBytecodeHash: string | null;
+};
+
+type SourceAndEvmCompilationDetails = SourceContractDetails & EvmCompilations;
+type SourceAndZKCompilationDetails = SourceContractDetails & ZKCompilation;
+
+type ContractsInfo = SourceContractDetails & EvmCompilations & ZKCompilation;
+
+const findDirsEndingWith = (path: string, endingWith: string): fs.Dirent[] => {
+  const absolutePath = makePathAbsolute(path);
+  try {
+    const dirs = fs.readdirSync(absolutePath, { withFileTypes: true }).filter((dirent) => dirent.isDirectory());
+    const dirsEndingWithSol = dirs.filter((dirent) => dirent.name.endsWith(endingWith));
+    return dirsEndingWithSol;
+  } catch (err) {
+    return [];
+  }
+};
+
+const SOLIDITY_ARTIFACTS_ZK_DIR = "zkout";
+const SOLIDITY_ARTIFACTS_DIR = "out";
+
+const getBytecodeHashFromZkJson = (jsonFileContents: { bytecode: { object: string } }) => {
+  try {
+    return ethers.utils.hexlify(hashBytecode("0x" + jsonFileContents.bytecode.object));
+  } catch (err) {
+    return "0x";
+  }
+};
+
+type EvmJsonFileContents = {
+  bytecode: { object: string };
+  deployedBytecode: { object: string };
+};
+
+type EVMBytecodeInfo = {
+  evmBytecodeHash: string;
+  evmDeployedBytecodeHash: string;
+  evmDeployedBytecodeBlakeHash: string;
+  evmDeployedBytecodeLength: number;
+};
+
+function defaultEVMBytecodeInfo(): EVMBytecodeInfo {
+  return {
+    evmBytecodeHash: "0x",
+    evmDeployedBytecodeHash: "0x",
+    evmDeployedBytecodeBlakeHash: "0x",
+    evmDeployedBytecodeLength: 0,
+  };
+}
+
+const getBytecodeInfoFromEvmJson = (jsonFileContents: EvmJsonFileContents): EVMBytecodeInfo => {
+  try {
+    if (jsonFileContents.deployedBytecode.object == "0x") {
+      return defaultEVMBytecodeInfo();
+    }
+    return {
+      evmBytecodeHash: ethers.utils.hexlify(
+        ethers.utils.keccak256(ethers.utils.arrayify(jsonFileContents.bytecode.object))
+      ),
+      evmDeployedBytecodeHash: ethers.utils.hexlify(
+        ethers.utils.keccak256(ethers.utils.arrayify(jsonFileContents.deployedBytecode.object))
+      ),
+      evmDeployedBytecodeBlakeHash: ethers.utils.hexlify(
+        blakejs.blake2s(ethers.utils.arrayify(jsonFileContents.deployedBytecode.object))
+      ),
+      evmDeployedBytecodeLength: ethers.utils.arrayify(jsonFileContents.deployedBytecode.object).length,
+    };
+  } catch (err) {
+    return defaultEVMBytecodeInfo();
+  }
+};
+
+const getZkSolidityContractsDetailsWithArtifactsDir = (workDir: string): SourceAndZKCompilationDetails[] => {
+  const artifactsDir = SOLIDITY_ARTIFACTS_ZK_DIR;
+  const bytecodesDir = join(workDir, artifactsDir);
+  const dirsEndingWithSol = findDirsEndingWith(bytecodesDir, ".sol").filter(
+    (dirent) => !dirent.name.endsWith(".t.sol") && !dirent.name.endsWith(".s.sol") && !dirent.name.endsWith("Test.sol")
+  );
+
+  const compiledFiles = dirsEndingWithSol
+    .map((d) => {
+      const contractFiles = fs
+        .readdirSync(join(d.path, d.name), { withFileTypes: true })
+        .filter((dirent) => dirent.isFile() && dirent.name.endsWith(".json") && !dirent.name.includes("dbg"))
+        .map((dirent) => dirent.name);
+
+      return contractFiles.map((c) => {
+        return join(d.path, d.name, c);
+      });
+    })
+    .flat();
+
+  return (
+    compiledFiles
+      .map((jsonFile) => {
+        const jsonFileContents = JSON.parse(fs.readFileSync(jsonFile, "utf8"));
+        const zkBytecodeHash = getBytecodeHashFromZkJson(jsonFileContents);
+
+        const zkBytecodePath = jsonFile.startsWith(join(__dirname, ".."))
+          ? jsonFile.replace(join(__dirname, ".."), "")
+          : jsonFile;
+
+        const contractName = (jsonFile.split("/").pop() || "").replace(".json", "");
+
+        return {
+          contractName: join(workDir, contractName),
+          zkBytecodePath,
+          zkBytecodeHash,
+        };
+      })
+      // Filter out empty bytecode + skipped folders/files
+      .filter((c) => c.zkBytecodeHash != "0x" && !shouldSkipFolderOrFile(c.zkBytecodePath))
+  );
+};
+
+const getEVMSolidityContractsDetailsWithArtifactsDir = (workDir: string): SourceAndEvmCompilationDetails[] => {
+  const artifactsDir = SOLIDITY_ARTIFACTS_DIR;
+  const bytecodesDir = join(workDir, artifactsDir);
+  const dirsEndingWithSol = findDirsEndingWith(bytecodesDir, ".sol").filter(
+    (dirent) => !dirent.name.endsWith(".t.sol") && !dirent.name.endsWith(".s.sol") && !dirent.name.endsWith("Test.sol")
+  );
+
+  const compiledFiles = dirsEndingWithSol
+    .map((d) => {
+      const contractFiles = fs
+        .readdirSync(join(d.path, d.name), { withFileTypes: true })
+        .filter((dirent) => dirent.isFile() && dirent.name.endsWith(".json") && !dirent.name.includes("dbg"))
+        .map((dirent) => dirent.name);
+
+      return contractFiles.map((c) => {
+        return join(d.path, d.name, c);
+      });
+    })
+    .flat();
+
+  return (
+    compiledFiles
+      .map((jsonFile) => {
+        const jsonFileContents = JSON.parse(fs.readFileSync(jsonFile, "utf8"));
+        const info = getBytecodeInfoFromEvmJson(jsonFileContents);
+
+        const evmBytecodePath = jsonFile.startsWith(join(__dirname, ".."))
+          ? jsonFile.replace(join(__dirname, ".."), "")
+          : jsonFile;
+
+        const contractName = (jsonFile.split("/").pop() || "").replace(".json", "");
+
+        return {
+          contractName: join(workDir, contractName),
+          evmBytecodePath,
+          evmBytecodeHash: info.evmBytecodeHash,
+          evmDeployedBytecodeHash: info.evmDeployedBytecodeHash,
+          evmDeployedBytecodeBlakeHash: info.evmDeployedBytecodeBlakeHash,
+          evmDeployedBytecodeLength: info.evmDeployedBytecodeLength,
+        };
+      })
+      // Filter out empty bytecode + skipped folders/files
+      .filter((c) => c.evmBytecodeHash != "0x" && !shouldSkipFolderOrFile(c.evmBytecodePath))
+  );
+};
+
+const getSolidityContractsDetails = (dir: string): ContractsInfo[] => {
+  const zkContracts = getZkSolidityContractsDetailsWithArtifactsDir(dir);
+  const contracts = getEVMSolidityContractsDetailsWithArtifactsDir(dir);
+
+  const mergedContracts: ContractsInfo[] = [];
+
+  zkContracts.forEach((contract) => {
+    const newContract: ContractsInfo = {
+      contractName: contract.contractName,
+      zkBytecodeHash: contract.zkBytecodeHash,
+      zkBytecodePath: contract.zkBytecodePath,
+      evmBytecodeHash: null,
+      evmBytecodePath: null,
+      evmDeployedBytecodeHash: null,
+      evmDeployedBytecodeBlakeHash: null,
+      evmDeployedBytecodeLength: null,
+    };
+    mergedContracts.push(newContract);
+  });
+
+  contracts.forEach((contract) => {
+    const existingContract = mergedContracts.find((c) => c.contractName === contract.contractName);
+
+    if (existingContract) {
+      existingContract.evmBytecodeHash = contract.evmBytecodeHash;
+      existingContract.evmBytecodePath = contract.evmBytecodePath;
+      existingContract.evmDeployedBytecodeHash = contract.evmDeployedBytecodeHash;
+      existingContract.evmDeployedBytecodeBlakeHash = contract.evmDeployedBytecodeBlakeHash;
+      existingContract.evmDeployedBytecodeLength = contract.evmDeployedBytecodeLength;
+    } else {
+      const newContract: ContractsInfo = {
+        contractName: contract.contractName,
+        evmBytecodeHash: contract.evmBytecodeHash,
+        evmBytecodePath: contract.evmBytecodePath,
+        evmDeployedBytecodeHash: contract.evmDeployedBytecodeHash,
+        evmDeployedBytecodeBlakeHash: contract.evmDeployedBytecodeBlakeHash,
+        evmDeployedBytecodeLength: contract.evmDeployedBytecodeLength,
+        zkBytecodeHash: null,
+        zkBytecodePath: null,
+      };
+      mergedContracts.push(newContract);
+    }
+  });
+
+  return mergedContracts;
+};
+
+const makePathAbsolute = (path: string): string => {
+  return join(__dirname, "..", path);
+};
+
+const readSystemContractsHashesFile = (path: string): ContractsInfo[] => {
+  const absolutePath = makePathAbsolute(path);
+  try {
+    const file = fs.readFileSync(absolutePath, "utf8");
+    const parsedFile = JSON.parse(file);
+    return parsedFile;
+  } catch (err) {
+    if ((err as { code?: string })?.code === "ENOENT") {
+      console.warn(`File ${absolutePath} not found. Creating a new one.`);
+      fs.writeFileSync(absolutePath, "[]");
+      return [];
+    }
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    throw new Error(`Failed to read file: ${absolutePath} Error: ${msg}`);
+  }
+};
+
+const saveSystemContractsHashesFile = (path: string, systemContractsHashes: ContractsInfo[]) => {
+  const absolutePath = makePathAbsolute(path);
+  try {
+    fs.writeFileSync(absolutePath, JSON.stringify(systemContractsHashes, null, 2) + os.EOL);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    throw new Error(`Failed to save file: ${absolutePath} Error: ${msg}`);
+  }
+};
+
+const findDifferences = (newHashes: ContractsInfo[], oldHashes: ContractsInfo[]) => {
+  const differentElements = _.xorWith(newHashes, oldHashes, _.isEqual);
+
+  const differentUniqueElements = _.uniqWith(differentElements, (a, b) => a.contractName === b.contractName);
+
+  const differencesList = differentUniqueElements.map((diffElem) => {
+    const newHashesElem = newHashes.find((elem) => elem.contractName === diffElem.contractName);
+
+    const oldHashesElem = oldHashes.find((elem) => elem.contractName === diffElem.contractName);
+
+    const differingFields = _.xorWith(
+      Object.entries(newHashesElem || {}),
+      Object.entries(oldHashesElem || {}),
+      _.isEqual
+    );
+
+    const differingFieldsUniqueKeys = _.uniq(differingFields.map(([key]) => key));
+
+    return {
+      contract: diffElem.contractName,
+      differingFields: differingFieldsUniqueKeys,
+      old: oldHashesElem || {},
+      new: newHashesElem || {},
+    };
+  });
+
+  return differencesList;
+};
+
+const main = async () => {
+  const args = process.argv;
+  if (args.length > 3 || (args.length == 3 && !args.includes("--check-only"))) {
+    console.log(
+      `This command can be used with no arguments or with the --check-only flag. Use the --check-only flag to check the hashes without updating the ${OUTPUT_FILE_PATH} file.`
+    );
+    process.exit(1);
+  }
+  const checkOnly = args.includes("--check-only");
+
+  const solidityContractsDetails = _.flatten(SOLIDITY_SOURCE_CODE_PATHS.map(getSolidityContractsDetails));
+  const contractsDetails = _.sortBy(solidityContractsDetails, (c) => c.contractName);
+
+  console.log("New hashes: ", contractsDetails.length);
+
+  const newSystemContractsHashes = contractsDetails;
+  const oldSystemContractsHashes = readSystemContractsHashesFile(OUTPUT_FILE_PATH);
+  if (_.isEqual(newSystemContractsHashes, oldSystemContractsHashes)) {
+    console.log(`Calculated hashes match the hashes in the ${OUTPUT_FILE_PATH} file.`);
+    console.log("Exiting...");
+    return;
+  }
+  const differences = findDifferences(newSystemContractsHashes, oldSystemContractsHashes);
+  console.log(`Calculated hashes differ from the hashes in the ${OUTPUT_FILE_PATH} file. Differences:`);
+  console.log(differences);
+  if (checkOnly) {
+    console.log(`You can use the \`yarn calculate-hashes:fix\` command to update the ${OUTPUT_FILE_PATH} file.`);
+    console.log("Exiting...");
+    process.exit(1);
+  } else {
+    console.log("Updating...");
+    saveSystemContractsHashesFile(OUTPUT_FILE_PATH, newSystemContractsHashes);
+    console.log("Update finished");
+    console.log("Exiting...");
+    return;
+  }
+};
+
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error("Error:", err.message || err);
+    console.log(
+      "Please make sure to run `yarn --cwd l1-contracts build && yarn --cwd l2-contracts compile` before running this script."
+    );
+    process.exit(1);
+  });
