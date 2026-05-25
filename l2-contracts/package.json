@@ -16,18 +16,29 @@
     "@matterlabs/hardhat-zksync-node": "^1.0.3",
     "@matterlabs/hardhat-zksync-solc": "^1.1.4",
     "@matterlabs/hardhat-zksync-upgradable": "^1.4.1",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ignition": "^0.15.9",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/ignition-core": "^0.15.9",
     "@openzeppelin/contracts": "^4.9.6",
     "@openzeppelin/contracts-upgradeable": "^4.9.6",
     "@openzeppelin/upgrades-core": "^1.32.3",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": ">=9.1.0",
     "dotenv": "^16.4.5",
-    "hardhat": "^2.22.2"
+    "hardhat": "^2.22.18",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-coverage": "^0.8.1",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.0",
+    "typescript": "^5.7.3"
   },
   "volta": {
     "node": "20.12.0",
     "npm": "10.5.0"
-  },
-  "dependencies": {
-    "@matterlabs/hardhat-zksync-verify": "^1.6.0"
   }
 }

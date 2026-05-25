@@ -39,5 +39,6 @@ lcov.info
 # IDEs
 .vscode
 .idea
+.DS_Store
 
 node_modules/
