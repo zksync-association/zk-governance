@@ -1,0 +1,23 @@
+{
+  "name": "zk-governance",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build-all-contracts": "(cd l1-contracts && forge build) && (cd l2-contracts && npm run compile)",
+    "calculate-hashes:check": "ts-node scripts/calculate-hashes.ts --check-only",
+    "calculate-hashes:fix": "ts-node scripts/calculate-hashes.ts",
+    "calculate-hashes:rebuild-and-fix": "yarn build-all-contracts && yarn calculate-hashes:fix"
+  },
+  "dependencies": {
+    "blakejs": "^1.2.1",
+    "ethers": "^5.7.0",
+    "lodash": "^4.17.21",
+    "zksync-ethers": "^5.9.0"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.199",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.1.0",
+    "typescript": "^4.6.4"
+  }
+}
