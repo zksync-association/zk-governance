@@ -22,8 +22,8 @@ jobs:
           submodules: true
           fetch-depth: 1
 
-      - name: Install Foundry
-        uses: dutterbutter/foundry-zksync-toolchain@v1
+      - name: Install zksync-foundry
+        uses: ./.github/actions/install-zksync-foundry
 
       - name: Install dependencies
         run: forge install && npm install
@@ -42,8 +42,8 @@ jobs:
           submodules: true
           fetch-depth: 1
 
-      - name: Install Foundry
-        uses: dutterbutter/foundry-zksync-toolchain@v1
+      - name: Install zksync-foundry
+        uses: ./.github/actions/install-zksync-foundry
 
       - name: Install dependencies
         run: forge install && npm install
@@ -72,8 +72,8 @@ jobs:
           submodules: true
           fetch-depth: 1
 
-      - name: Install Foundry
-        uses: dutterbutter/foundry-zksync-toolchain@v1
+      - name: Install zksync-foundry
+        uses: ./.github/actions/install-zksync-foundry
 
       - name: Install dependencies
         run: forge install
@@ -107,8 +107,8 @@ jobs:
           submodules: true
           fetch-depth: 1
 
-      - name: Install Foundry
-        uses: dutterbutter/foundry-zksync-toolchain@v1
+      - name: Install zksync-foundry
+        uses: ./.github/actions/install-zksync-foundry
 
       - name: Install l1-contracts deps + build (EVM)
         working-directory: ./l1-contracts
