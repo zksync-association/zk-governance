@@ -28,6 +28,8 @@
     "npm": "10.5.0"
   },
   "dependencies": {
-    "@matterlabs/hardhat-zksync-verify": "^1.6.0"
+    "@matterlabs/hardhat-zksync-verify": "^1.6.0",
+    "ethers": "^6.16.0",
+    "zksync-ethers": "^6.21.1"
   }
 }

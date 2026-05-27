@@ -35,20 +35,36 @@ const config: HardhatUserConfig = {
       ethNetwork: "ethNetwork",
       url: process.env.ZK_LOCAL_NETWORK_URL ? process.env.ZK_LOCAL_NETWORK_URL : "http://0.0.0.0:8011",
     },
+    // L1 networks – set L1_RPC to your preferred endpoint for the relevant L1.
+    sepolia: {
+      zksync: false,
+      url: process.env.L1_RPC || "https://rpc.sepolia.org",
+    },
     mainnet: {
       zksync: false,
-      url: "https://eth-mainnet.g.alchemy.com/v2/SECRET",
+      url: process.env.L1_RPC || "https://eth.llamarpc.com",
     },
+    // ZKsync Era mainnet – L2_RPC should point to the Era mainnet JSON-RPC.
     zkSyncEra: {
       zksync: true,
       ethNetwork: "mainnet",
-      url: "https://zksync-mainnet.g.alchemy.com/v2/SECRET",
+      url: process.env.L2_RPC || "https://mainnet.era.zksync.io",
+      verifyURL: "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
     },
+    // ZKsync Era Sepolia testnet.
     zkSyncTestnet: {
       zksync: true,
       ethNetwork: "sepolia",
-      url: "https://sepolia.era.zksync.dev",
+      url: process.env.L2_RPC || "https://sepolia.era.zksync.dev",
       verifyURL: "https://explorer.sepolia.era.zksync.dev/contract_verification",
+    },
+    // ZKsync stage-proofs environment (chain 499, L1 = Sepolia).
+    // Set L2_RPC to the stage-proofs RPC endpoint.
+    stageProofs: {
+      zksync: true,
+      ethNetwork: "sepolia",
+      url: process.env.L2_RPC || "",
+      verifyURL: "https://dev-api-explorer.era-stage-proofs.zksync.dev/contract_verification",
     },
   },
   defaultNetwork: "zkSyncLocal",

@@ -30,8 +30,13 @@ out/
 # zksync local node logs
 era_test_node.log
 
-# zksync local deploy logs
+# zksync deploy logs (network-specific, not committed)
 deployments-zk/zkSyncLocal
+deployments-zk/zkSyncTestnet
+deployments-zk/zkSyncEra
+
+# zksync upgradable manifest (network-specific upgrade state)
+.upgradable/
 
 # Coverage
 lcov.info
@@ -41,3 +46,7 @@ lcov.info
 .idea
 
 node_modules/
+
+# Deployment state files (contain deployed addresses, not secrets, but are
+# environment-specific and should not be committed to the main branch).
+script/.deploy-state.json
