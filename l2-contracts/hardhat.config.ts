@@ -12,7 +12,7 @@ dotenv.config();
 const config: HardhatUserConfig = {
   solidity: "0.8.24",
   zksolc: {
-    version: "1.4.0",
+    version: "1.5.14",
     settings: {
       optimizer: {
         enabled: true,
