@@ -42,10 +42,11 @@ import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler
 ///   - ZKSYNC_OS_CHAIN_TYPE_MANAGER  : new ZKsync OS CTM address (from v31);
 ///         the old PUH has no getter for this so it must be passed explicitly.
 ///   - CREATE2_FACTORY               : CREATE2 deployer factory address
-///   - CREATE2_SALT_PUH              : salt for the new PUH impl
-///   - CREATE2_SALT_GUARDIANS        : salt for the new Guardians
-///   - CREATE2_SALT_SECURITY_COUNCIL : salt for the new SecurityCouncil
-///   - CREATE2_SALT_EMERGENCY_BOARD  : salt for the new EmergencyUpgradeBoard
+///   - CREATE2_SALT_GOV              : shared CREATE2 salt for all four
+///         redeployed contracts (PUH impl, Guardians, SecurityCouncil,
+///         EmergencyUpgradeBoard). Each has distinct init code, so one salt
+///         still yields four distinct, collision-free addresses — and the whole
+///         set rotates together with a single value.
 ///   - ERA_CHAIN_ID                  : Era chain ID (e.g. 270 stage, 324 mainnet)
 ///         The current PUH on stage/mainnet pre-dates the addition of
 ///         `ERA_CHAIN_ID` as a getter, so we must pass it explicitly.
@@ -96,6 +97,13 @@ contract DeployPUHAndGuardians is Script {
         return ProtocolUpgradeHandler(payable(vm.envAddress("PREV_PROTOCOL_UPGRADE_HANDLER")));
     }
 
+    /// @dev Single CREATE2 salt shared by all four redeployed contracts. They
+    ///      have distinct init code, so one salt is collision-free and rotates
+    ///      the whole governance set together.
+    function _govSalt() internal view returns (bytes32) {
+        return vm.envBytes32("CREATE2_SALT_GOV");
+    }
+
     /// @dev Deploys the new PUH implementation. The Testnet variant shares the
     ///      real handler's constructor signature (it only overrides the
     ///      veto/delay period getters), so the encoded ctor args are identical
@@ -116,7 +124,7 @@ contract DeployPUHAndGuardians is Script {
         bytes memory creationCode = vm.envOr("USE_TESTNET_PUH", false)
             ? type(TestnetProtocolUpgradeHandler).creationCode
             : type(ProtocolUpgradeHandler).creationCode;
-        return deployViaCreate2(abi.encodePacked(creationCode, ctorArgs), vm.envBytes32("CREATE2_SALT_PUH"));
+        return deployViaCreate2(abi.encodePacked(creationCode, ctorArgs), _govSalt());
     }
 
     function _deployGuardians() internal returns (address) {
@@ -128,10 +136,7 @@ contract DeployPUHAndGuardians is Script {
             _readMembers(prev.guardians())
         );
         return
-            deployViaCreate2(
-                abi.encodePacked(type(Guardians).creationCode, ctorArgs),
-                vm.envBytes32("CREATE2_SALT_GUARDIANS")
-            );
+            deployViaCreate2(abi.encodePacked(type(Guardians).creationCode, ctorArgs), _govSalt());
     }
 
     function _deploySecurityCouncil() internal returns (address) {
@@ -141,10 +146,7 @@ contract DeployPUHAndGuardians is Script {
             _readMembers(prev.securityCouncil())
         );
         return
-            deployViaCreate2(
-                abi.encodePacked(type(SecurityCouncil).creationCode, ctorArgs),
-                vm.envBytes32("CREATE2_SALT_SECURITY_COUNCIL")
-            );
+            deployViaCreate2(abi.encodePacked(type(SecurityCouncil).creationCode, ctorArgs), _govSalt());
     }
 
     /// @dev Wires the new board at the freshly deployed SecurityCouncil +
@@ -163,10 +165,7 @@ contract DeployPUHAndGuardians is Script {
             zkFoundationSafe
         );
         return
-            deployViaCreate2(
-                abi.encodePacked(type(EmergencyUpgradeBoard).creationCode, ctorArgs),
-                vm.envBytes32("CREATE2_SALT_EMERGENCY_BOARD")
-            );
+            deployViaCreate2(abi.encodePacked(type(EmergencyUpgradeBoard).creationCode, ctorArgs), _govSalt());
     }
 
     function _writeOutput(
