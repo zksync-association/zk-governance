@@ -80,6 +80,12 @@ contract DeployPUHAndGuardians is Script {
         return contractAddress;
     }
 
+    /// @dev SecurityCouncil enforces exactly this many members (see
+    ///      `SecurityCouncil.sol`). The live council carries more (12 on stage),
+    ///      so we copy the first 8 — the same addresses, truncated to satisfy
+    ///      that bound.
+    uint256 internal constant SECURITY_COUNCIL_MEMBERS = 8;
+
     /// @dev Reads the member list of a Multisig (Guardians / SecurityCouncil).
     ///      `members` is the first storage variable (slot 0 holds the array
     ///      length) for both contracts since they inherit from `Multisig`.
@@ -88,6 +94,22 @@ contract DeployPUHAndGuardians is Script {
         require(totalMembers != 0, "Multisig has no members");
         members = new address[](totalMembers);
         for (uint256 i = 0; i < totalMembers; i++) {
+            members[i] = Multisig(_multisig).members(i);
+            require(members[i] != address(0), "Empty multisig member");
+        }
+    }
+
+    /// @dev Reads the first `_count` members of a Multisig. Used where the
+    ///      target contract fixes its member count (SecurityCouncil) but the
+    ///      source multisig may hold more.
+    function _readFirstMembers(
+        address _multisig,
+        uint256 _count
+    ) internal view returns (address[] memory members) {
+        uint256 totalMembers = uint256(vm.load(_multisig, 0));
+        require(totalMembers >= _count, "Multisig has fewer members than required");
+        members = new address[](_count);
+        for (uint256 i = 0; i < _count; i++) {
             members[i] = Multisig(_multisig).members(i);
             require(members[i] != address(0), "Empty multisig member");
         }
@@ -143,7 +165,7 @@ contract DeployPUHAndGuardians is Script {
         ProtocolUpgradeHandler prev = _prevHandler();
         bytes memory ctorArgs = abi.encode(
             IProtocolUpgradeHandler(address(prev)),
-            _readMembers(prev.securityCouncil())
+            _readFirstMembers(prev.securityCouncil(), SECURITY_COUNCIL_MEMBERS)
         );
         return
             deployViaCreate2(abi.encodePacked(type(SecurityCouncil).creationCode, ctorArgs), _govSalt());
