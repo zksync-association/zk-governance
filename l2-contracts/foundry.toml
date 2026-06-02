@@ -34,5 +34,8 @@
   tab_width = 2
   wrap_comments = true
 
+[profile.default.zksync]
+  zksolc = "1.5.15"
+
 [rpc_endpoints]
   zksync = "${ZKSYNC_RPC_URL}"
