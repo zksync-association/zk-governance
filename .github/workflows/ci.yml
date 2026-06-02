@@ -31,6 +31,21 @@ jobs:
       - name: Build
         run: npm run compile
 
+      - name: Build l2-contracts (zkSync)
+        run: forge clean && forge build --zksync
+
+      - name: Install l1-contracts deps + build (EVM)
+        working-directory: ./l1-contracts
+        run: forge install && forge build
+
+      - name: Save artifacts cache
+        uses: actions/cache/save@v4
+        with:
+          key: artifacts-${{ github.sha }}
+          path: |
+            l1-contracts/out
+            l2-contracts/zkout
+
   test:
     defaults:
       run:
@@ -95,11 +110,7 @@ jobs:
           scopelint check
 
   hashes:
-    # Rebuild both projects from source, recompute every contract's
-    # bytecode hash, and fail the build if AllContractsHashes.json doesn't
-    # match. Mirrors era-contracts' `calculate-hashes:check` so reviewers
-    # can spot any unexpected bytecode drift across PRs without doing a
-    # fresh build locally.
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -107,16 +118,14 @@ jobs:
           submodules: true
           fetch-depth: 1
 
-      - name: Install zksync-foundry
-        uses: ./.github/actions/install-zksync-foundry
-
-      - name: Install l1-contracts deps + build (EVM)
-        working-directory: ./l1-contracts
-        run: forge install && forge build
-
-      - name: Install l2-contracts deps + build (EVM + zkSync)
-        working-directory: ./l2-contracts
-        run: forge install && npm install && npm run compile
+      - name: Restore artifacts cache
+        uses: actions/cache/restore@v3
+        with:
+          fail-on-cache-miss: true
+          key: artifacts-${{ github.sha }}
+          path: |
+            l1-contracts/out
+            l2-contracts/zkout
 
       - name: Install root deps
         run: yarn install --frozen-lockfile
