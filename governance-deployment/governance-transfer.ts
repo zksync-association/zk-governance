@@ -83,6 +83,26 @@ const ownable = (addr: string, runner: any) => new ethers.Contract(addr, OWNABLE
 const ACCEPT_OWNERSHIP_DATA = new ethers.Interface(OWNABLE2STEP_ABI).encodeFunctionData("acceptOwnership", []);
 
 /**
+ * RollupDAManager (one per CTM) is governance-owned but has no getter on the bridgehub, so it is
+ * hard-coded here for the chain-301 ecosystem. How these were derived & how to re-verify:
+ *   1. Take any chain of the CTM and read its diamond: `bridgehub.getZKChain(chainId)`
+ *        era   CTM 0x3Cc8…18864: chain 301   -> diamond 0xD3bc4353957bc0F138318384aa207C708A9455C4
+ *        other CTM 0x54D5…1eb5 : chain 36900 -> diamond 0xa837Ea7C274C2C65650eb2F3c44f5459A83148ce
+ *   2. Find the AdminFacet: for fa in `diamond.facetAddresses()`, the one with `fa.getName()=="AdminFacet"`
+ *        era: 0x69A6fc70d24C3A475f7B5f931121D506C7624055   other: 0x68Ab53D3bf41562D02c9029b04D54C29007BcAC7
+ *   3. RollupDAManager = `adminFacet.getRollupDAManager()` (equivalently `diamond.getRollupDAManager()`),
+ *      which returns the `RollupDAManager` immutable set in the AdminFacet constructor
+ *      `constructor(uint256 _l1ChainId, RollupDAManager _rollupDAManager)`.
+ * Verify: `cast call <diamond> 'getRollupDAManager()(address)'` should equal the value below, and
+ * `cast call <rollupDAManager> 'owner()(address)'` should be the Governance (0xcf96…) or its EOA owner.
+ * For a different ecosystem, supply your own values via `config.ownableTargets` / `--targets` instead.
+ */
+const KNOWN_ROLLUP_DA_MANAGERS: { name: string; address: string }[] = [
+  { name: "RollupDAManager(era CTM)", address: "0x6b7D8FD12eF94485c8E928a055124F94C2B5d411" },
+  { name: "RollupDAManager(other CTM)", address: "0x2732eA4Db32527690A680D5A2B7FFae812bB656A" },
+];
+
+/**
  * Discover every ownable L1 ecosystem contract, walking the bridgehub. This covers the full set
  * whose ownership era-contracts hands to governance (see DeployL1CoreContracts.s.sol / DeployCTM.s.sol):
  *   Bridgehub, L1AssetRouter, L1Nullifier, L1NativeTokenVault, CTMDeploymentTracker, ChainAssetHandler,
@@ -174,9 +194,16 @@ async function main() {
     console.log(`Bridgehub:                 ${bridgehub}`);
     targets = await discoverTargets(provider, bridgehub);
     const seen = new Set(targets.map((t) => t.address.toLowerCase()));
-    for (const a of (cfg.ownableTargets as string[] | undefined) || []) {
-      const addr = ethers.getAddress(a);
-      if (!seen.has(addr.toLowerCase())) targets.push({ name: "config", address: addr });
+    const extras = [
+      ...KNOWN_ROLLUP_DA_MANAGERS,
+      ...(((cfg.ownableTargets as string[] | undefined) || []).map((a) => ({ name: "config", address: a }))),
+    ];
+    for (const e of extras) {
+      const addr = ethers.getAddress(e.address);
+      if (!seen.has(addr.toLowerCase())) {
+        seen.add(addr.toLowerCase());
+        targets.push({ name: e.name, address: addr });
+      }
     }
   }
   console.log(`Discovered ${targets.length} ownable target(s).\n`);

@@ -89,10 +89,14 @@ Bridgehub, L1AssetRouter, L1Nullifier, L1NativeTokenVault, CTMDeploymentTracker,
 and **every ChainTypeManager** (the ecosystem has more than one CTM: the "era" CTM of the chain
 governance lives on, plus the CTM(s) of the other chains) with their ValidatorTimelocks. It detects
 each contract's ownership path (direct EOA vs `Governance.sol`), performs step 1, and emits step 2.
-Contracts without an on-chain getter in your version (e.g. `RollupDAManager`, an unset
-`ValidatorTimelock`, `ServerNotifier`) can be appended via `"ownableTargets": ["0x…"]` in the config
-or `--targets 0x..,0x..`. Verified against chain-301: it finds 8 targets incl. both CTMs
-(`0x3Cc8…` era + `0x54D5…`).
+The two `RollupDAManager`s (one per CTM) have no bridgehub getter, so they are **hard-coded** in the
+script for the chain-301 ecosystem (era `0x6b7D…d411`, other `0x2732…656A`), each derived + verified
+from the chain's diamond AdminFacet (`diamond.getRollupDAManager()`, AdminFacet identified by
+`getName()=="AdminFacet"`) — see the header comment in `governance-transfer.ts` for the exact
+`cast` checks. Other contracts without a getter in your version (an unset `ValidatorTimelock`, or
+`ServerNotifier` — which is owned by the per-chain ChainAdmin, not this governance) can be appended
+via `"ownableTargets": ["0x…"]` in the config or `--targets 0x..,0x..`. Verified against chain-301:
+it finds **10 targets incl. both CTMs** (`0x3Cc8…` era + `0x54D5…` other) and both RollupDAManagers.
 
 ## Notes / gotchas
 
