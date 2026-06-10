@@ -19,10 +19,14 @@ executed.
 
 The tools reuse the `l2-contracts` Node dependencies. From `governance-deployment/`:
 
+The tooling is self-contained — install its own dependencies (do **not** install `l2-contracts`,
+whose hardhat deps are unrelated to the CLI):
+
 ```bash
-# node_modules is symlinked to ../l2-contracts/node_modules
+cd governance-deployment
+npm install                       # ethers v6 + zksync-ethers + commander + ts-node (no conflicts)
 export PRIVATE_KEY=0x<deployer-or-voter-key>
-alias cli-vote='node_modules/.bin/ts-node --project tsconfig.json cli-vote.ts'
+alias cli-vote='npx ts-node --project tsconfig.json cli-vote.ts'   # or: npm run cli-vote --
 ```
 
 Connection details come from a JSON config (default `./governance.json`, written by `redeploy.sh`):

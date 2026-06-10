@@ -37,9 +37,16 @@ l1-contracts/test/L2MessageCompatForkTest.t.sol   # fork test: L2->L1 message <-
 
 ```bash
 cd governance-deployment
+npm install                                # self-contained deps (ethers v6, zksync-ethers, ts-node)
 export PRIVATE_KEY=0x<deployer>            # holds Sepolia ETH; will receive the ZK supply
 ./redeploy.sh all
 ```
+
+> The CLI tools (`cli-vote`, `finalize-l1`) and the orchestrator depend only on this directory's
+> `npm install` — you do **not** need to install `l2-contracts` (its hardhat deps are unrelated and
+> can hit peer-dependency conflicts under modern npm). `deploy-l2.ts`/`verify-l2.js` only read the
+> already-built `l2-contracts/artifacts-zk`; rebuild those with `cd l2-contracts && npm install
+> --legacy-peer-deps && npm run compile` only if you need to recompile.
 
 `redeploy.sh` is **step-based and resumable** — each step writes a marker under
 `.redeploy-state/`, so if you stop it (e.g. while waiting for the L2 deposit to be credited, which
