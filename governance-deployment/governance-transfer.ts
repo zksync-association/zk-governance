@@ -16,9 +16,29 @@
  * This script performs step 1 (routing each transfer through `Governance.sol` when a contract is
  * owned by it, or sending a direct tx when the EOA owns it) and writes step 2 to disk.
  *
- * The ownable ecosystem contracts (per era-contracts) are: Bridgehub, ChainTypeManager,
- * L1AssetRouter, L1Nullifier, L1NativeTokenVault and ChainAssetHandler — exactly the immutables the
- * PUH already references, so we discover the target set straight from the deployed PUH.
+ * Complete set of ownable L1 ecosystem contracts (from era-contracts deploy-scripts
+ * DeployL1CoreContracts.s.sol + DeployCTM.s.sol — note DeployCTM runs once *per CTM*):
+ *
+ *   Owned by Governance (auto-discovered from the bridgehub):
+ *     - Bridgehub                bridgehub
+ *     - L1AssetRouter            bridgehub.assetRouter()
+ *     - L1Nullifier              assetRouter.L1_NULLIFIER()
+ *     - CTMDeploymentTracker     bridgehub.l1CtmDeployer()
+ *     - ChainAssetHandler        bridgehub.chainAssetHandler()
+ *     - ChainTypeManager  × N    bridgehub.chainTypeManager(chainId) over ALL chains — the ecosystem
+ *                                has >1 CTM (the "era" CTM of the chain governance lives on, plus the
+ *                                CTM(s) of the other chains, e.g. chain 301 vs the rest).
+ *     - RollupDAManager   × N    per CTM (no on-chain getter — pass via config.ownableTargets)
+ *   Owned by the governance EOA (config.ownerAddress) — auto-discovered, transferred directly:
+ *     - L1NativeTokenVault       assetRouter.nativeTokenVault()
+ *     - ValidatorTimelock × N    ctm.validatorTimelock() when set, else config.ownableTargets
+ *   Owned by the per-chain ChainAdmin (NOT this governance):
+ *     - ServerNotifier    × N    — only migrate if your deployment points it here; pass via config
+ *   Not Ownable (skipped): MessageRoot (owned by the bridgehub itself); chain diamonds use the
+ *   Admin facet (setPendingAdmin/acceptAdmin), not Ownable — out of scope for this script.
+ *
+ * Discovery walks the bridgehub so every CTM (and its ValidatorTimelock) is included; contracts
+ * without an on-chain getter in your version can be appended via `config.ownableTargets` or `--targets`.
  *
  * Usage:
  *   governance-transfer.ts --config governance.json --pk 0x<governance-owner> \
@@ -43,29 +63,69 @@ const GOVERNANCE_ABI = [
   "function hashOperation(((address target,uint256 value,bytes data)[] calls,bytes32 predecessor,bytes32 salt) operation) pure returns (bytes32)",
   "function isOperationReady(bytes32 id) view returns (bool)",
 ];
-// The PUH immutables that point at the ownable ecosystem contracts.
-const PUH_ABI = [
-  "function BRIDGE_HUB() view returns (address)",
-  "function CHAIN_TYPE_MANAGER() view returns (address)",
-  "function L1_ASSET_ROUTER() view returns (address)",
-  "function L1_NULLIFIER() view returns (address)",
-  "function L1_NATIVE_TOKEN_VAULT() view returns (address)",
-  "function CHAIN_ASSET_HANDLER() view returns (address)",
+const PUH_ABI = ["function BRIDGE_HUB() view returns (address)"];
+// Bridgehub is the root of the ecosystem; all ownable contracts are reachable from it.
+const BRIDGEHUB_ABI = [
+  "function assetRouter() view returns (address)",
+  "function l1CtmDeployer() view returns (address)", // -> CTMDeploymentTracker
+  "function chainAssetHandler() view returns (address)",
+  "function messageRoot() view returns (address)",
+  "function getAllZKChainChainIDs() view returns (uint256[])",
+  "function chainTypeManager(uint256 chainId) view returns (address)",
 ];
-const TRANSFER_SELECTORS = PUH_ABI.map((s) => s.match(/function (\w+)/)![1]);
+const ASSET_ROUTER_ABI = [
+  "function L1_NULLIFIER() view returns (address)",
+  "function nativeTokenVault() view returns (address)",
+];
+const CTM_ABI = ["function validatorTimelock() view returns (address)"];
 
 const ownable = (addr: string, runner: any) => new ethers.Contract(addr, OWNABLE2STEP_ABI, runner);
 const ACCEPT_OWNERSHIP_DATA = new ethers.Interface(OWNABLE2STEP_ABI).encodeFunctionData("acceptOwnership", []);
 
-async function discoverTargets(puh: ethers.Contract): Promise<{ name: string; address: string }[]> {
+/**
+ * Discover every ownable L1 ecosystem contract, walking the bridgehub. This covers the full set
+ * whose ownership era-contracts hands to governance (see DeployL1CoreContracts.s.sol / DeployCTM.s.sol):
+ *   Bridgehub, L1AssetRouter, L1Nullifier, L1NativeTokenVault, CTMDeploymentTracker, ChainAssetHandler,
+ *   and — crucially — EVERY ChainTypeManager (the ecosystem has more than one: the "era" CTM of the
+ *   chain governance lives on, plus the CTM(s) of the other chains), each with its ValidatorTimelock.
+ * Per-CTM contracts that aren't exposed via on-chain getters in every version (ValidatorTimelock when
+ * unset, RollupDAManager, ServerNotifier) can be appended via `config.ownableTargets` / `--targets`.
+ */
+async function discoverTargets(provider: ethers.Provider, bridgehubAddr: string): Promise<{ name: string; address: string }[]> {
   const out: { name: string; address: string }[] = [];
-  for (const fn of TRANSFER_SELECTORS) {
-    try {
-      const a = await puh[fn]();
-      if (a && a !== ethers.ZeroAddress) out.push({ name: fn, address: ethers.getAddress(a) });
-    } catch {
-      /* immutable not present */
+  const seen = new Set<string>();
+  const add = (name: string, a?: string) => {
+    if (a && a !== ethers.ZeroAddress && !seen.has(a.toLowerCase())) {
+      seen.add(a.toLowerCase());
+      out.push({ name, address: ethers.getAddress(a) });
     }
+  };
+  const tryGet = async (fn: () => Promise<string>) => { try { return await fn(); } catch { return undefined; } };
+
+  const bh = new ethers.Contract(bridgehubAddr, BRIDGEHUB_ABI, provider);
+  add("Bridgehub", bridgehubAddr);
+  const ar = await tryGet(() => bh.assetRouter());
+  add("L1AssetRouter", ar);
+  add("CTMDeploymentTracker", await tryGet(() => bh.l1CtmDeployer()));
+  add("ChainAssetHandler", await tryGet(() => bh.chainAssetHandler()));
+  if (ar && ar !== ethers.ZeroAddress) {
+    const arc = new ethers.Contract(ar, ASSET_ROUTER_ABI, provider);
+    add("L1Nullifier", await tryGet(() => arc.L1_NULLIFIER()));
+    add("L1NativeTokenVault", await tryGet(() => arc.nativeTokenVault()));
+  }
+  // Every ChainTypeManager in the ecosystem (dedup across all registered chains).
+  let chains: bigint[] = [];
+  try { chains = await bh.getAllZKChainChainIDs(); } catch { /* older bridgehub */ }
+  const ctms = new Set<string>();
+  for (const id of chains) {
+    const c = await tryGet(() => bh.chainTypeManager(id));
+    if (c && c !== ethers.ZeroAddress) ctms.add(ethers.getAddress(c));
+  }
+  let i = 0;
+  for (const ctm of ctms) {
+    i += 1;
+    add(`ChainTypeManager#${i}`, ctm);
+    add(`ValidatorTimelock#${i}`, await tryGet(() => new ethers.Contract(ctm, CTM_ABI, provider).validatorTimelock()));
   }
   return out;
 }
@@ -101,9 +161,25 @@ async function main() {
   console.log(`Signer (governance owner): ${me}`);
   console.log(`New owner (PUH):           ${newOwner}\n`);
 
-  const targets = opts.targets
-    ? opts.targets.split(",").map((a: string) => ({ name: "custom", address: ethers.getAddress(a.trim()) }))
-    : await discoverTargets(new ethers.Contract(puhAddr, PUH_ABI, provider));
+  // Resolve targets: auto-discover the whole ecosystem from the bridgehub, then append any extras
+  // from config.ownableTargets / --targets (e.g. RollupDAManager, ServerNotifier, an unset
+  // ValidatorTimelock — contracts without an on-chain getter in this version).
+  let targets: { name: string; address: string }[];
+  if (opts.targets) {
+    targets = opts.targets.split(",").map((a: string) => ({ name: "custom", address: ethers.getAddress(a.trim()) }));
+  } else {
+    const bridgehub = ethers.getAddress(
+      cfg.bridgehub || (await new ethers.Contract(puhAddr, PUH_ABI, provider).BRIDGE_HUB())
+    );
+    console.log(`Bridgehub:                 ${bridgehub}`);
+    targets = await discoverTargets(provider, bridgehub);
+    const seen = new Set(targets.map((t) => t.address.toLowerCase()));
+    for (const a of (cfg.ownableTargets as string[] | undefined) || []) {
+      const addr = ethers.getAddress(a);
+      if (!seen.has(addr.toLowerCase())) targets.push({ name: "config", address: addr });
+    }
+  }
+  console.log(`Discovered ${targets.length} ownable target(s).\n`);
 
   // Classify each target by how its ownership can be moved to the PUH.
   const directTransfers: { name: string; address: string }[] = [];

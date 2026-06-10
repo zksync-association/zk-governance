@@ -84,8 +84,15 @@ npx ts-node --project tsconfig.json cli-vote.ts create --calls accept-ownership.
 #   -> then vote / queue / execute (see README-cli-vote.md); the PUH runs acceptOwnership() on each.
 ```
 
-`governance-transfer.ts` discovers the target set straight from the PUH's immutables, detects each
-contract's ownership path (direct EOA vs `Governance.sol`), performs step 1, and emits step 2.
+`governance-transfer.ts` walks the **bridgehub** to discover every ownable L1 ecosystem contract —
+Bridgehub, L1AssetRouter, L1Nullifier, L1NativeTokenVault, CTMDeploymentTracker, ChainAssetHandler,
+and **every ChainTypeManager** (the ecosystem has more than one CTM: the "era" CTM of the chain
+governance lives on, plus the CTM(s) of the other chains) with their ValidatorTimelocks. It detects
+each contract's ownership path (direct EOA vs `Governance.sol`), performs step 1, and emits step 2.
+Contracts without an on-chain getter in your version (e.g. `RollupDAManager`, an unset
+`ValidatorTimelock`, `ServerNotifier`) can be appended via `"ownableTargets": ["0x…"]` in the config
+or `--targets 0x..,0x..`. Verified against chain-301: it finds 8 targets incl. both CTMs
+(`0x3Cc8…` era + `0x54D5…`).
 
 ## Notes / gotchas
 
