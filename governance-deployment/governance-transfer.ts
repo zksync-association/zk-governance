@@ -34,6 +34,11 @@
  *     - ValidatorTimelock × N    ctm.validatorTimelock() when set, else config.ownableTargets
  *   Owned by the per-chain ChainAdmin (NOT this governance):
  *     - ServerNotifier    × N    — only migrate if your deployment points it here; pass via config
+ *   Proxy upgrade rights (separate from owner()): the ecosystem contracts are
+ *     TransparentUpgradeableProxies; their EIP-1967 admin slot holds a (governance-owned) ProxyAdmin
+ *     — usually ONE shared ProxyAdmin for the whole ecosystem. We discover it from the proxies' admin
+ *     slot and migrate it too. NB: OZ ProxyAdmin is single-step `Ownable` (no acceptOwnership), so its
+ *     transferOwnership(PUH) completes immediately and it gets NO entry in the accept-ownership file.
  *   Not Ownable (skipped): MessageRoot (owned by the bridgehub itself); chain diamonds use the
  *   Admin facet (setPendingAdmin/acceptAdmin), not Ownable — out of scope for this script.
  *
@@ -147,6 +152,18 @@ async function discoverTargets(provider: ethers.Provider, bridgehubAddr: string)
     add(`ChainTypeManager#${i}`, ctm);
     add(`ValidatorTimelock#${i}`, await tryGet(() => new ethers.Contract(ctm, CTM_ABI, provider).validatorTimelock()));
   }
+  // ProxyAdmin(s): the ecosystem contracts are TransparentUpgradeableProxies; their *upgrade* rights
+  // live in the EIP-1967 admin slot (a ProxyAdmin, itself Ownable and governance-owned), separate
+  // from the contract's own owner(). Collect the unique ProxyAdmins so their ownership migrates too.
+  const ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
+  const proxies = [...out];
+  for (const t of proxies) {
+    const raw = await tryGet(() => provider.getStorage(t.address, ADMIN_SLOT) as Promise<string>);
+    if (!raw) continue;
+    const admin = ethers.getAddress("0x" + raw.slice(-40));
+    if (admin === ethers.ZeroAddress || seen.has(admin.toLowerCase())) continue;
+    if ((await provider.getCode(admin)) !== "0x") add("ProxyAdmin", admin); // upgrade rights
+  }
   return out;
 }
 
@@ -223,18 +240,23 @@ async function main() {
       skipped.push(`${t.name} ${t.address}: not Ownable (no owner())`);
       continue;
     }
+    // Ownable2Step exposes pendingOwner()/acceptOwnership(); plain Ownable (e.g. OZ ProxyAdmin)
+    // does not — its transferOwnership is single-step, so it needs NO accept call.
+    let twoStep = true;
     try {
       pending = ethers.getAddress(await c.pendingOwner());
     } catch {
       pending = ethers.ZeroAddress;
+      twoStep = false;
     }
+    const kind = twoStep ? "" : " [1-step Ownable]";
 
     if (owner === newOwner) {
       console.log(`= ${t.name} ${t.address}: already owned by the PUH; skipping transfer`);
-    } else if (pending === newOwner) {
+    } else if (twoStep && pending === newOwner) {
       console.log(`~ ${t.name} ${t.address}: transfer to PUH already pending; only acceptance needed`);
     } else if (owner === me) {
-      console.log(`→ ${t.name} ${t.address}: owned by signer (EOA); will transferOwnership(PUH)`);
+      console.log(`→ ${t.name} ${t.address}${kind}: owned by signer (EOA); will transferOwnership(PUH)`);
       directTransfers.push(t);
     } else {
       // owner is a contract — check whether it's a Governance whose owner is the signer.
@@ -246,7 +268,7 @@ async function main() {
         govOwner = null;
       }
       if (govOwner === me) {
-        console.log(`⮑ ${t.name} ${t.address}: owned by Governance ${owner} (signer is its owner); will route transfer`);
+        console.log(`⮑ ${t.name} ${t.address}${kind}: owned by Governance ${owner} (signer is its owner); will route transfer`);
         const arr = viaGovernance.get(owner) || [];
         arr.push(t);
         viaGovernance.set(owner, arr);
@@ -255,8 +277,9 @@ async function main() {
         continue;
       }
     }
-    // The PUH must accept ownership of every target whose handover we (will) initiate or that is pending.
-    if (owner !== newOwner) {
+    // Two-step (Ownable2Step) targets need the PUH to acceptOwnership(); one-step Ownable (ProxyAdmin)
+    // transfers immediately, so no accept call is emitted for them.
+    if (owner !== newOwner && twoStep) {
       acceptCalls.push({ target: t.address, value: "0", data: ACCEPT_OWNERSHIP_DATA });
     }
   }

@@ -100,6 +100,12 @@ npx ts-node --project tsconfig.json cli-vote.ts create --calls accept-ownership.
 #   -> then vote / queue / execute (see README-cli-vote.md); the PUH runs acceptOwnership() on each.
 ```
 
+It also migrates the **proxy upgrade rights**: the ecosystem contracts are transparent proxies whose
+EIP-1967 admin slot points at a (governance-owned) `ProxyAdmin` — one shared ProxyAdmin in this
+ecosystem (`0xE004…01d2`). The script discovers it from the proxies' admin slot and transfers it to
+the PUH as well. Because OZ `ProxyAdmin` is single-step `Ownable` (no `acceptOwnership`), that
+transfer completes immediately and it is **not** added to the accept-ownership file.
+
 `governance-transfer.ts` walks the **bridgehub** to discover every ownable L1 ecosystem contract —
 Bridgehub, L1AssetRouter, L1Nullifier, L1NativeTokenVault, CTMDeploymentTracker, ChainAssetHandler,
 and **every ChainTypeManager** (the ecosystem has more than one CTM: the "era" CTM of the chain
