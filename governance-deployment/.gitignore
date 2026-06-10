@@ -1,0 +1,4 @@
+node_modules
+.redeploy-state
+proposals/*.json
+*.log
