@@ -1,29 +1,28 @@
 #!/usr/bin/env node
 /**
- * verify-l2.js — verify the deployed L2 governance contracts on the ZKsync Era testnet block
- * explorer. The explorer exposes an Etherscan-compatible endpoint
- * (`/api?module=contract&action=verifysourcecode`) backed by the EraVM contract verifier, which
- * (unlike classic Etherscan) expects `sourceCode` to be the standard-JSON-input *object* and a
- * `zksolcVersion` field — hardhat-zksync-verify's etherscan flow sends a stringified input and
- * fails, so we submit directly here.
+ * verify-l2.js — verify the deployed L2 governance contracts on the ZKsync Era testnet explorer's
+ * dedicated contract verifier (https://explorer-api.zksync-era-testnet.zksync.dev/contract_verification,
+ * surfaced at https://explorer.zksync-era-testnet.zksync.dev). This is the standard zksync verifier
+ * API: POST the standard-JSON input (as an object) + solc/zksolc versions, then poll the request id.
  *
  * Reads addresses from deployments/l2-governance.json and the solc standard-JSON input from the
  * l2-contracts hardhat build-info, recomputes each contract's constructor args, submits, and polls.
  *
- * Env: L2_EXPLORER_API (default the era-testnet explorer), ZKSOLC_VERSION (default v1.4.0).
+ * Env: L2_VERIFIER (default the era-testnet verifier), ZKSOLC_VERSION (default v1.4.0),
+ *      SOLC_VERSION (default 0.8.24).
  */
 const https = require("https");
+const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { ethers } = require("ethers");
 
-const API = process.env.L2_EXPLORER_API || "https://block-explorer-api.zksync-era-testnet.zksync.dev/api";
+const VERIFIER = process.env.L2_VERIFIER || "https://explorer-api.zksync-era-testnet.zksync.dev/contract_verification";
 const ZKSOLC = process.env.ZKSOLC_VERSION || "v1.4.0";
-const SOLC = "0.8.24";
+const SOLC = process.env.SOLC_VERSION || "0.8.24";
 const L2DIR = path.join(__dirname, "..", "l2-contracts");
 const dep = JSON.parse(fs.readFileSync(path.join(__dirname, "deployments", "l2-governance.json"), "utf8"));
 
-// Find the build-info whose standard-JSON input contains our sources.
 function loadInput() {
   const dir = path.join(L2DIR, "artifacts-zk", "build-info");
   for (const f of fs.readdirSync(dir)) {
@@ -34,39 +33,44 @@ function loadInput() {
 }
 const INPUT = loadInput();
 const tokenAbi = require(path.join(L2DIR, "artifacts-zk/src/ZkTokenV2.sol/ZkTokenV2.json")).abi;
-const enc = (types, vals) => ethers.AbiCoder.defaultAbiCoder().encode(types, vals).slice(2);
+const enc = (types, vals) => ethers.AbiCoder.defaultAbiCoder().encode(types, vals);
+const lib = VERIFIER.startsWith("https") ? https : http;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function post(body) {
-  const data = JSON.stringify(body);
+function req(method, url, body) {
   return new Promise((res, rej) => {
-    const r = https.request(API, { method: "POST", headers: { "content-type": "application/json" } }, (x) => {
-      let d = ""; x.on("data", (c) => (d += c)); x.on("end", () => res(d));
+    const data = body ? JSON.stringify(body) : undefined;
+    const r = lib.request(url, { method, headers: { "content-type": "application/json" } }, (x) => {
+      let d = ""; x.on("data", (c) => (d += c)); x.on("end", () => res({ code: x.statusCode, body: d }));
     });
-    r.on("error", rej); r.write(data); r.end();
+    r.on("error", rej);
+    if (data) r.write(data);
+    r.end();
   });
 }
-const get = (u) => new Promise((res, rej) => https.get(u, (x) => { let d = ""; x.on("data", (c) => (d += c)); x.on("end", () => res(d)); }).on("error", rej));
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function verify(label, address, fqn, ctorArgs) {
   process.stdout.write(`\n[${label}] ${address} (${fqn})\n`);
-  const sub = await post({
-    module: "contract", action: "verifysourcecode", codeFormat: "solidity-standard-json-input",
-    contractname: fqn, contractaddress: address, compilerversion: SOLC, zksolcVersion: ZKSOLC,
-    optimizationUsed: "1", constructorArguements: ctorArgs || "", sourceCode: INPUT,
+  const sub = await req("POST", VERIFIER, {
+    contractName: fqn,
+    sourceCode: INPUT,
+    codeFormat: "solidity-standard-json-input",
+    compilerSolcVersion: SOLC,
+    compilerZksolcVersion: ZKSOLC,
+    optimizationUsed: true,
+    constructorArguments: ctorArgs || "0x",
+    contractAddress: address,
   });
-  let parsed;
-  try { parsed = JSON.parse(sub); } catch { console.log("  submit failed:", sub); return false; }
-  if (/already verified/i.test(parsed.result || "")) { console.log("  -> already verified"); return true; }
-  if (parsed.status !== "1") { console.log("  submit:", sub); return false; }
-  const guid = parsed.result;
+  if (/already verified/i.test(sub.body)) { console.log("  -> already verified"); return true; }
+  if (sub.code >= 400) { console.log("  submit failed:", sub.code, sub.body.slice(0, 200)); return false; }
+  const id = sub.body.replace(/[^0-9]/g, "");
+  if (!id) { console.log("  no request id:", sub.body.slice(0, 120)); return false; }
   for (let i = 0; i < 15; i++) {
-    await sleep(7000);
-    const s = await get(`${API}?module=contract&action=checkverifystatus&guid=${guid}`);
-    const r = (() => { try { return JSON.parse(s).result; } catch { return s; } })();
-    if (/Pass|verified/i.test(r)) { console.log("  ->", r); return true; }
-    if (/already/i.test(r)) { console.log("  -> already verified"); return true; }
-    if (/Fail|Error/i.test(r)) { console.log("  ->", r); return false; }
+    await sleep(6000);
+    const s = await req("GET", `${VERIFIER}/${id}`);
+    let st; try { st = JSON.parse(s.body).status; } catch { st = s.body; }
+    if (/successful/i.test(st)) { console.log("  -> successful (id", id + ")"); return true; }
+    if (/failed|error/i.test(st)) { console.log("  -> FAILED:", s.body.slice(0, 200)); return false; }
   }
   console.log("  -> timed out");
   return false;
@@ -74,23 +78,22 @@ async function verify(label, address, fqn, ctorArgs) {
 
 async function main() {
   const dpl = dep.deployer;
-  const mint = dep.mintAmount;
-  const initData = new ethers.Interface(tokenAbi).encodeFunctionData("initialize", [dpl, dpl, mint]);
-  const results = [];
-  results.push(["ZkTokenV2 impl", await verify("token impl", dep.zkTokenImpl, "src/ZkTokenV2.sol:ZkTokenV2", "")]);
-  results.push(["ProxyAdmin", await verify("proxy admin", dep.zkTokenProxyAdmin,
-    "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol:ProxyAdmin", "")]);
-  results.push(["ZkToken proxy", await verify("token proxy", dep.zkToken,
+  const initData = new ethers.Interface(tokenAbi).encodeFunctionData("initialize", [dpl, dpl, dep.mintAmount]);
+  const r = [];
+  r.push(["ZkTokenV2 impl", await verify("token impl", dep.zkTokenImpl, "src/ZkTokenV2.sol:ZkTokenV2", "0x")]);
+  r.push(["ProxyAdmin", await verify("proxy admin", dep.zkTokenProxyAdmin,
+    "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol:ProxyAdmin", "0x")]);
+  r.push(["ZkToken proxy", await verify("token proxy", dep.zkToken,
     "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy",
     enc(["address", "address", "bytes"], [dep.zkTokenImpl, dep.zkTokenProxyAdmin, initData]))]);
-  results.push(["TimelockController", await verify("timelock", dep.timelock,
+  r.push(["TimelockController", await verify("timelock", dep.timelock,
     "@openzeppelin/contracts/governance/TimelockController.sol:TimelockController",
     enc(["uint256", "address[]", "address[]", "address"], [0, [], [], dpl]))]);
-  results.push(["ZkProtocolGovernor", await verify("governor", dep.governor, "src/ZkProtocolGovernor.sol:ZkProtocolGovernor",
+  r.push(["ZkProtocolGovernor", await verify("governor", dep.governor, "src/ZkProtocolGovernor.sol:ZkProtocolGovernor",
     enc(["string", "address", "address", "uint48", "uint32", "uint256", "uint224", "uint64"],
       ["ZkProtocolGovernor", dep.zkToken, dep.timelock, dep.votingDelay, dep.votingPeriod, 0, dep.quorum, 0]))]);
   console.log("\n=== L2 verification summary ===");
-  for (const [n, ok] of results) console.log(`  ${ok ? "OK  " : "FAIL"} ${n}`);
-  if (results.some(([, ok]) => !ok)) process.exit(1);
+  for (const [n, ok] of r) console.log(`  ${ok ? "OK  " : "FAIL"} ${n}`);
+  if (r.some(([, ok]) => !ok)) process.exit(1);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

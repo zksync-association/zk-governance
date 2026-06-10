@@ -65,14 +65,13 @@ All L1 contracts are verified on **Sourcify** (`exact_match`, chainId 11155111):
 `SecurityCouncil`, `Guardians`, and `EmergencyUpgradeBoard`. The 21 member wallets are canonical
 Gnosis Safe v1.3.0 proxies. Browse e.g. https://repo.sourcify.dev/contracts/full_match/11155111/
 
-All L2 contracts are verified on the **ZKsync Era testnet block explorer**
-(https://block-explorer.zksync-era-testnet.zksync.dev): the ZkTokenV2 implementation, its
+All L2 contracts are verified on the **ZKsync Era testnet explorer**
+(https://explorer.zksync-era-testnet.zksync.dev): the ZkTokenV2 implementation, its
 TransparentUpgradeableProxy and ProxyAdmin, the TimelockController, and the ZkProtocolGovernor
-(solc 0.8.24 + zksolc v1.4.0, optimizer on). Verification is reproduced by
-`governance-deployment/verify-l2.js`, which submits to the explorer's Etherscan-compatible
-`verifysourcecode` endpoint (the dedicated hardhat-zksync-verify `/contract_verification` API is not
-exposed on this testnet). E.g. the governor:
-https://block-explorer.zksync-era-testnet.zksync.dev/address/0x5ec7e7d5a5608F338A900152dA88B49691a62138#contract
+(solc 0.8.24 + zksolc v1.4.0, optimizer on) — each has a `verifiedAt` timestamp and status
+`successful`. Verification is reproduced by `governance-deployment/verify-l2.js`, which submits to
+the dedicated verifier API `https://explorer-api.zksync-era-testnet.zksync.dev/contract_verification`.
+E.g. the governor: https://explorer.zksync-era-testnet.zksync.dev/address/0x5ec7e7d5a5608F338A900152dA88B49691a62138#contract
 
 ## cli-vote end-to-end (on-chain proof)
 
