@@ -61,6 +61,23 @@ const config: HardhatUserConfig = {
         "https://rpc.zksync-era-testnet.zksync.dev/contract_verification",
     },
   },
+  // Etherscan-compatible verification for the Era testnet block explorer (the dedicated
+  // /contract_verification endpoint is not exposed; the /api verifysourcecode flow is).
+  etherscan: {
+    apiKey: {
+      eraTestnet: process.env.L2_EXPLORER_API_KEY || "no-key-required",
+    },
+    customChains: [
+      {
+        network: "eraTestnet",
+        chainId: 301,
+        urls: {
+          apiURL: "https://block-explorer-api.zksync-era-testnet.zksync.dev/api",
+          browserURL: "https://block-explorer.zksync-era-testnet.zksync.dev",
+        },
+      },
+    ],
+  },
   defaultNetwork: "zkSyncLocal",
 };
 

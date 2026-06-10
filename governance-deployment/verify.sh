@@ -33,14 +33,10 @@ fi
 
 echo "=== L2 verification (best-effort) ==="
 if [ -f "$OUT/l2-governance.json" ]; then
-  TOKEN=$(node -e "console.log(require('$OUT/l2-governance.json').zkToken)")
-  GOV=$(node -e "console.log(require('$OUT/l2-governance.json').governor)")
-  TL=$(node -e "console.log(require('$OUT/l2-governance.json').timelock)")
-  ( cd "$L2DIR" && npx hardhat verify --network eraTestnet "$GOV" ) \
-    || echo "[verify] L2 governor verification unavailable on this testnet"
-  ( cd "$L2DIR" && npx hardhat verify --network eraTestnet "$TL" ) \
-    || echo "[verify] L2 timelock verification unavailable on this testnet"
-  echo "[verify] L2 token is a transparent proxy at $TOKEN (verify impl/proxy via the explorer if available)"
+  # The Era testnet explorer's hardhat-zksync-verify (dedicated API) is not exposed, but its
+  # Etherscan-compatible verifysourcecode endpoint is. verify-l2.js submits all five L2 contracts
+  # (token impl + ProxyAdmin + proxy, timelock, governor) directly.
+  ( cd "$HERE" && node verify-l2.js ) || echo "[verify] some L2 verifications failed (see log)"
 else
   echo "[verify] no l2-governance.json; skipping L2"
 fi
