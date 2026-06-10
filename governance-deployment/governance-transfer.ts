@@ -87,9 +87,9 @@ const ACCEPT_OWNERSHIP_DATA = new ethers.Interface(OWNABLE2STEP_ABI).encodeFunct
  * hard-coded here for the chain-301 ecosystem. How these were derived & how to re-verify:
  *   1. Take any chain of the CTM and read its diamond: `bridgehub.getZKChain(chainId)`
  *        era   CTM 0x3Cc8…18864: chain 301   -> diamond 0xD3bc4353957bc0F138318384aa207C708A9455C4
- *        other CTM 0x54D5…1eb5 : chain 36900 -> diamond 0xa837Ea7C274C2C65650eb2F3c44f5459A83148ce
+ *        zksync os CTM 0x54D5…1eb5 (ZKsync OS) : chain 36900 -> diamond 0xa837Ea7C274C2C65650eb2F3c44f5459A83148ce
  *   2. Find the AdminFacet: for fa in `diamond.facetAddresses()`, the one with `fa.getName()=="AdminFacet"`
- *        era: 0x69A6fc70d24C3A475f7B5f931121D506C7624055   other: 0x68Ab53D3bf41562D02c9029b04D54C29007BcAC7
+ *        era: 0x69A6fc70d24C3A475f7B5f931121D506C7624055   zksync os: 0x68Ab53D3bf41562D02c9029b04D54C29007BcAC7
  *   3. RollupDAManager = `adminFacet.getRollupDAManager()` (equivalently `diamond.getRollupDAManager()`),
  *      which returns the `RollupDAManager` immutable set in the AdminFacet constructor
  *      `constructor(uint256 _l1ChainId, RollupDAManager _rollupDAManager)`.
@@ -99,7 +99,7 @@ const ACCEPT_OWNERSHIP_DATA = new ethers.Interface(OWNABLE2STEP_ABI).encodeFunct
  */
 const KNOWN_ROLLUP_DA_MANAGERS: { name: string; address: string }[] = [
   { name: "RollupDAManager(era CTM)", address: "0x6b7D8FD12eF94485c8E928a055124F94C2B5d411" },
-  { name: "RollupDAManager(other CTM)", address: "0x2732eA4Db32527690A680D5A2B7FFae812bB656A" },
+  { name: "RollupDAManager(zksync os CTM)", address: "0x2732eA4Db32527690A680D5A2B7FFae812bB656A" },
 ];
 
 /**

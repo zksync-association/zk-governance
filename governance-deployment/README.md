@@ -62,6 +62,22 @@ Tunables (env): `L1_RPC`, `L2_RPC`, `SAFE_OWNER` (default the production SC owne
 * **Finalize on L1** with `finalize-l1` — the Security-Council owner approves the upgrade id and
   executes it (mirrors era-contracts' `SecurityCouncilApproveStageUpgrade.s.sol`).
 
+## Verifying a deployed handler — `verify-governance.ts`
+
+Independently checks a deployed `ProtocolUpgradeHandler`: given the PUH, the bridgehub and the L2
+governor (timelock), it re-derives every constructor address by traversing the bridgehub and asserts
+they match the PUH's stored immutables (`BRIDGE_HUB`, `L1_ASSET_ROUTER`, `L1_NULLIFIER`,
+`L1_NATIVE_TOKEN_VAULT`, `CHAIN_ASSET_HANDLER`, plus `ZKSYNC_ERA`/`CHAIN_TYPE_MANAGER` resolved via
+the era chain, and `L2_PROTOCOL_GOVERNOR`); checks the SecurityCouncil/Guardians/EmergencyUpgradeBoard
+are wired back to the PUH; and confirms all 12 SC + 8 guardian member safes and the ZK Foundation safe
+are 1-of-1 Gnosis Safes owned by the **same EOA**, which it prints.
+
+```bash
+npx ts-node --project tsconfig.json verify-governance.ts --config governance.json
+# or fully explicit:
+#   verify-governance.ts --puh 0x.. --bridgehub 0x.. --l2-gov 0x.. --l1-rpc https://..
+```
+
 ## Migrating ecosystem ownership to the new handler — `governance-transfer.ts`
 
 The ZKsync ecosystem contracts (Bridgehub, ChainTypeManager, L1AssetRouter, L1Nullifier,

@@ -20,6 +20,7 @@ function main() {
     timelock: l2.timelock,
     governor: l2.governor,
     governorDeployBlock: l2.governorDeployBlock,
+    bridgehub: process.env.BRIDGE_HUB || "0xc4FD2580C3487bba18D63f50301020132342fdbD",
     protocolUpgradeHandler: l1.protocolUpgradeHandler,
     securityCouncil: l1.securityCouncil,
     guardians: l1.guardians,
