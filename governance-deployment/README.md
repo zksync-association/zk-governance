@@ -62,6 +62,31 @@ Tunables (env): `L1_RPC`, `L2_RPC`, `SAFE_OWNER` (default the production SC owne
 * **Finalize on L1** with `finalize-l1` — the Security-Council owner approves the upgrade id and
   executes it (mirrors era-contracts' `SecurityCouncilApproveStageUpgrade.s.sol`).
 
+## Migrating ecosystem ownership to the new handler — `governance-transfer.ts`
+
+The ZKsync ecosystem contracts (Bridgehub, ChainTypeManager, L1AssetRouter, L1Nullifier,
+L1NativeTokenVault, ChainAssetHandler — all `Ownable2Step` in era-contracts) are controlled by the
+old governance (the `Governance.sol` contract and/or the governance EOA). Handing them to the new
+`ProtocolUpgradeHandler` (PUH) is a two-step (`Ownable2Step`) process:
+
+```bash
+# Step 1 — current owner initiates the transfer to the PUH (direct tx for EOA-owned contracts,
+#          routed through Governance.scheduleTransparent+execute for Governance-owned ones):
+export GOVERNANCE_PRIVATE_KEY=0x<governance-owner>
+npx ts-node --project tsconfig.json governance-transfer.ts --config governance.json
+#   -> writes accept-ownership.json (the acceptOwnership() calls, sample-upgrade.json format)
+
+# Plan only, without a key (uses the governance-owner *address* to classify + emit the accept file):
+npx ts-node --project tsconfig.json governance-transfer.ts --dry-run --from 0x<governance-owner>
+
+# Step 2 — the PUH accepts ownership: feed the generated file through cli-vote and execute it:
+npx ts-node --project tsconfig.json cli-vote.ts create --calls accept-ownership.json
+#   -> then vote / queue / execute (see README-cli-vote.md); the PUH runs acceptOwnership() on each.
+```
+
+`governance-transfer.ts` discovers the target set straight from the PUH's immutables, detects each
+contract's ownership path (direct EOA vs `Governance.sol`), performs step 1, and emits step 2.
+
 ## Notes / gotchas
 
 * This Era testnet **does not mine empty blocks**, so `ethers` `.wait()` (which waits for a

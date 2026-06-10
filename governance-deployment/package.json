@@ -6,6 +6,7 @@
   "scripts": {
     "cli-vote": "ts-node --project tsconfig.json cli-vote.ts",
     "finalize-l1": "ts-node --project tsconfig.json finalize-l1.ts",
+    "governance-transfer": "ts-node --project tsconfig.json governance-transfer.ts",
     "bridge-to-l2": "ts-node --project tsconfig.json bridge-to-l2.ts",
     "deploy-l2": "ts-node --project tsconfig.json deploy-l2.ts",
     "verify-l2": "node verify-l2.js"
