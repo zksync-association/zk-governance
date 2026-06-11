@@ -62,6 +62,27 @@ Tunables (env): `L1_RPC`, `L2_RPC`, `SAFE_OWNER` (default the production SC owne
 * **Finalize on L1** with `finalize-l1` — the Security-Council owner approves the upgrade id and
   executes it (mirrors era-contracts' `SecurityCouncilApproveStageUpgrade.s.sol`).
 
+## Emergency upgrade — `emergency-upgrade.ts`
+
+Executes an **emergency** protocol upgrade through the `EmergencyUpgradeBoard` (bypasses the L2 vote
+/ timelock, executes immediately) — a TS port of era-contracts'
+`Utils.executeEmergencyProtocolUpgrade` (the `SecurityCouncilEmergencyStageUpgrade` script). It
+requires the joint approval of **Guardians (≥5/8) + Security Council (≥9/12) + ZK Foundation**, built
+as EIP-712 signatures over the upgrade id:
+
+```bash
+export GOVERNANCE_PRIVATE_KEY=0x<common Safe-owner key>
+npx ts-node --project tsconfig.json emergency-upgrade.ts --config governance.json --calls upgrade.json
+# inspect the signatures without sending:  ... --calls upgrade.json --dry-run
+```
+
+`upgrade.json` is the same `sample-upgrade.json` format (`calls`, `salt`). The script reads the
+Guardians/SecurityCouncil member Safes and the ZK Foundation Safe, signs each Safe's
+`getMessageHash` of the relevant board EIP-712 digest, and submits
+`EmergencyUpgradeBoard.executeEmergencyUpgrade(...)`. Like `finalize-l1`, it assumes the member Safes
+are 1-of-1 owned by the provided EOA (verify with `verify-governance.ts`). The three EIP-712 digests
+were checked against the on-chain typehashes; full on-chain execution needs the real Safe-owner key.
+
 ## Verifying a deployed handler — `verify-governance.ts`
 
 Independently checks a deployed `ProtocolUpgradeHandler`: given the PUH, the bridgehub and the L2
