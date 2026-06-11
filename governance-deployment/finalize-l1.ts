@@ -27,7 +27,10 @@
  */
 import { Command } from "commander";
 import { ethers } from "ethers";
+import { Provider as ZkProvider } from "zksync-ethers";
 import * as fs from "fs";
+
+const L2_MESSENGER = "0x0000000000000000000000000000000000008008";
 
 const SC_ABI = [
   "function members(uint256) view returns (address)",
@@ -37,14 +40,49 @@ const SC_ABI = [
 const SAFE_ABI = ["function getMessageHash(bytes message) view returns (bytes32)"];
 const PUH_ABI = [
   "function upgradeState(bytes32) view returns (uint8)",
+  "function startUpgrade(uint256 _l2BatchNumber, uint256 _l2MessageIndex, uint16 _l2TxNumberInBatch, bytes32[] _proof, (tuple(address target,uint256 value,bytes data)[] calls,address executor,bytes32 salt) _proposal)",
   "function execute((tuple(address target,uint256 value,bytes data)[] calls,address executor,bytes32 salt) proposal) payable",
   "function securityCouncil() view returns (address)",
 ];
+
+function proposalTuple(up: any) {
+  return [up.calls.map((c: any) => [c.target, BigInt(c.value), c.data]), up.executor, up.salt];
+}
+
+/**
+ * If the upgrade has not been registered on the PUH yet (state None), prove the L2->L1 message and
+ * call `startUpgrade`. The proof is fetched from the L2 (cfg.l2Rpc) for the L2 execution tx that
+ * emitted the message (cli-vote's executeTx, or --l2-tx). Requires the L2 batch to be sealed &
+ * proven on L1 — until then getLogProof returns null and you must retry later.
+ */
+async function startUpgrade(puh: ethers.Contract, cfg: Config, opts: any, proposalRec: any): Promise<void> {
+  if (!proposalRec?.upgradeProposal) {
+    throw new Error("startUpgrade needs --proposal with the cli-vote upgradeProposal (calls/executor/salt)");
+  }
+  if (!cfg.l2Rpc) throw new Error("config must include l2Rpc to fetch the L2->L1 inclusion proof");
+  const txHash = opts.l2Tx || proposalRec.executeTx;
+  if (!txHash) throw new Error("provide --l2-tx <hash> (the L2 execute tx that emitted the message)");
+  const l2 = new ZkProvider(cfg.l2Rpc);
+  const rcpt: any = await l2.getTransactionReceipt(txHash);
+  if (!rcpt || rcpt.l1BatchNumber == null) throw new Error(`L2 tx ${txHash} is not in a sealed batch yet`);
+  const logs: any[] = rcpt.l2ToL1Logs || [];
+  let idx = logs.findIndex((l) => (l.sender || "").toLowerCase() === L2_MESSENGER.toLowerCase());
+  if (idx < 0) idx = 0;
+  const proof: any = await l2.getLogProof(txHash, idx);
+  if (!proof) throw new Error("L2->L1 log proof not available yet (batch not executed on L1) — retry later");
+  console.log(`Proving L2->L1 message: batch=${rcpt.l1BatchNumber} msgIndex=${proof.id} txInBatch=${rcpt.l1BatchTxIndex}`);
+  const tx = await puh.startUpgrade(
+    rcpt.l1BatchNumber, proof.id, rcpt.l1BatchTxIndex, proof.proof, proposalTuple(proposalRec.upgradeProposal)
+  );
+  console.log("  startUpgrade tx:", tx.hash);
+  await tx.wait();
+}
 const SC_SIZE = 12;
 const UPGRADE_STATE = ["None", "LegalVetoPeriod", "Waiting", "ExecutionPending", "Ready", "Expired", "Done"];
 
 interface Config {
   l1Rpc: string;
+  l2Rpc?: string;
   protocolUpgradeHandler: string;
   securityCouncil: string;
 }
@@ -63,7 +101,8 @@ async function main() {
     .requiredOption("--config <file>", "config JSON", "governance.json")
     .option("--pk <key>", "SC-owner EOA key (else $GOVERNANCE_PRIVATE_KEY)")
     .option("--id <bytes32>", "upgrade id (keccak256 of the L2->L1 message)")
-    .option("--proposal <file>", "cli-vote proposal JSON (for id + execute)")
+    .option("--proposal <file>", "cli-vote proposal JSON (for id + startUpgrade + execute)")
+    .option("--l2-tx <hash>", "L2 execute tx that emitted the message (else proposal.executeTx)")
     .option("--execute", "execute the upgrade after approval", false)
     .option("--dry-run", "print signatures without sending txs", false);
   program.parse(process.argv);
@@ -121,9 +160,16 @@ async function main() {
     return;
   }
 
-  // Pre-flight: the handler must consider the upgrade as Waiting for SC approval.
-  const stateBefore = Number(await puh.upgradeState(upgradeId));
+  // Pre-flight: the handler must consider the upgrade as Waiting for SC approval. If it hasn't been
+  // started yet (None), prove the L2->L1 message via startUpgrade first.
+  let stateBefore = Number(await puh.upgradeState(upgradeId));
   console.log("Handler upgrade state:", UPGRADE_STATE[stateBefore] ?? stateBefore);
+  if (stateBefore === 0) {
+    console.log("Upgrade not started on the PUH — proving the L2->L1 message (startUpgrade) ...");
+    await startUpgrade(puh, cfg, opts, proposalRec);
+    stateBefore = Number(await puh.upgradeState(upgradeId));
+    console.log("Handler upgrade state after startUpgrade:", UPGRADE_STATE[stateBefore] ?? stateBefore);
+  }
 
   // 4. Submit the approval (SecurityCouncil verifies each safe via EIP-1271, then forwards).
   console.log("Submitting approveUpgradeSecurityCouncil ...");
