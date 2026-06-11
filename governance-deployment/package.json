@@ -5,6 +5,7 @@
   "description": "Reproducible full ZKsync governance redeployment + cli-vote / finalize-l1 tooling",
   "scripts": {
     "cli-vote": "ts-node --project tsconfig.json cli-vote.ts",
+    "zk-token": "ts-node --project tsconfig.json zk-token.ts",
     "finalize-l1": "ts-node --project tsconfig.json finalize-l1.ts",
     "emergency-upgrade": "ts-node --project tsconfig.json emergency-upgrade.ts",
     "governance-transfer": "ts-node --project tsconfig.json governance-transfer.ts",

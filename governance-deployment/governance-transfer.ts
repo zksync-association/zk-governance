@@ -25,10 +25,13 @@
  *     - L1Nullifier              assetRouter.L1_NULLIFIER()
  *     - CTMDeploymentTracker     bridgehub.l1CtmDeployer()
  *     - ChainAssetHandler        bridgehub.chainAssetHandler()
- *     - ChainTypeManager  × N    bridgehub.chainTypeManager(chainId) over ALL chains — the ecosystem
- *                                has >1 CTM (the "era" CTM of the chain governance lives on, plus the
- *                                CTM(s) of the other chains, e.g. chain 301 vs the rest).
- *     - RollupDAManager   × N    per CTM (no on-chain getter — pass via config.ownableTargets)
+ *     - ChainTypeManager (Era)   the handler's CHAIN_TYPE_MANAGER only. The ecosystem has >1 CTM (the
+ *                                Era/EraVM CTM the governance lives on, plus the ZKsync OS CTM serving
+ *                                the other chains). Mirroring the mainnet pre-v31 state — the
+ *                                ProtocolUpgradeHandler controls the ecosystem contracts and Era, but
+ *                                NOT ZKsync OS — we migrate ONLY the Era CTM and skip the ZKsync OS CTM
+ *                                and everything tied to it.
+ *     - RollupDAManager (Era)    the Era CTM's RollupDAManager only (the ZKsync OS one is skipped)
  *   Owned by the governance EOA (config.ownerAddress) — auto-discovered, transferred directly:
  *     - L1NativeTokenVault       assetRouter.nativeTokenVault()
  *     - ValidatorTimelock × N    ctm.validatorTimelock() when set, else config.ownableTargets
@@ -68,7 +71,10 @@ const GOVERNANCE_ABI = [
   "function hashOperation(((address target,uint256 value,bytes data)[] calls,bytes32 predecessor,bytes32 salt) operation) pure returns (bytes32)",
   "function isOperationReady(bytes32 id) view returns (bool)",
 ];
-const PUH_ABI = ["function BRIDGE_HUB() view returns (address)"];
+const PUH_ABI = [
+  "function BRIDGE_HUB() view returns (address)",
+  "function CHAIN_TYPE_MANAGER() view returns (address)", // the Era CTM the handler governs
+];
 // Bridgehub is the root of the ecosystem; all ownable contracts are reachable from it.
 const BRIDGEHUB_ABI = [
   "function assetRouter() view returns (address)",
@@ -102,9 +108,9 @@ const ACCEPT_OWNERSHIP_DATA = new ethers.Interface(OWNABLE2STEP_ABI).encodeFunct
  * `cast call <rollupDAManager> 'owner()(address)'` should be the Governance (0xcf96…) or its EOA owner.
  * For a different ecosystem, supply your own values via `config.ownableTargets` / `--targets` instead.
  */
-const KNOWN_ROLLUP_DA_MANAGERS: { name: string; address: string }[] = [
-  { name: "RollupDAManager(era CTM)", address: "0x6b7D8FD12eF94485c8E928a055124F94C2B5d411" },
-  { name: "RollupDAManager(zksync os CTM)", address: "0x2732eA4Db32527690A680D5A2B7FFae812bB656A" },
+const KNOWN_ROLLUP_DA_MANAGERS: { name: string; address: string; ctm: string }[] = [
+  { name: "RollupDAManager(era CTM)", address: "0x6b7D8FD12eF94485c8E928a055124F94C2B5d411", ctm: "0x3Cc81628a14C824057a97C1B4Ab17758E5D18864" },
+  { name: "RollupDAManager(zksync os CTM)", address: "0x2732eA4Db32527690A680D5A2B7FFae812bB656A", ctm: "0x54D55e74De9c6003E7a68a1fE70E633f05761eb5" },
 ];
 
 /**
@@ -116,7 +122,11 @@ const KNOWN_ROLLUP_DA_MANAGERS: { name: string; address: string }[] = [
  * Per-CTM contracts that aren't exposed via on-chain getters in every version (ValidatorTimelock when
  * unset, RollupDAManager, ServerNotifier) can be appended via `config.ownableTargets` / `--targets`.
  */
-async function discoverTargets(provider: ethers.Provider, bridgehubAddr: string): Promise<{ name: string; address: string }[]> {
+async function discoverTargets(
+  provider: ethers.Provider,
+  bridgehubAddr: string,
+  eraCtm: string
+): Promise<{ name: string; address: string }[]> {
   const out: { name: string; address: string }[] = [];
   const seen = new Set<string>();
   const add = (name: string, a?: string) => {
@@ -138,7 +148,11 @@ async function discoverTargets(provider: ethers.Provider, bridgehubAddr: string)
     add("L1Nullifier", await tryGet(() => arc.L1_NULLIFIER()));
     add("L1NativeTokenVault", await tryGet(() => arc.nativeTokenVault()));
   }
-  // Every ChainTypeManager in the ecosystem (dedup across all registered chains).
+  // ChainTypeManagers: the ecosystem has more than one CTM (the Era / EraVM CTM that the chain
+  // governance lives on, plus the ZKsync OS CTM serving the other chains). Mirroring the mainnet
+  // pre-v31 state — where the ProtocolUpgradeHandler controls the ecosystem contracts and Era, but
+  // NOT ZKsync OS — we ONLY migrate the Era CTM (the handler's CHAIN_TYPE_MANAGER) and skip every
+  // other CTM and anything tied to it (its ValidatorTimelock, RollupDAManager, …).
   let chains: bigint[] = [];
   try { chains = await bh.getAllZKChainChainIDs(); } catch { /* older bridgehub */ }
   const ctms = new Set<string>();
@@ -146,11 +160,13 @@ async function discoverTargets(provider: ethers.Provider, bridgehubAddr: string)
     const c = await tryGet(() => bh.chainTypeManager(id));
     if (c && c !== ethers.ZeroAddress) ctms.add(ethers.getAddress(c));
   }
-  let i = 0;
   for (const ctm of ctms) {
-    i += 1;
-    add(`ChainTypeManager#${i}`, ctm);
-    add(`ValidatorTimelock#${i}`, await tryGet(() => new ethers.Contract(ctm, CTM_ABI, provider).validatorTimelock()));
+    if (ctm.toLowerCase() !== eraCtm.toLowerCase()) {
+      console.log(`  (skipping non-Era CTM ${ctm} and its contracts — not governed by this handler)`);
+      continue;
+    }
+    add("ChainTypeManager(era)", ctm);
+    add("ValidatorTimelock(era)", await tryGet(() => new ethers.Contract(ctm, CTM_ABI, provider).validatorTimelock()));
   }
   // ProxyAdmin(s): the ecosystem contracts are TransparentUpgradeableProxies; their *upgrade* rights
   // live in the EIP-1967 admin slot (a ProxyAdmin, itself Ownable and governance-owned), separate
@@ -205,14 +221,16 @@ async function main() {
   if (opts.targets) {
     targets = opts.targets.split(",").map((a: string) => ({ name: "custom", address: ethers.getAddress(a.trim()) }));
   } else {
-    const bridgehub = ethers.getAddress(
-      cfg.bridgehub || (await new ethers.Contract(puhAddr, PUH_ABI, provider).BRIDGE_HUB())
-    );
+    const puhRO = new ethers.Contract(puhAddr, PUH_ABI, provider);
+    const bridgehub = ethers.getAddress(cfg.bridgehub || (await puhRO.BRIDGE_HUB()));
+    const eraCtm = ethers.getAddress(await puhRO.CHAIN_TYPE_MANAGER());
     console.log(`Bridgehub:                 ${bridgehub}`);
-    targets = await discoverTargets(provider, bridgehub);
+    console.log(`Era CTM (governed):        ${eraCtm}`);
+    targets = await discoverTargets(provider, bridgehub, eraCtm);
     const seen = new Set(targets.map((t) => t.address.toLowerCase()));
     const extras = [
-      ...KNOWN_ROLLUP_DA_MANAGERS,
+      // Only the Era CTM's RollupDAManager (skip the ZKsync OS CTM's — see pre-v31 note above).
+      ...KNOWN_ROLLUP_DA_MANAGERS.filter((r) => r.ctm.toLowerCase() === eraCtm.toLowerCase()),
       ...(((cfg.ownableTargets as string[] | undefined) || []).map((a) => ({ name: "config", address: a }))),
     ];
     for (const e of extras) {

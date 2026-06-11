@@ -56,6 +56,21 @@ takes a few minutes) and re-run, it continues where it left off. You can also ru
 Tunables (env): `L1_RPC`, `L2_RPC`, `SAFE_OWNER` (default the production SC owner
 `0xD64e136566a9E04eb05B30184fF577F52682D182`), `BRIDGE_AMOUNT`, `ZK_MINT_AMOUNT`.
 
+## Holding & delegating the ZK token — `zk-token.ts`
+
+The initial ZK supply was moved to the governance EOA `0xD64e136566a9E04eb05B30184fF577F52682D182`.
+ERC20Votes power comes from *delegated* balance, so to be able to vote that account must delegate
+(to itself). Run with **that address's key**:
+
+```bash
+cd governance-deployment && npm install
+export PRIVATE_KEY=0x<key of 0xD64e…>
+npx ts-node --project tsconfig.json zk-token.ts balance              # show balance / votes / delegatee
+npx ts-node --project tsconfig.json zk-token.ts delegate             # self-delegate -> can now vote
+# (needs a little L2 ETH on 0xD64e… to pay gas)
+# transfer too, if needed:  zk-token.ts transfer --to 0x.. --all | --amount <wholeZK>
+```
+
 ## Using the governance
 
 * **Vote on L2** with `cli-vote` — see [README-cli-vote.md](./README-cli-vote.md).
@@ -127,10 +142,12 @@ ecosystem (`0xE004…01d2`). The script discovers it from the proxies' admin slo
 the PUH as well. Because OZ `ProxyAdmin` is single-step `Ownable` (no `acceptOwnership`), that
 transfer completes immediately and it is **not** added to the accept-ownership file.
 
-`governance-transfer.ts` walks the **bridgehub** to discover every ownable L1 ecosystem contract —
+`governance-transfer.ts` walks the **bridgehub** to discover the ownable L1 ecosystem contracts —
 Bridgehub, L1AssetRouter, L1Nullifier, L1NativeTokenVault, CTMDeploymentTracker, ChainAssetHandler,
-and **every ChainTypeManager** (the ecosystem has more than one CTM: the "era" CTM of the chain
-governance lives on, plus the CTM(s) of the other chains) with their ValidatorTimelocks. It detects
+and the **Era ChainTypeManager** (`PUH.CHAIN_TYPE_MANAGER`) with its ValidatorTimelock/RollupDAManager.
+Mirroring the mainnet pre-v31 state — the ProtocolUpgradeHandler controls the ecosystem contracts and
+**Era, but not ZKsync OS** — it **skips the ZKsync OS CTM** (the other CTM serving the rest of the
+chains) and everything tied to it. It detects
 each contract's ownership path (direct EOA vs `Governance.sol`), performs step 1, and emits step 2.
 The two `RollupDAManager`s (one per CTM) have no bridgehub getter, so they are **hard-coded** in the
 script for the chain-301 ecosystem (era `0x6b7D…d411`, other `0x2732…656A`), each derived + verified
@@ -139,7 +156,8 @@ from the chain's diamond AdminFacet (`diamond.getRollupDAManager()`, AdminFacet 
 `cast` checks. Other contracts without a getter in your version (an unset `ValidatorTimelock`, or
 `ServerNotifier` — which is owned by the per-chain ChainAdmin, not this governance) can be appended
 via `"ownableTargets": ["0x…"]` in the config or `--targets 0x..,0x..`. Verified against chain-301:
-it finds **10 targets incl. both CTMs** (`0x3Cc8…` era + `0x54D5…` other) and both RollupDAManagers.
+it finds **9 targets** — the Era CTM (`0x3Cc8…`) + its RollupDAManager, the shared ProxyAdmin and the
+core ecosystem contracts — and **skips the ZKsync OS CTM** (`0x54D5…`) and its RollupDAManager.
 
 ## Notes / gotchas
 
