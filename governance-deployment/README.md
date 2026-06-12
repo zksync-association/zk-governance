@@ -151,6 +151,16 @@ npx ts-node --project tsconfig.json governance-transfer.ts --pk 0x<gov-owner> --
 `valueToMint` field (set with `--mint`) is for harnesses that provision the sender before each tx;
 `--execute-dump` itself does not mint (the signer pays its own gas).
 
+To feed a **transaction simulator**, add `--txs-simulator <file>` to also emit the step-2
+`acceptOwnership` calls in that same EOA-tx format, with `from` set to the **PUH** (the account that
+must call `acceptOwnership`):
+
+```bash
+npx ts-node --project tsconfig.json governance-transfer.ts --config governance.json \
+    --from 0x<gov-owner> --txs-simulator accept-txs.json [--mint 5] --dry-run
+# -> [{ network, from:<PUH>, to:<ecosystem contract>, data:0x79ba5097, value:"0", valueToMint }]
+```
+
 It also migrates the **proxy upgrade rights**: the ecosystem contracts are transparent proxies whose
 EIP-1967 admin slot points at a (governance-owned) `ProxyAdmin` — one shared ProxyAdmin in this
 ecosystem (`0xE004…01d2`). The script discovers it from the proxies' admin slot and transfers it to

@@ -60,6 +60,9 @@
  *
  * Dump entries are { network, from, to, data, value:"0", valueToMint }. `valueToMint` (default 0,
  * --mint) is for harnesses that provision the sender before each tx; --execute-dump does not mint.
+ *
+ *   # Also emit the step-2 acceptOwnership calls in that same EOA/simulator format (from = the PUH):
+ *   governance-transfer.ts --config governance.json --from 0x<gov-owner> --txs-simulator accept-txs.json
  */
 import { Command } from "commander";
 import { ethers } from "ethers";
@@ -227,6 +230,7 @@ async function main() {
     .option("--targets <list>", "comma-separated ownable target addresses (default: discover from PUH)")
     .option("--out <file>", "accept-ownership calls output", "accept-ownership.json")
     .option("--dump-eoa-txs <file>", "write the step-1 EOA txs to a JSON file instead of broadcasting")
+    .option("--txs-simulator <file>", "also write the step-2 acceptOwnership txs in the EOA tx format (from = PUH)")
     .option("--execute-dump <file>", "ONLY execute the txs in a previously dumped JSON file, one by one")
     .option("--mint <value>", "valueToMint field written into dumped txs", "0")
     .option("--network <name>", "network field written into dumped txs", "sepolia")
@@ -419,6 +423,21 @@ async function main() {
   fs.writeFileSync(opts.out, JSON.stringify(proposal, null, 2));
   console.log(`\nWrote ${acceptCalls.length} acceptOwnership() call(s) to ${opts.out}`);
   console.log(`Next: cli-vote create --calls ${opts.out}  (then vote/queue/execute; the PUH accepts ownership).`);
+
+  // Optionally also emit the step-2 acceptOwnership calls in the EOA tx format (from = the PUH,
+  // which is the account that must call acceptOwnership) for a transaction simulator.
+  if (opts.txsSimulator) {
+    const simTxs = acceptCalls.map((c) => ({
+      network: opts.network,
+      from: newOwner, // the PUH executes acceptOwnership as the pending owner
+      to: c.target,
+      data: c.data,
+      value: "0",
+      valueToMint: String(opts.mint),
+    }));
+    fs.writeFileSync(opts.txsSimulator, JSON.stringify(simTxs, null, 2));
+    console.log(`Wrote ${simTxs.length} acceptOwnership tx(s) (EOA/simulator format, from=PUH) to ${opts.txsSimulator}`);
+  }
 }
 
 main().catch((e) => {
