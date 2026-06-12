@@ -297,7 +297,7 @@ async function main() {
   // Classify each target by how its ownership can be moved to the PUH.
   const directTransfers: { name: string; address: string }[] = [];
   const viaGovernance = new Map<string, { name: string; address: string }[]>(); // governance addr -> targets
-  const acceptCalls: { target: string; value: string; data: string }[] = [];
+  const acceptCalls: { name: string; target: string; value: string; data: string }[] = [];
   const skipped: string[] = [];
 
   for (const t of targets) {
@@ -349,7 +349,7 @@ async function main() {
     // Two-step (Ownable2Step) targets need the PUH to acceptOwnership(); one-step Ownable (ProxyAdmin)
     // transfers immediately, so no accept call is emitted for them.
     if (owner !== newOwner && twoStep) {
-      acceptCalls.push({ target: t.address, value: "0", data: ACCEPT_OWNERSHIP_DATA });
+      acceptCalls.push({ name: t.name, target: t.address, value: "0", data: ACCEPT_OWNERSHIP_DATA });
     }
   }
 
@@ -364,12 +364,13 @@ async function main() {
   const plan: { label: string; to: string; data: string }[] = [];
   for (const t of directTransfers) {
     plan.push({
-      label: `transferOwnership(PUH) on ${t.name} ${t.address}`,
+      label: `Transfer ownership of ${t.name} (${t.address}) to the PUH`,
       to: t.address,
       data: ownableIface.encodeFunctionData("transferOwnership", [newOwner]),
     });
   }
   for (const [govAddr, ts] of viaGovernance) {
+    const names = ts.map((t) => `${t.name} (${t.address})`).join(", ");
     const calls = ts.map((t) => ({
       target: t.address,
       value: 0n,
@@ -377,12 +378,12 @@ async function main() {
     }));
     const operation = { calls, predecessor: ethers.ZeroHash, salt: ethers.hexlify(ethers.randomBytes(32)) };
     plan.push({
-      label: `Governance ${govAddr}: scheduleTransparent transferOwnership x${ts.length}`,
+      label: `Governance ${govAddr}: scheduleTransparent — transfer ownership of [${names}] to the PUH`,
       to: govAddr,
       data: govIface.encodeFunctionData("scheduleTransparent", [operation, 0]),
     });
     plan.push({
-      label: `Governance ${govAddr}: execute`,
+      label: `Governance ${govAddr}: execute — transfer ownership of [${names}] to the PUH`,
       to: govAddr,
       data: govIface.encodeFunctionData("execute", [operation]),
     });
@@ -390,6 +391,7 @@ async function main() {
 
   if (opts.dumpEoaTxs) {
     const dump = plan.map((p) => ({
+      description: p.label,
       network: opts.network,
       from: me,
       to: p.to,
@@ -418,7 +420,12 @@ async function main() {
     description: `Accept ownership of ${acceptCalls.length} ZKsync ecosystem contract(s) by the ProtocolUpgradeHandler`,
     executor: ethers.ZeroAddress,
     salt: ethers.hexlify(ethers.randomBytes(32)),
-    calls: acceptCalls,
+    calls: acceptCalls.map((c) => ({
+      description: `Accept ownership of ${c.name} (${c.target}) by the PUH`,
+      target: c.target,
+      value: c.value,
+      data: c.data,
+    })),
   };
   fs.writeFileSync(opts.out, JSON.stringify(proposal, null, 2));
   console.log(`\nWrote ${acceptCalls.length} acceptOwnership() call(s) to ${opts.out}`);
@@ -428,6 +435,7 @@ async function main() {
   // which is the account that must call acceptOwnership) for a transaction simulator.
   if (opts.txsSimulator) {
     const simTxs = acceptCalls.map((c) => ({
+      description: `Accept ownership of ${c.name} (${c.target}) by the PUH`,
       network: opts.network,
       from: newOwner, // the PUH executes acceptOwnership as the pending owner
       to: c.target,
