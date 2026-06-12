@@ -51,6 +51,15 @@
  * Usage:
  *   governance-transfer.ts --config governance.json --pk 0x<governance-owner> \
  *       [--new-owner 0x<PUH>] [--out accept-ownership.json] [--targets 0x..,0x..] [--dry-run]
+ *
+ *   # Instead of broadcasting, dump the step-1 EOA txs to a JSON file (no key needed with --from):
+ *   governance-transfer.ts --config governance.json --from 0x<gov-owner> \
+ *       --dump-eoa-txs eoa-txs.json [--mint 5] [--network sepolia]
+ *   # …then replay that file (one tx at a time) with the key:
+ *   governance-transfer.ts --pk 0x<gov-owner> --execute-dump eoa-txs.json
+ *
+ * Dump entries are { network, from, to, data, value:"0", valueToMint }. `valueToMint` (default 0,
+ * --mint) is for harnesses that provision the sender before each tx; --execute-dump does not mint.
  */
 import { Command } from "commander";
 import { ethers } from "ethers";
@@ -183,6 +192,31 @@ async function discoverTargets(
   return out;
 }
 
+/** Replay a dumped EOA-tx file: send each {to, data, value} from the signer, one at a time. */
+async function executeDump(signer: ethers.Wallet, file: string): Promise<void> {
+  const txs = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (!Array.isArray(txs)) throw new Error("dump file must be a JSON array of txs");
+  console.log(`Executing ${txs.length} tx(s) from ${signer.address} ...`);
+  for (let i = 0; i < txs.length; i++) {
+    const t = txs[i];
+    if (t.from && t.from.toLowerCase() !== signer.address.toLowerCase()) {
+      console.warn(`  [${i}] WARNING: dump 'from' ${t.from} != signer ${signer.address}`);
+    }
+    if (t.valueToMint && BigInt(t.valueToMint) > 0n) {
+      console.log(`  [${i}] note: valueToMint=${t.valueToMint} (provision to the sender externally; not minted here)`);
+    }
+    process.stdout.write(`  [${i}] -> ${t.to} data=${(t.data || "0x").slice(0, 10)}… `);
+    const tx = await signer.sendTransaction({
+      to: ethers.getAddress(t.to),
+      data: t.data || "0x",
+      value: t.value ? BigInt(t.value) : 0n,
+    });
+    await tx.wait();
+    console.log(`ok (${tx.hash})`);
+  }
+  console.log("All txs executed.");
+}
+
 async function main() {
   const program = new Command();
   program
@@ -192,6 +226,10 @@ async function main() {
     .option("--new-owner <addr>", "new owner (defaults to the config's protocolUpgradeHandler)")
     .option("--targets <list>", "comma-separated ownable target addresses (default: discover from PUH)")
     .option("--out <file>", "accept-ownership calls output", "accept-ownership.json")
+    .option("--dump-eoa-txs <file>", "write the step-1 EOA txs to a JSON file instead of broadcasting")
+    .option("--execute-dump <file>", "ONLY execute the txs in a previously dumped JSON file, one by one")
+    .option("--mint <value>", "valueToMint field written into dumped txs", "0")
+    .option("--network <name>", "network field written into dumped txs", "sepolia")
     .option("--dry-run", "print the plan + write the accept file, but send no transactions", false);
   program.parse(process.argv);
   const opts = program.opts();
@@ -199,15 +237,24 @@ async function main() {
   const cfg = JSON.parse(fs.readFileSync(opts.config, "utf8"));
   const provider = new ethers.JsonRpcProvider(cfg.l1Rpc);
   const pk = opts.pk || process.env.GOVERNANCE_PRIVATE_KEY;
+
+  // --execute-dump: independent mode — just replay a dumped EOA-tx file, one tx at a time.
+  if (opts.executeDump) {
+    if (!pk) throw new Error("--execute-dump needs the sender key via --pk/$GOVERNANCE_PRIVATE_KEY");
+    await executeDump(new ethers.Wallet(pk, provider), opts.executeDump);
+    return;
+  }
+
+  const planningOnly = !pk && (opts.dryRun || opts.dumpEoaTxs) && opts.from;
   let signer: ethers.Wallet | null = null;
   let me: string;
   if (pk) {
     signer = new ethers.Wallet(pk, provider);
     me = signer.address;
-  } else if (opts.dryRun && opts.from) {
-    me = ethers.getAddress(opts.from); // plan only; cannot send txs without a key
+  } else if (planningOnly) {
+    me = ethers.getAddress(opts.from); // plan/dump only; cannot send txs without a key
   } else {
-    throw new Error("provide the governance-owner key via --pk/$GOVERNANCE_PRIVATE_KEY (or --from <addr> with --dry-run)");
+    throw new Error("provide the governance-owner key via --pk/$GOVERNANCE_PRIVATE_KEY (or --from <addr> with --dry-run/--dump-eoa-txs)");
   }
   const puhAddr = ethers.getAddress(cfg.protocolUpgradeHandler);
   const newOwner = ethers.getAddress(opts.newOwner || puhAddr);
@@ -307,31 +354,58 @@ async function main() {
     for (const s of skipped) console.log(`  ! ${s}`);
   }
 
-  // --- Step 1: initiate transfers ---
-  if (opts.dryRun) {
-    console.log("\n[dry-run] no transactions sent.");
+  // --- Step 1: build the EOA transactions the governance owner must send ---
+  const ownableIface = new ethers.Interface(OWNABLE2STEP_ABI);
+  const govIface = new ethers.Interface(GOVERNANCE_ABI);
+  const plan: { label: string; to: string; data: string }[] = [];
+  for (const t of directTransfers) {
+    plan.push({
+      label: `transferOwnership(PUH) on ${t.name} ${t.address}`,
+      to: t.address,
+      data: ownableIface.encodeFunctionData("transferOwnership", [newOwner]),
+    });
+  }
+  for (const [govAddr, ts] of viaGovernance) {
+    const calls = ts.map((t) => ({
+      target: t.address,
+      value: 0n,
+      data: ownableIface.encodeFunctionData("transferOwnership", [newOwner]),
+    }));
+    const operation = { calls, predecessor: ethers.ZeroHash, salt: ethers.hexlify(ethers.randomBytes(32)) };
+    plan.push({
+      label: `Governance ${govAddr}: scheduleTransparent transferOwnership x${ts.length}`,
+      to: govAddr,
+      data: govIface.encodeFunctionData("scheduleTransparent", [operation, 0]),
+    });
+    plan.push({
+      label: `Governance ${govAddr}: execute`,
+      to: govAddr,
+      data: govIface.encodeFunctionData("execute", [operation]),
+    });
+  }
+
+  if (opts.dumpEoaTxs) {
+    const dump = plan.map((p) => ({
+      network: opts.network,
+      from: me,
+      to: p.to,
+      data: p.data,
+      value: "0",
+      valueToMint: String(opts.mint),
+    }));
+    fs.writeFileSync(opts.dumpEoaTxs, JSON.stringify(dump, null, 2));
+    console.log(`\nWrote ${dump.length} EOA tx(s) to ${opts.dumpEoaTxs}`);
+    plan.forEach((p, i) => console.log(`  [${i}] ${p.label}`));
+    console.log(`Execute later with:  governance-transfer.ts --config ${opts.config} --pk <key> --execute-dump ${opts.dumpEoaTxs}`);
+  } else if (opts.dryRun) {
+    console.log(`\n[dry-run] no transactions sent. Step-1 plan (${plan.length} tx):`);
+    plan.forEach((p, i) => console.log(`  [${i}] ${p.label}`));
   } else {
-    for (const t of directTransfers) {
-      process.stdout.write(`\ntransferOwnership(${newOwner}) on ${t.name} ${t.address} ... `);
-      const tx = await ownable(t.address, signer).transferOwnership(newOwner);
+    for (const p of plan) {
+      process.stdout.write(`\n${p.label} ... `);
+      const tx = await signer!.sendTransaction({ to: p.to, data: p.data });
       await tx.wait();
       console.log(`ok (${tx.hash})`);
-    }
-    for (const [govAddr, ts] of viaGovernance) {
-      const gov = new ethers.Contract(govAddr, GOVERNANCE_ABI, signer);
-      const calls = ts.map((t) => ({
-        target: t.address,
-        value: 0n,
-        data: ownable(t.address, provider).interface.encodeFunctionData("transferOwnership", [newOwner]),
-      }));
-      const operation = { calls, predecessor: ethers.ZeroHash, salt: ethers.hexlify(ethers.randomBytes(32)) };
-      console.log(`\nGovernance ${govAddr}: scheduling+executing transferOwnership for ${ts.length} contract(s) ...`);
-      const sd = await gov.scheduleTransparent(operation, 0);
-      await sd.wait();
-      console.log(`  scheduled (${sd.hash})`);
-      const ex = await gov.execute(operation);
-      await ex.wait();
-      console.log(`  executed  (${ex.hash})`);
     }
   }
 

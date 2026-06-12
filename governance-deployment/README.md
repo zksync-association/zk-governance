@@ -136,6 +136,21 @@ npx ts-node --project tsconfig.json cli-vote.ts create --calls accept-ownership.
 #   -> then vote / queue / execute (see README-cli-vote.md); the PUH runs acceptOwnership() on each.
 ```
 
+Instead of broadcasting step 1 directly, you can **dump the EOA transactions** to a JSON file (no key
+needed when paired with `--from`) and replay them later / in another harness:
+
+```bash
+# dump: array of { network, from, to, data, value:"0", valueToMint } (one per EOA tx)
+npx ts-node --project tsconfig.json governance-transfer.ts --config governance.json \
+    --from 0x<gov-owner> --dump-eoa-txs eoa-txs.json [--mint 5] [--network sepolia]
+# execute the dump, one tx at a time:
+npx ts-node --project tsconfig.json governance-transfer.ts --pk 0x<gov-owner> --execute-dump eoa-txs.json
+```
+
+`--execute-dump` ignores discovery entirely — it only iterates the file and sends each tx. The
+`valueToMint` field (set with `--mint`) is for harnesses that provision the sender before each tx;
+`--execute-dump` itself does not mint (the signer pays its own gas).
+
 It also migrates the **proxy upgrade rights**: the ecosystem contracts are transparent proxies whose
 EIP-1967 admin slot points at a (governance-owned) `ProxyAdmin` — one shared ProxyAdmin in this
 ecosystem (`0xE004…01d2`). The script discovers it from the proxies' admin slot and transfers it to
