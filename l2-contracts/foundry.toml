@@ -36,3 +36,6 @@
 
 [rpc_endpoints]
   zksync = "${ZKSYNC_RPC_URL}"
+
+[profile.default.zksync]
+  zksolc = "1.5.11"
