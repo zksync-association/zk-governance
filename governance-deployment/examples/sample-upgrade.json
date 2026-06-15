@@ -1,0 +1,12 @@
+{
+  "description": "Example protocol upgrade: a single no-op call (demonstrates the L2->L1 message)",
+  "executor": "0x0000000000000000000000000000000000000000",
+  "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
+  "calls": [
+    {
+      "target": "0x000000000000000000000000000000000000dEaD",
+      "value": "0",
+      "data": "0x"
+    }
+  ]
+}

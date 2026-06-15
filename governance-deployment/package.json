@@ -1,0 +1,26 @@
+{
+  "name": "zk-governance-deployment",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reproducible full ZKsync governance redeployment + cli-vote / finalize-l1 tooling",
+  "scripts": {
+    "cli-vote": "ts-node --project tsconfig.json cli-vote.ts",
+    "zk-token": "ts-node --project tsconfig.json zk-token.ts",
+    "finalize-l1": "ts-node --project tsconfig.json finalize-l1.ts",
+    "emergency-upgrade": "ts-node --project tsconfig.json emergency-upgrade.ts",
+    "governance-transfer": "ts-node --project tsconfig.json governance-transfer.ts",
+    "verify-governance": "ts-node --project tsconfig.json verify-governance.ts",
+    "bridge-to-l2": "ts-node --project tsconfig.json bridge-to-l2.ts",
+    "deploy-l2": "ts-node --project tsconfig.json deploy-l2.ts",
+    "verify-l2": "node verify-l2.js"
+  },
+  "dependencies": {
+    "commander": "^8.3.0",
+    "ethers": "^6.16.0",
+    "zksync-ethers": "^6.21.1"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  }
+}

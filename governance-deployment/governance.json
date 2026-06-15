@@ -1,0 +1,15 @@
+{
+  "l1Rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+  "l2Rpc": "https://rpc.zksync-era-testnet.zksync.dev/",
+  "chainId": 301,
+  "zkToken": "0xaE0975Eb851CC49D2C4599174815f16A6aBE1284",
+  "timelock": "0x9569F3eb8058198B6cf3E23FDfC7Ddca450f8882",
+  "governor": "0x5ec7e7d5a5608F338A900152dA88B49691a62138",
+  "governorDeployBlock": 32,
+  "protocolUpgradeHandler": "0x803e5E7aF1FDD504F8844E28a249203Cfa7c471D",
+  "securityCouncil": "0xb7896914086cebfEF9db9B966c5F598e9c413949",
+  "guardians": "0xdE4835476901C8F84cd7810Ce77728Ce0Fb90851",
+  "emergencyUpgradeBoard": "0x3085AA42a57dBaB46189CB7294c46dE012bb44ED",
+  "zkFoundationSafe": "0x239E2b3F2B834FF71c55034e4B87926Edef46f9b",
+  "bridgehub": "0xc4FD2580C3487bba18D63f50301020132342fdbD"
+}

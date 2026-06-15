@@ -50,6 +50,33 @@ const config: HardhatUserConfig = {
       url: "https://sepolia.era.zksync.dev",
       verifyURL: "https://explorer.sepolia.era.zksync.dev/contract_verification",
     },
+    // The "ZKsync Era testnet" chain (chainId 301), anchored on Sepolia L1. RPC and verify
+    // URLs are overridable via env so the redeploy script can target any compatible chain.
+    eraTestnet: {
+      zksync: true,
+      ethNetwork: process.env.L1_RPC || "https://ethereum-sepolia-rpc.publicnode.com",
+      url: process.env.L2_RPC || "https://rpc.zksync-era-testnet.zksync.dev/",
+      verifyURL:
+        process.env.L2_VERIFY_URL ||
+        "https://rpc.zksync-era-testnet.zksync.dev/contract_verification",
+    },
+  },
+  // Etherscan-compatible verification for the Era testnet block explorer (the dedicated
+  // /contract_verification endpoint is not exposed; the /api verifysourcecode flow is).
+  etherscan: {
+    apiKey: {
+      eraTestnet: process.env.L2_EXPLORER_API_KEY || "no-key-required",
+    },
+    customChains: [
+      {
+        network: "eraTestnet",
+        chainId: 301,
+        urls: {
+          apiURL: "https://block-explorer-api.zksync-era-testnet.zksync.dev/api",
+          browserURL: "https://block-explorer.zksync-era-testnet.zksync.dev",
+        },
+      },
+    ],
   },
   defaultNetwork: "zkSyncLocal",
 };
