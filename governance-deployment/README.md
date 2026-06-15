@@ -169,7 +169,9 @@ transfer completes immediately and it is **not** added to the accept-ownership f
 
 `governance-transfer.ts` walks the **bridgehub** to discover the ownable L1 ecosystem contracts —
 Bridgehub, L1AssetRouter, L1Nullifier, L1NativeTokenVault, CTMDeploymentTracker, ChainAssetHandler,
-and the **Era ChainTypeManager** (`PUH.CHAIN_TYPE_MANAGER`) with its ValidatorTimelock/RollupDAManager.
+the NTV's shared **UpgradeableBeacon** (`nativeTokenVault().bridgedTokenBeacon()`, single-step Ownable),
+and the **Era ChainTypeManager** (`PUH.CHAIN_TYPE_MANAGER`) with its ValidatorTimelock (the v29 timelock
+via `validatorTimelockPostV29()`) and RollupDAManager.
 Mirroring the mainnet pre-v31 state — the ProtocolUpgradeHandler controls the ecosystem contracts and
 **Era, but not ZKsync OS** — it **skips the ZKsync OS CTM** (the other CTM serving the rest of the
 chains) and everything tied to it. It detects
@@ -181,8 +183,9 @@ from the chain's diamond AdminFacet (`diamond.getRollupDAManager()`, AdminFacet 
 `cast` checks. Other contracts without a getter in your version (an unset `ValidatorTimelock`, or
 `ServerNotifier` — which is owned by the per-chain ChainAdmin, not this governance) can be appended
 via `"ownableTargets": ["0x…"]` in the config or `--targets 0x..,0x..`. Verified against chain-301:
-it finds **9 targets** — the Era CTM (`0x3Cc8…`) + its RollupDAManager, the shared ProxyAdmin and the
-core ecosystem contracts — and **skips the ZKsync OS CTM** (`0x54D5…`) and its RollupDAManager.
+it finds **11 targets** — the Era CTM (`0x3Cc8…`) + its v29 ValidatorTimelock (`0x2d25…`) and
+RollupDAManager, the NTV UpgradeableBeacon (`0xa508…`), the shared ProxyAdmin and the core ecosystem
+contracts — and **skips the ZKsync OS CTM** (`0x54D5…`) and its RollupDAManager.
 
 ## Notes / gotchas
 

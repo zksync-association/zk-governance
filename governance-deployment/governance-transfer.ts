@@ -32,9 +32,12 @@
  *                                NOT ZKsync OS — we migrate ONLY the Era CTM and skip the ZKsync OS CTM
  *                                and everything tied to it.
  *     - RollupDAManager (Era)    the Era CTM's RollupDAManager only (the ZKsync OS one is skipped)
+ *     - ValidatorTimelock (Era)  ctm.validatorTimelock() / ctm.validatorTimelockPostV29() — the v29
+ *                                timelock attached to the Era CTM is Governance-owned in this ecosystem
  *   Owned by the governance EOA (config.ownerAddress) — auto-discovered, transferred directly:
  *     - L1NativeTokenVault       assetRouter.nativeTokenVault()
- *     - ValidatorTimelock × N    ctm.validatorTimelock() when set, else config.ownableTargets
+ *     - NTV UpgradeableBeacon    nativeTokenVault().bridgedTokenBeacon() — the shared OZ beacon behind
+ *                                every bridged ERC20 (single-step Ownable, no acceptOwnership)
  *   Owned by the per-chain ChainAdmin (NOT this governance):
  *     - ServerNotifier    × N    — only migrate if your deployment points it here; pass via config
  *   Proxy upgrade rights (separate from owner()): the ecosystem contracts are
@@ -100,7 +103,15 @@ const ASSET_ROUTER_ABI = [
   "function L1_NULLIFIER() view returns (address)",
   "function nativeTokenVault() view returns (address)",
 ];
-const CTM_ABI = ["function validatorTimelock() view returns (address)"];
+// The NativeTokenVault deploys every bridged ERC20 as a BeaconProxy behind ONE shared OZ
+// UpgradeableBeacon (`bridgedTokenBeacon`); that beacon is Ownable and governance-owned.
+const NTV_ABI = ["function bridgedTokenBeacon() view returns (address)"];
+// A CTM exposes its current ValidatorTimelock via validatorTimelock(); post-v29 the live timelock
+// moved to a separate getter (validatorTimelockPostV29) and validatorTimelock() can read as 0.
+const CTM_ABI = [
+  "function validatorTimelock() view returns (address)",
+  "function validatorTimelockPostV29() view returns (address)",
+];
 
 const ownable = (addr: string, runner: any) => new ethers.Contract(addr, OWNABLE2STEP_ABI, runner);
 const ACCEPT_OWNERSHIP_DATA = new ethers.Interface(OWNABLE2STEP_ABI).encodeFunctionData("acceptOwnership", []);
@@ -158,7 +169,12 @@ async function discoverTargets(
   if (ar && ar !== ethers.ZeroAddress) {
     const arc = new ethers.Contract(ar, ASSET_ROUTER_ABI, provider);
     add("L1Nullifier", await tryGet(() => arc.L1_NULLIFIER()));
-    add("L1NativeTokenVault", await tryGet(() => arc.nativeTokenVault()));
+    const ntv = await tryGet(() => arc.nativeTokenVault());
+    add("L1NativeTokenVault", ntv);
+    if (ntv && ntv !== ethers.ZeroAddress) {
+      // The shared UpgradeableBeacon used by the NTV for all bridged ERC20s (single-step Ownable).
+      add("NTV UpgradeableBeacon", await tryGet(() => new ethers.Contract(ntv, NTV_ABI, provider).bridgedTokenBeacon()));
+    }
   }
   // ChainTypeManagers: the ecosystem has more than one CTM (the Era / EraVM CTM that the chain
   // governance lives on, plus the ZKsync OS CTM serving the other chains). Mirroring the mainnet
@@ -178,7 +194,11 @@ async function discoverTargets(
       continue;
     }
     add("ChainTypeManager(era)", ctm);
-    add("ValidatorTimelock(era)", await tryGet(() => new ethers.Contract(ctm, CTM_ABI, provider).validatorTimelock()));
+    const ctmC = new ethers.Contract(ctm, CTM_ABI, provider);
+    // Both the (legacy) validatorTimelock() and the v29 validatorTimelockPostV29() are tried; in this
+    // ecosystem only the v29 timelock is set (0x2d2598…, owned by the Governance) and is migrated too.
+    add("ValidatorTimelock(era)", await tryGet(() => ctmC.validatorTimelock()));
+    add("ValidatorTimelock v29(era)", await tryGet(() => ctmC.validatorTimelockPostV29()));
   }
   // ProxyAdmin(s): the ecosystem contracts are TransparentUpgradeableProxies; their *upgrade* rights
   // live in the EIP-1967 admin slot (a ProxyAdmin, itself Ownable and governance-owned), separate
