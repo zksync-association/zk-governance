@@ -4,8 +4,9 @@ pragma solidity 0.8.24;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
-import {GovernorCompatibilityBravo} from
-  "@openzeppelin/contracts/governance/compatibility/GovernorCompatibilityBravo.sol";
+import {
+  GovernorCompatibilityBravo
+} from "@openzeppelin/contracts/governance/compatibility/GovernorCompatibilityBravo.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
@@ -32,14 +33,14 @@ abstract contract GovernorCountingFractional is Governor {
   /**
    * @dev Mapping from proposal ID to vote tallies for that proposal.
    */
-  mapping(uint256 => ProposalVote) private _proposalVotes;
+  mapping(uint256 => ProposalVote) private proposalVotesMap;
 
   /**
    * @dev Mapping from proposal ID and address to the weight the address
-   * has cast on that proposal, e.g. _proposalVotersWeightCast[42][0xBEEF]
+   * has cast on that proposal, e.g. proposalVotersWeightCast[42][0xBEEF]
    * would tell you the number of votes that 0xBEEF has cast on proposal 42.
    */
-  mapping(uint256 => mapping(address => uint128)) private _proposalVotersWeightCast;
+  mapping(uint256 => mapping(address => uint128)) private proposalVotersWeightCast;
 
   /**
    * @dev Mapping from voter address to signature-based vote nonce. The
@@ -60,8 +61,8 @@ abstract contract GovernorCountingFractional is Governor {
   /**
    * @dev See {IGovernor-hasVoted}.
    */
-  function hasVoted(uint256 proposalId, address account) public view virtual override returns (bool) {
-    return _proposalVotersWeightCast[proposalId][account] > 0;
+  function hasVoted(uint256 _proposalId, address _account) public view virtual override returns (bool) {
+    return proposalVotersWeightCast[_proposalId][_account] > 0;
   }
 
   /**
@@ -69,37 +70,37 @@ abstract contract GovernorCountingFractional is Governor {
    * account `account`. Useful for integrations that allow delegates to cast
    * rolling, partial votes.
    */
-  function voteWeightCast(uint256 proposalId, address account) public view returns (uint128) {
-    return _proposalVotersWeightCast[proposalId][account];
+  function voteWeightCast(uint256 _proposalId, address _account) public view returns (uint128) {
+    return proposalVotersWeightCast[_proposalId][_account];
   }
 
   /**
    * @dev Accessor to the internal vote counts.
    */
-  function proposalVotes(uint256 proposalId)
+  function proposalVotes(uint256 _proposalId)
     public
     view
     virtual
     returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes)
   {
-    ProposalVote storage proposalVote = _proposalVotes[proposalId];
+    ProposalVote storage proposalVote = proposalVotesMap[_proposalId];
     return (proposalVote.againstVotes, proposalVote.forVotes, proposalVote.abstainVotes);
   }
 
   /**
    * @dev See {Governor-_quorumReached}.
    */
-  function _quorumReached(uint256 proposalId) internal view virtual override returns (bool) {
-    ProposalVote storage proposalVote = _proposalVotes[proposalId];
+  function _quorumReached(uint256 _proposalId) internal view virtual override returns (bool) {
+    ProposalVote storage proposalVote = proposalVotesMap[_proposalId];
 
-    return quorum(proposalSnapshot(proposalId)) <= proposalVote.forVotes;
+    return quorum(proposalSnapshot(_proposalId)) <= proposalVote.forVotes;
   }
 
   /**
    * @dev See {Governor-_voteSucceeded}. In this module, forVotes must be > againstVotes.
    */
-  function _voteSucceeded(uint256 proposalId) internal view virtual override returns (bool) {
-    ProposalVote storage proposalVote = _proposalVotes[proposalId];
+  function _voteSucceeded(uint256 _proposalId) internal view virtual override returns (bool) {
+    ProposalVote storage proposalVote = proposalVotesMap[_proposalId];
 
     return proposalVote.forVotes > proposalVote.againstVotes;
   }
@@ -124,22 +125,24 @@ abstract contract GovernorCountingFractional is Governor {
    *
    * See `_countVoteNominal` and `_countVoteFractional` for more details.
    */
-  function _countVote(uint256 proposalId, address account, uint8 support, uint256 totalWeight, bytes memory voteData)
-    internal
-    virtual
-    override
-  {
-    require(totalWeight > 0, "GovernorCountingFractional: no weight");
-    if (_proposalVotersWeightCast[proposalId][account] >= totalWeight) {
+  function _countVote(
+    uint256 _proposalId,
+    address _account,
+    uint8 _support,
+    uint256 _totalWeight,
+    bytes memory _voteData
+  ) internal virtual override {
+    require(_totalWeight > 0, "GovernorCountingFractional: no weight");
+    if (proposalVotersWeightCast[_proposalId][_account] >= _totalWeight) {
       revert("GovernorCountingFractional: all weight cast");
     }
 
-    uint128 safeTotalWeight = SafeCast.toUint128(totalWeight);
+    uint128 _safeTotalWeight = SafeCast.toUint128(_totalWeight);
 
-    if (voteData.length == 0) {
-      _countVoteNominal(proposalId, account, safeTotalWeight, support);
+    if (_voteData.length == 0) {
+      _countVoteNominal(_proposalId, _account, _safeTotalWeight, _support);
     } else {
-      _countVoteFractional(proposalId, account, safeTotalWeight, voteData);
+      _countVoteFractional(_proposalId, _account, _safeTotalWeight, _voteData);
     }
   }
 
@@ -150,17 +153,19 @@ abstract contract GovernorCountingFractional is Governor {
    * be called once per proposal. It will revert if combined with a fractional
    * vote before or after.
    */
-  function _countVoteNominal(uint256 proposalId, address account, uint128 totalWeight, uint8 support) internal {
-    require(_proposalVotersWeightCast[proposalId][account] == 0, "GovernorCountingFractional: vote would exceed weight");
+  function _countVoteNominal(uint256 _proposalId, address _account, uint128 _totalWeight, uint8 _support) internal {
+    require(
+      proposalVotersWeightCast[_proposalId][_account] == 0, "GovernorCountingFractional: vote would exceed weight"
+    );
 
-    _proposalVotersWeightCast[proposalId][account] = totalWeight;
+    proposalVotersWeightCast[_proposalId][_account] = _totalWeight;
 
-    if (support == uint8(GovernorCompatibilityBravo.VoteType.Against)) {
-      _proposalVotes[proposalId].againstVotes += totalWeight;
-    } else if (support == uint8(GovernorCompatibilityBravo.VoteType.For)) {
-      _proposalVotes[proposalId].forVotes += totalWeight;
-    } else if (support == uint8(GovernorCompatibilityBravo.VoteType.Abstain)) {
-      _proposalVotes[proposalId].abstainVotes += totalWeight;
+    if (_support == uint8(GovernorCompatibilityBravo.VoteType.Against)) {
+      proposalVotesMap[_proposalId].againstVotes += _totalWeight;
+    } else if (_support == uint8(GovernorCompatibilityBravo.VoteType.For)) {
+      proposalVotesMap[_proposalId].forVotes += _totalWeight;
+    } else if (_support == uint8(GovernorCompatibilityBravo.VoteType.Abstain)) {
+      proposalVotesMap[_proposalId].abstainVotes += _totalWeight;
     } else {
       revert("GovernorCountingFractional: invalid support value, must be included in VoteType enum");
     }
@@ -187,49 +192,49 @@ abstract contract GovernorCountingFractional is Governor {
    * Note that if partial votes are cast, all remaining weight must be cast
    * with _countVoteFractional: _countVoteNominal will revert.
    */
-  function _countVoteFractional(uint256 proposalId, address account, uint128 totalWeight, bytes memory voteData)
+  function _countVoteFractional(uint256 _proposalId, address _account, uint128 _totalWeight, bytes memory _voteData)
     internal
   {
-    require(voteData.length == 48, "GovernorCountingFractional: invalid voteData");
+    require(_voteData.length == 48, "GovernorCountingFractional: invalid voteData");
 
-    (uint128 _againstVotes, uint128 _forVotes, uint128 _abstainVotes) = _decodePackedVotes(voteData);
+    (uint128 _againstVotes, uint128 _forVotes, uint128 _abstainVotes) = _decodePackedVotes(_voteData);
 
-    uint128 _existingWeight = _proposalVotersWeightCast[proposalId][account];
+    uint128 _existingWeight = proposalVotersWeightCast[_proposalId][_account];
     uint256 _newWeight = uint256(_againstVotes) + _forVotes + _abstainVotes + _existingWeight;
 
-    require(_newWeight <= totalWeight, "GovernorCountingFractional: vote would exceed weight");
+    require(_newWeight <= _totalWeight, "GovernorCountingFractional: vote would exceed weight");
 
     // It's safe to downcast here because we've just confirmed that
-    // _newWeight <= totalWeight, and totalWeight is a uint128.
-    _proposalVotersWeightCast[proposalId][account] = uint128(_newWeight);
+    // _newWeight <= _totalWeight, and _totalWeight is a uint128.
+    proposalVotersWeightCast[_proposalId][_account] = uint128(_newWeight);
 
-    ProposalVote memory _proposalVote = _proposalVotes[proposalId];
+    ProposalVote memory _proposalVote = proposalVotesMap[_proposalId];
     _proposalVote = ProposalVote(
       _proposalVote.againstVotes + _againstVotes,
       _proposalVote.forVotes + _forVotes,
       _proposalVote.abstainVotes + _abstainVotes
     );
 
-    _proposalVotes[proposalId] = _proposalVote;
+    proposalVotesMap[_proposalId] = _proposalVote;
   }
 
-  uint256 internal constant _MASK_HALF_WORD_RIGHT = 0xffffffffffffffffffffffffffffffff; // 128 bits of 0's, 128 bits of
-    // 1's
+  uint256 internal constant MASK_HALF_WORD_RIGHT = 0xffffffffffffffffffffffffffffffff; // 128 bits of 0's, 128 bits of
+  // 1's
 
   /**
    * @dev Decodes three packed uint128's. Uses assembly because of a Solidity
    * language limitation which prevents slicing bytes stored in memory, rather
    * than calldata.
    */
-  function _decodePackedVotes(bytes memory voteData)
+  function _decodePackedVotes(bytes memory _voteData)
     internal
     pure
     returns (uint128 againstVotes, uint128 forVotes, uint128 abstainVotes)
   {
     assembly {
-      againstVotes := shr(128, mload(add(voteData, 0x20)))
-      forVotes := and(_MASK_HALF_WORD_RIGHT, mload(add(voteData, 0x20)))
-      abstainVotes := shr(128, mload(add(voteData, 0x40)))
+      againstVotes := shr(128, mload(add(_voteData, 0x20)))
+      forVotes := and(MASK_HALF_WORD_RIGHT, mload(add(_voteData, 0x20)))
+      abstainVotes := shr(128, mload(add(_voteData, 0x40)))
     }
   }
 
@@ -249,70 +254,69 @@ abstract contract GovernorCountingFractional is Governor {
    * See {fractionalVoteNonce} and {_castVote} for more information.
    */
   function castVoteWithReasonAndParamsBySig(
-    uint256 proposalId,
-    uint8 support,
-    string calldata reason,
-    bytes memory params,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
+    uint256 _proposalId,
+    uint8 _support,
+    string calldata _reason,
+    bytes memory _params,
+    uint8 _v,
+    bytes32 _r,
+    bytes32 _s
   ) public virtual override returns (uint256) {
-    // Signature-based fractional voting requires `params` be two full words
+    // Signature-based fractional voting requires `_params` be two full words
     // in length:
     //   16 bytes for againstVotes.
     //   16 bytes for forVotes.
     //   16 bytes for abstainVotes.
     //   16 bytes for the signature nonce.
-    // Signature-based nominal voting requires `params` be 0 bytes.
+    // Signature-based nominal voting requires `_params` be 0 bytes.
     require(
-      params.length == 64 || params.length == 0, "GovernorCountingFractional: invalid params for signature-based vote"
+      _params.length == 64 || _params.length == 0, "GovernorCountingFractional: invalid params for signature-based vote"
     );
 
-    address voter = ECDSA.recover(
+    address _voter = ECDSA.recover(
       _hashTypedDataV4(
         keccak256(
-          abi.encode(EXTENDED_BALLOT_TYPEHASH, proposalId, support, keccak256(bytes(reason)), keccak256(params))
+          abi.encode(EXTENDED_BALLOT_TYPEHASH, _proposalId, _support, keccak256(bytes(_reason)), keccak256(_params))
         )
       ),
-      v,
-      r,
-      s
+      _v,
+      _r,
+      _s
     );
 
-    // If params are zero-length all of the voter's weight will be cast so
+    // If _params are zero-length all of the voter's weight will be cast so
     // we don't have to worry about checking/incrementing a nonce.
-    if (params.length == 64) {
-      // Get the nonce out of the params. It is the last half-word.
-      uint128 nonce;
+    if (_params.length == 64) {
+      // Get the nonce out of the _params. It is the last half-word.
+      uint128 _nonce;
       assembly {
-        nonce :=
-          and(
-            // Perform bitwise AND operation on the data in the second word of
-            // `params` with a mask of 128 zeros followed by 128 ones, i.e. take
-            // the last 128 bits of `params`.
-            _MASK_HALF_WORD_RIGHT,
-            // Load the data from memory at the returned address.
-            mload(
-              // Skip the first 64 bytes (0x40):
-              //   32 bytes encoding the length of the bytes array.
-              //   32 bytes for the first word in the params
-              // Return the memory address for the last word in params.
-              add(params, 0x40)
-            )
+        _nonce := and(
+          // Perform bitwise AND operation on the data in the second word of
+          // `_params` with a mask of 128 zeros followed by 128 ones, i.e. take
+          // the last 128 bits of `_params`.
+          MASK_HALF_WORD_RIGHT,
+          // Load the data from memory at the returned address.
+          mload(
+            // Skip the first 64 bytes (0x40):
+            //   32 bytes encoding the length of the bytes array.
+            //   32 bytes for the first word in the _params
+            // Return the memory address for the last word in _params.
+            add(_params, 0x40)
           )
+        )
       }
 
-      require(fractionalVoteNonce[voter] == nonce, "GovernorCountingFractional: signature has already been used");
+      require(fractionalVoteNonce[_voter] == _nonce, "GovernorCountingFractional: signature has already been used");
 
-      fractionalVoteNonce[voter]++;
+      fractionalVoteNonce[_voter]++;
 
-      // Trim params in place to keep only the first 48 bytes (which are
+      // Trim _params in place to keep only the first 48 bytes (which are
       // the voting params) and save gas.
       assembly {
-        mstore(params, 0x30)
+        mstore(_params, 0x30)
       }
     }
 
-    return _castVote(proposalId, voter, support, reason, params);
+    return _castVote(_proposalId, _voter, _support, _reason, _params);
   }
 }

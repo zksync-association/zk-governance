@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {console2} from "forge-std/Test.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProposalBuilder} from "test/helpers/ProposalBuilder.sol";
 import {IntegrationTest} from "test/helpers/IntegrationTest.sol";
@@ -14,7 +13,7 @@ import {ZkTokenUpgradeFake} from "test/fakes/ZkTokenUpgradeFake.sol";
 
 contract ZkProtocolGovernorIntegrationBase is IntegrationTest {
   function setUp() public virtual {
-    // Create a fork of the ZKSync ERA mainnet, at a point in time after the ZK token was deployed
+    // Create a fork of the ZKsync Era mainnet, at a point in time after the ZK token was deployed
     vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 36_326_417);
 
     // Deploy the timelock, initially with this test script as its admin (will change later)
@@ -71,18 +70,16 @@ contract ZKProtocolTokenUpgradeTest is ZkProtocolGovernorIntegrationBase {
   }
 
   function _buildEmptyUpgradeCalldata() internal pure returns (bytes memory) {
-    UpgradeProposal memory proposal = _emptyProposal("1");
-    return (
-      abi.encodeWithSignature(
+    UpgradeProposal memory _proposal = _emptyProposal("1");
+    return (abi.encodeWithSignature(
         "startUpgrade(uint256,uint256,uint16,bytes32[],address,bytes32[])",
         0,
         0,
         0,
         new bytes32[](0),
-        proposal.executor,
-        proposal.salt
-      )
-    );
+        _proposal.executor,
+        _proposal.salt
+      ));
   }
 
   function testFork_ProtocolUpgrade() public {
@@ -90,9 +87,9 @@ contract ZKProtocolTokenUpgradeTest is ZkProtocolGovernorIntegrationBase {
 
     // create a token upgrade proposal
     ProposalBuilder _builder = new ProposalBuilder();
-    bytes memory emptyUpgradeCalldata = _buildEmptyUpgradeCalldata();
-    bytes memory sendToL1call = abi.encodeWithSignature("sendToL1(bytes)", emptyUpgradeCalldata);
-    _builder.push(L1_MESSENGER_ADDRESS, 0, sendToL1call);
+    bytes memory _emptyUpgradeCalldata = _buildEmptyUpgradeCalldata();
+    bytes memory _sendToL1call = abi.encodeWithSignature("sendToL1(bytes)", _emptyUpgradeCalldata);
+    _builder.push(L1_MESSENGER_ADDRESS, 0, _sendToL1call);
 
     vm.startPrank(delegates[0]);
     uint256 _proposalId =
@@ -108,7 +105,7 @@ contract ZKProtocolTokenUpgradeTest is ZkProtocolGovernorIntegrationBase {
     _jumpPastProposalEta(_proposalId);
 
     vm.expectEmit(address(L1_MESSENGER_ADDRESS));
-    emit L1MessageSent(address(timelock), keccak256(emptyUpgradeCalldata), emptyUpgradeCalldata);
+    emit L1MessageSent(address(timelock), keccak256(_emptyUpgradeCalldata), _emptyUpgradeCalldata);
 
     governor.execute(_builder.targets(), _builder.values(), _builder.calldatas(), keccak256(bytes(UPGRADE_DESCRIPTION)));
   }
@@ -116,17 +113,17 @@ contract ZKProtocolTokenUpgradeTest is ZkProtocolGovernorIntegrationBase {
   // Upgrade the token
   function testFork_TokenUpgrade() public {
     _setGovernorAndDelegates();
-    ZkTokenUpgradeFake newTokenImpl = new ZkTokenUpgradeFake();
+    ZkTokenUpgradeFake _newTokenImpl = new ZkTokenUpgradeFake();
 
     vm.prank(TOKEN_PROXY_ADMIN);
     ITransparentUpgradeableProxy(DEPLOYED_TOKEN_ADDRESS).changeAdmin(address(timelock));
 
     // create a token upgrade proposal
     ProposalBuilder _builder = new ProposalBuilder();
-    bytes memory tokenUpgradeCall = abi.encodeWithSignature(
-      "upgradeToAndCall(address,bytes)", address(newTokenImpl), abi.encodeCall(ZkTokenUpgradeFake.initializeFake, ())
+    bytes memory _tokenUpgradeCall = abi.encodeWithSignature(
+      "upgradeToAndCall(address,bytes)", address(_newTokenImpl), abi.encodeCall(ZkTokenUpgradeFake.initializeFake, ())
     );
-    _builder.push(DEPLOYED_TOKEN_ADDRESS, 0, tokenUpgradeCall);
+    _builder.push(DEPLOYED_TOKEN_ADDRESS, 0, _tokenUpgradeCall);
 
     vm.startPrank(delegates[0]);
     uint256 _proposalId =

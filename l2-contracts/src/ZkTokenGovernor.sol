@@ -66,17 +66,17 @@ contract ZkTokenGovernor is
   /// addresses outside of the `PROPOSE_GUARDIAN` to create proposals.
   event IsProposeGuardedToggled(bool oldState, bool newState);
 
-  constructor(ConstructorParams memory params)
-    Governor(params.name)
-    GovernorSettings(params.initialVotingDelay, params.initialVotingPeriod, params.initialProposalThreshold)
-    GovernorVotes(params.token)
-    GovernorTimelockControl(params.timelock)
-    GovernorPreventLateQuorum(params.initialVoteExtension)
-    GovernorSettableFixedQuorum(params.initialQuorum)
-    GovernorGuardianVeto(params.vetoGuardian)
+  constructor(ConstructorParams memory _params)
+    Governor(_params.name)
+    GovernorSettings(_params.initialVotingDelay, _params.initialVotingPeriod, _params.initialProposalThreshold)
+    GovernorVotes(_params.token)
+    GovernorTimelockControl(_params.timelock)
+    GovernorPreventLateQuorum(_params.initialVoteExtension)
+    GovernorSettableFixedQuorum(_params.initialQuorum)
+    GovernorGuardianVeto(_params.vetoGuardian)
   {
-    PROPOSE_GUARDIAN = params.proposeGuardian;
-    _setIsProposeGuarded(params.isProposeGuarded);
+    PROPOSE_GUARDIAN = _params.proposeGuardian;
+    _setIsProposeGuarded(_params.isProposeGuarded);
   }
 
   /// @notice This function will cancel a proposal, and can only be called by the guardian while the proposal is either
@@ -105,8 +105,9 @@ contract ZkTokenGovernor is
     bytes32 _r,
     bytes32 _s
   ) public override(Governor, GovernorCountingFractional, IGovernor) returns (uint256) {
-    return
-      GovernorCountingFractional.castVoteWithReasonAndParamsBySig(_proposalId, _support, _reason, _params, _v, _r, _s);
+    return GovernorCountingFractional.castVoteWithReasonAndParamsBySig(
+      _proposalId, _support, _reason, _params, _v, _r, _s
+    );
   }
 
   /// @inheritdoc GovernorPreventLateQuorum

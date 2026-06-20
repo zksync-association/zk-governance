@@ -13,10 +13,10 @@ abstract contract GovernorGuardianVeto is Governor {
   address public immutable VETO_GUARDIAN;
 
   /// @notice An immutable address which can cancel proposals while they are pending or active.
-  error UncancelableProposalState();
+  error GovernorGuardianVeto_UncancelableProposalState();
 
   /// @notice Thrown if an address tries to perform an action for which it is not authorized.
-  error Unauthorized();
+  error GovernorGuardianVeto_Unauthorized();
 
   /// @param _vetoGuardian The address to set as the immutable `VETO_GUARDIAN`.
   constructor(address _vetoGuardian) {
@@ -36,14 +36,14 @@ abstract contract GovernorGuardianVeto is Governor {
     bytes32 _descriptionHash
   ) public virtual override returns (uint256) {
     if (_msgSender() != VETO_GUARDIAN) {
-      revert Unauthorized();
+      revert GovernorGuardianVeto_Unauthorized();
     }
-    uint256 proposalId = hashProposal(_targets, _values, _calldatas, _descriptionHash);
+    uint256 _proposalId = hashProposal(_targets, _values, _calldatas, _descriptionHash);
 
-    ProposalState proposalState = state(proposalId);
+    ProposalState _proposalState = state(_proposalId);
 
-    if (proposalState != ProposalState.Active && proposalState != ProposalState.Pending) {
-      revert UncancelableProposalState();
+    if (_proposalState != ProposalState.Active && _proposalState != ProposalState.Pending) {
+      revert GovernorGuardianVeto_UncancelableProposalState();
     }
     return _cancel(_targets, _values, _calldatas, _descriptionHash);
   }

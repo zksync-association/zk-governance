@@ -1,5 +1,5 @@
 [profile.default]
-  evm_version = "paris"
+  evm_version = "cancun"
   fs_permissions = [{ access = "read", path = "./zkout" }]
   fuzz = { runs = 50 }
   optimizer = true
@@ -36,3 +36,6 @@
 
 [rpc_endpoints]
   zksync = "${ZKSYNC_RPC_URL}"
+
+[profile.default.zksync]
+  zksolc = "1.5.11"

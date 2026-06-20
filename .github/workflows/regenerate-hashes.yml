@@ -1,24 +1,13 @@
 name: Regenerate AllContractsHashes
 
 # Rebuild both projects from source, recompute every contract's bytecode
-# hash, and — if AllContractsHashes.json has drifted — open a PR with the
-# refreshed snapshot. Manual trigger only (Actions tab → "Run workflow")
-# so maintainers can refresh after a foundry version bump, dependency
-# update, or whenever the `hashes` check on a feature branch fails.
-#
-# This workflow file only lives on `master` (where Actions' "Run workflow"
-# UI is rendered from). The actual `package.json` + `scripts/calculate-hashes.ts`
-# + `AllContractsHashes.json` live on the feature branch passed via the
-# `target_ref` input — `actions/checkout` below picks up that branch's
-# tree, runs the regen against it, and opens the resulting PR back into
-# the same branch.
+# hash, and — if AllContractsHashes.json has drifted — commit the refresh
+# directly to the branch the workflow ran against. Manual trigger
+# (Actions tab → "Run workflow", pick this branch from the dropdown) so
+# maintainers can refresh after a foundry version bump, dependency
+# update, or whenever the `hashes` check fails.
 on:
   workflow_dispatch:
-    inputs:
-      target_ref:
-        description: "Branch to regenerate AllContractsHashes.json on (e.g. kl/v31-puh-guardians-redeploy)"
-        required: true
-        type: string
 
 jobs:
   regenerate:
@@ -29,12 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.target_ref }}
           submodules: true
           fetch-depth: 1
 
-      - name: Install Foundry
-        uses: dutterbutter/foundry-zksync-toolchain@v1
+      - name: Install zksync-foundry
+        # Pinned via the same composite action era-contracts uses
+        # (foundry-zksync v0.1.5 / forge 1.3.5) so artifacts built here
+        # match era-contracts byte-for-byte. Bump in lock-step with
+        # era-contracts.
+        uses: ./.github/actions/install-zksync-foundry
 
       - name: Install l1-contracts deps + build (EVM)
         working-directory: ./l1-contracts
@@ -50,20 +42,15 @@ jobs:
       - name: Regenerate AllContractsHashes.json
         run: yarn calculate-hashes:fix
 
-      - name: Open PR with refreshed hashes
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "chore: regenerate AllContractsHashes.json"
-          title: "chore: regenerate AllContractsHashes.json"
-          body: |
-            Automated refresh of `AllContractsHashes.json` triggered from
-            the Actions tab against `${{ inputs.target_ref }}`.
-
-            Run `yarn calculate-hashes:check` locally on this branch to
-            confirm the same diff before merging.
-          # Target the branch we ran against, not master (which doesn't
-          # have the calculate-hashes script).
-          base: ${{ inputs.target_ref }}
-          branch: automation/regenerate-hashes-${{ inputs.target_ref }}
-          delete-branch: true
-          add-paths: AllContractsHashes.json
+      - name: Commit + push refreshed hashes (no-op if unchanged)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain AllContractsHashes.json)" ]]; then
+            git add AllContractsHashes.json
+            git commit -m "chore: regenerate AllContractsHashes.json"
+            git push origin HEAD:${{ github.ref_name }}
+            echo "Pushed regen commit to ${{ github.ref_name }}."
+          else
+            echo "AllContractsHashes.json already up to date — nothing to commit."
+          fi
