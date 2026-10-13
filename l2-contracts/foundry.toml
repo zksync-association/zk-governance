@@ -9,8 +9,30 @@
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
     "@murky/=lib/murky/",
+    # council-governance is built on OpenZeppelin v5 and imports its own sources via `src/...`. These scoped
+    # remappings apply only to files under lib/council-governance/, so existing contracts keep resolving OZ v4 and our
+    # own `src/`. Foundry ignores a remapping named exactly `src/`, so upstream's `src/...` imports are remapped by the
+    # narrower prefixes they actually use.
+    "lib/council-governance/:@openzeppelin/contracts/=lib/openzeppelin-contracts-v5/contracts/",
+    "lib/council-governance/:src/extensions/=lib/council-governance/src/extensions/",
+    "lib/council-governance/:src/BasicCouncilVetoGovernor.sol=lib/council-governance/src/BasicCouncilVetoGovernor.sol",
+    # Our own OZ v5 based contracts import OZ v5 and council-governance through these aliases.
+    "@openzeppelin/contracts-v5/=lib/openzeppelin-contracts-v5/contracts/",
+    "council-governance/=lib/council-governance/src/",
   ]
-  solc_version = "0.8.24"
+  # No global solc_version: existing contracts pin `0.8.24` via exact pragmas, council-governance pins `0.8.30`.
+  # Files with floating pragmas are pinned to 0.8.24 below so their bytecode stays unchanged.
+  # OpenZeppelin v5.4 requires Cancun (`mcopy`), so the OZ v5 tree and everything built on it compiles with the
+  # `cancun` profile while existing contracts stay on `paris`.
+  additional_compiler_profiles = [{ name = "cancun", evm_version = "cancun" }]
+  compilation_restrictions = [
+    { paths = "lib/openzeppelin-contracts-v5/**", min_evm_version = "cancun" },
+    { paths = "lib/council-governance/src/**", min_evm_version = "cancun" },
+    { paths = "src/council/**", min_evm_version = "cancun" },
+    { paths = "src/lib/L2ContractHelper.sol", version = "=0.8.24" },
+    { paths = "test/fakes/TimelockControllerFake.sol", version = "=0.8.24" },
+    { paths = "test/helpers/ProposalBuilder.sol", version = "=0.8.24" },
+  ]
   verbosity = 3
 
 [profile.ci]
