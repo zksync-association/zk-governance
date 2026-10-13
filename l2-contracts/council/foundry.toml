@@ -1,0 +1,49 @@
+# The ZKsync Protocol Upgrade council governors, built on ScopeLift/council-governance.
+#
+# This is a separate Foundry project from the rest of l2-contracts because council-governance requires solc 0.8.30,
+# OpenZeppelin v5 and the Cancun EVM version (OpenZeppelin v5.4 uses `mcopy`), while the existing contracts are pinned
+# to solc 0.8.24, OpenZeppelin v4 and Paris. foundry-zksync applies one EVM version to a whole build and always writes
+# artifacts to `<project root>/zkout`, so the two cannot share a project without changing existing bytecode or
+# overwriting each other's artifacts. Dependencies are shared with l2-contracts via `../lib`.
+[profile.default]
+  auto_detect_remappings = false
+  evm_version = "cancun"
+  libs = ["../lib"]
+  optimizer = true
+  optimizer_runs = 10_000_000
+  remappings = [
+    "@openzeppelin/contracts/=../lib/openzeppelin-contracts-v5/contracts/",
+    "council-governance/=../lib/council-governance/src/",
+    "forge-std/=../lib/forge-std/src/",
+    # council-governance imports its own sources as `src/...`. These remappings are scoped to it so they never resolve
+    # to this project's `src/`. Foundry ignores a remapping named exactly `src/`, so the narrower prefixes upstream
+    # actually uses are remapped instead.
+    "../lib/council-governance/:src/extensions/=../lib/council-governance/src/extensions/",
+    "../lib/council-governance/:src/BasicCouncilVetoGovernor.sol=../lib/council-governance/src/BasicCouncilVetoGovernor.sol",
+  ]
+  solc_version = "0.8.30"
+  verbosity = 3
+
+[profile.ci]
+  fuzz = { runs = 2500 }
+  invariant = { runs = 1000 }
+
+[profile.lite]
+  fuzz = { runs = 50 }
+  invariant = { runs = 10 }
+  optimizer = false
+
+# forge's built-in linter does not resolve the scoped remappings above and fails the build; scopelint is used instead.
+[lint]
+  lint_on_build = false
+
+[fmt]
+  bracket_spacing = false
+  int_types = "long"
+  line_length = 120
+  multiline_func_header = "attributes_first"
+  number_underscore = "thousands"
+  quote_style = "double"
+  single_line_statement_blocks = "multi"
+  tab_width = 2
+  wrap_comments = true
