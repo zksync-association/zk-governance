@@ -93,3 +93,44 @@ jobs:
         run: |
           scopelint --version
           scopelint check
+
+  council:
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./l2-contracts/council
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install Foundry
+        uses: dutterbutter/foundry-zksync-toolchain@v1
+
+      - name: Install dependencies
+        working-directory: ./l2-contracts
+        run: forge install
+
+      - name: Build
+        run: forge build
+
+      - name: Build (ZKsync)
+        run: forge build --zksync
+
+      - name: Install scopelint
+        uses: engineerd/configurator@v0.0.8
+        with:
+          name: scopelint
+          repo: ScopeLift/scopelint
+          fromGitHubReleases: true
+          version: latest
+          pathInArchive: scopelint-x86_64-linux/scopelint
+          urlTemplate: https://github.com/ScopeLift/scopelint/releases/download/{{version}}/scopelint-x86_64-linux.tar.xz
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check formatting
+        run: |
+          scopelint --version
+          scopelint check

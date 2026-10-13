@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IGovernor} from "@openzeppelin/contracts-v5/governance/IGovernor.sol";
-import {Governor} from "@openzeppelin/contracts-v5/governance/Governor.sol";
-import {GovernorCountingSimple} from "@openzeppelin/contracts-v5/governance/extensions/GovernorCountingSimple.sol";
-import {IERC5805} from "@openzeppelin/contracts-v5/interfaces/IERC5805.sol";
+import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
+import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
+import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
+import {IERC5805} from "@openzeppelin/contracts/interfaces/IERC5805.sol";
 import {BasicCouncilGovernor} from "council-governance/BasicCouncilGovernor.sol";
 
 /// @title ZkProtocolUpgradeCouncilGovernor

@@ -6,20 +6,8 @@ import "@matterlabs/hardhat-zksync-node";
 import "@matterlabs/hardhat-zksync-upgradable";
 import "@matterlabs/hardhat-zksync-verify";
 
-import { subtask } from "hardhat/config";
-import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/task-names";
-import * as path from "path";
-
 import * as dotenv from 'dotenv';
 dotenv.config();
-
-// Contracts in src/council/ are built on council-governance and OpenZeppelin v5 (solc 0.8.30). They are compiled
-// and deployed with Foundry only, so they are excluded from the Hardhat (solc 0.8.24, OpenZeppelin v4) build.
-subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(async (_, __, runSuper) => {
-  const paths: string[] = await runSuper();
-  const councilDir = path.join(__dirname, "src", "council") + path.sep;
-  return paths.filter((p) => !p.startsWith(councilDir));
-});
 
 const config: HardhatUserConfig = {
   solidity: "0.8.24",
