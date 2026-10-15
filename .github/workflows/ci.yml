@@ -82,12 +82,10 @@ jobs:
         uses: engineerd/configurator@v0.0.8
         with:
           name: scopelint
-          repo: ScopeLift/scopelint
-          fromGitHubReleases: true
-          version: latest
+          # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
+          # fails when the API rate limit is exceeded.
+          url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
           pathInArchive: scopelint-x86_64-linux/scopelint
-          urlTemplate: https://github.com/ScopeLift/scopelint/releases/download/{{version}}/scopelint-x86_64-linux.tar.xz
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check formatting
         run: |
@@ -123,12 +121,10 @@ jobs:
         uses: engineerd/configurator@v0.0.8
         with:
           name: scopelint
-          repo: ScopeLift/scopelint
-          fromGitHubReleases: true
-          version: latest
+          # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
+          # fails when the API rate limit is exceeded.
+          url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
           pathInArchive: scopelint-x86_64-linux/scopelint
-          urlTemplate: https://github.com/ScopeLift/scopelint/releases/download/{{version}}/scopelint-x86_64-linux.tar.xz
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check formatting
         run: |
