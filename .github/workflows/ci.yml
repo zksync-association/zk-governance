@@ -31,7 +31,52 @@ jobs:
       - name: Build
         run: npm run compile
 
-  test:
+  # The forge tests run under --zksync, where each test executes in an emulated EraVM and takes minutes, so they are
+  # split across parallel shards. Test contracts are assigned round-robin by name, so every suite runs in exactly one
+  # shard (contracts that share a name across files stay together) and new test files are picked up automatically.
+  forge-test:
+    name: forge-test (${{ matrix.shard }}/4)
+    defaults:
+      run:
+        working-directory: ./l2-contracts
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install Foundry
+        uses: dutterbutter/foundry-zksync-toolchain@v1
+
+      - name: Install dependencies
+        run: forge install
+
+      - name: Select test contracts
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARD_COUNT: 4
+        run: |
+          forge test --list --json --no-match-path 'test/*.integration.t.sol' > test-list.json
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, os
+          tests = json.load(open("test-list.json"))
+          names = sorted({name for contracts in tests.values() for name in contracts})
+          shard, count = int(os.environ["SHARD"]), int(os.environ["SHARD_COUNT"])
+          selected = names[shard - 1 :: count]
+          print(f"MATCH_CONTRACT=^({'|'.join(selected)})$")
+          PY
+
+      - name: Run forge tests
+        run: |
+          echo "Running test contracts matching $MATCH_CONTRACT"
+          forge test --no-match-path 'test/*.integration.t.sol' --match-contract "$MATCH_CONTRACT" --zksync
+
+  hardhat-test:
     defaults:
       run:
         working-directory: ./l2-contracts
@@ -49,16 +94,23 @@ jobs:
         run: forge install && npm install
 
       - name: Build
-        run: npm run compile
-
-      - name: Run forge tests
-        run: npm run foundry-test
+        run: npx hardhat compile
 
       - name: Run Era test node
         uses: dutterbutter/era-test-node-action@v0.1.3
 
       - name: Run hardhat tests
         run: npx hardhat test
+
+  # Single status that covers every test job, so branch protection can keep requiring a check named `test`.
+  test:
+    if: always()
+    needs: [forge-test, hardhat-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check test results
+        run: |
+          [ "${{ needs.forge-test.result }}" = "success" ] && [ "${{ needs.hardhat-test.result }}" = "success" ]
 
   lint:
     defaults:
@@ -82,12 +134,49 @@ jobs:
         uses: engineerd/configurator@v0.0.8
         with:
           name: scopelint
-          repo: ScopeLift/scopelint
-          fromGitHubReleases: true
-          version: latest
+          # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
+          # fails when the API rate limit is exceeded.
+          url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
           pathInArchive: scopelint-x86_64-linux/scopelint
-          urlTemplate: https://github.com/ScopeLift/scopelint/releases/download/{{version}}/scopelint-x86_64-linux.tar.xz
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check formatting
+        run: |
+          scopelint --version
+          scopelint check
+
+  council:
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./l2-contracts/council
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install Foundry
+        uses: dutterbutter/foundry-zksync-toolchain@v1
+
+      - name: Install dependencies
+        working-directory: ./l2-contracts
+        run: forge install
+
+      - name: Build
+        run: forge build
+
+      - name: Build (ZKsync)
+        run: forge build --zksync
+
+      - name: Install scopelint
+        uses: engineerd/configurator@v0.0.8
+        with:
+          name: scopelint
+          # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
+          # fails when the API rate limit is exceeded.
+          url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
+          pathInArchive: scopelint-x86_64-linux/scopelint
 
       - name: Check formatting
         run: |

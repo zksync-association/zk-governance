@@ -25,6 +25,17 @@
 
 [fmt]
   bracket_spacing = false
+  # Deployed contracts whose sources match the verified, audited code; newer forge fmt versions format them
+  # differently, and reformatting would change their verified source.
+  ignore = [
+    "src/ZkGovOpsGovernor.sol",
+    "src/ZkMerkleDistributor.sol",
+    "src/ZkProtocolGovernor.sol",
+    "src/ZkTokenGovernor.sol",
+    "src/ZkTokenV1.sol",
+    "src/lib/GovernorCountingFractional.sol",
+    "src/lib/Nonces.sol",
+  ]
   int_types = "long"
   line_length = 120
   multiline_func_header = "attributes_first"
