@@ -64,6 +64,9 @@ struct RemoveGuardiansDeployedContracts {
 contract RemoveGuardians is Script {
     address internal constant DETERMINISTIC_DEPLOYMENT_PROXY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
+    /// @dev L1Messenger system contract on Era, used by the ZIP to send the proposal to L1.
+    address internal constant L1_MESSENGER = 0x0000000000000000000000000000000000008008;
+
     /// @dev EIP-1967 admin slot, `bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)`.
     bytes32 internal constant PROXY_ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
 
@@ -165,6 +168,14 @@ contract RemoveGuardians is Script {
 
         bytes memory encodedCalls = abi.encode(calls);
 
+        // The ZIP on the ZkProtocolGovernor sends the proposal to L1 via the L1Messenger, which
+        // the ProtocolUpgradeHandler then reads in `startUpgrade`. Same shape as v31: anyone can
+        // execute it (no executor) and the salt is zero.
+        IProtocolUpgradeHandler.UpgradeProposal memory proposal =
+            IProtocolUpgradeHandler.UpgradeProposal({calls: calls, executor: address(0), salt: bytes32(0)});
+        bytes memory l2Calldata = abi.encodeWithSignature("sendToL1(bytes)", abi.encode(proposal));
+        bytes32 upgradeId = keccak256(abi.encode(proposal));
+
         console2.log("");
         console2.log("=== Upgrade Calls for ProtocolUpgradeHandler ===");
         console2.log("Call[0]: checkRoles (post-v31 state) ->", stateCheck);
@@ -174,8 +185,16 @@ contract RemoveGuardians is Script {
         console2.log("");
         console2.log("abi.encode(Call[]):");
         console2.logBytes(encodedCalls);
+        console2.log("");
+        console2.log("=== ZIP (ZkProtocolGovernor proposal action) ===");
+        console2.log("target:", L1_MESSENGER);
+        console2.log("value: 0");
+        console2.log("calldata:");
+        console2.logBytes(l2Calldata);
+        console2.log("Upgrade id (ProtocolUpgradeHandler):");
+        console2.logBytes32(upgradeId);
 
-        _writeOutput(newImplementation, newEmergencyUpgradeBoard, stateCheck, encodedCalls);
+        _writeOutput(newImplementation, newEmergencyUpgradeBoard, stateCheck, encodedCalls, l2Calldata, upgradeId);
     }
 
     /// @dev Cross-checks the inputs against the expected EmergencyUpgradeBoard and the proxy, and
@@ -251,7 +270,9 @@ contract RemoveGuardians is Script {
         address _newImplementation,
         address _newEmergencyUpgradeBoard,
         address _stateCheck,
-        bytes memory _encodedCalls
+        bytes memory _encodedCalls,
+        bytes memory _l2Calldata,
+        bytes32 _upgradeId
     ) internal {
         string memory outPath = vm.envOr("DEPLOY_OUTPUT_TOML", string(""));
         if (bytes(outPath).length == 0) {
@@ -260,7 +281,10 @@ contract RemoveGuardians is Script {
         vm.serializeAddress("deploy", "new_puh_impl", _newImplementation);
         vm.serializeAddress("deploy", "new_emergency_upgrade_board", _newEmergencyUpgradeBoard);
         vm.serializeAddress("deploy", "state_check", _stateCheck);
-        string memory toml = vm.serializeBytes("deploy", "governance_calls", _encodedCalls);
+        vm.serializeBytes("deploy", "governance_calls", _encodedCalls);
+        vm.serializeAddress("deploy", "zip_target", L1_MESSENGER);
+        vm.serializeBytes("deploy", "zip_calldata", _l2Calldata);
+        string memory toml = vm.serializeBytes32("deploy", "upgrade_id", _upgradeId);
         vm.writeToml(toml, outPath);
     }
 }

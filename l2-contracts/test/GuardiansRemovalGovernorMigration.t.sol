@@ -57,14 +57,14 @@ abstract contract GuardiansRemovalGovernorMigrationTest is ProposalTest {
     _setDelegates(delegate);
 
     // Same shape as on Era: the timelock administers itself and the governor holds every role.
-    address deployer = makeAddr("deployer");
-    timelock = new TimelockController(TIMELOCK_DELAY, new address[](0), new address[](0), deployer);
+    address _deployer = makeAddr("deployer");
+    timelock = new TimelockController(TIMELOCK_DELAY, new address[](0), new address[](0), _deployer);
     oldGovernor = _deployGovernor(guardiansAlias);
-    vm.startPrank(deployer);
+    vm.startPrank(_deployer);
     timelock.grantRole(PROPOSER_ROLE, address(oldGovernor));
     timelock.grantRole(CANCELLER_ROLE, address(oldGovernor));
     timelock.grantRole(EXECUTOR_ROLE, address(oldGovernor));
-    timelock.renounceRole(TIMELOCK_ADMIN_ROLE, deployer);
+    timelock.renounceRole(TIMELOCK_ADMIN_ROLE, _deployer);
     vm.stopPrank();
 
     newGovernor = _deployGovernor(zkFoundationSafe);
