@@ -25,3 +25,35 @@ ZKSYNC_OS_CHAIN_TYPE_MANAGER=
 PUH_PROXY_TESTNET=0x9B956d242e6806044877C7C1B530D475E371d544
 ERA_CHAIN_ID=321
 ```
+## Guardians removal
+
+`MainnetRemoveGuardians.s.sol` / `StageRemoveGuardians.s.sol` deploy (via CREATE2) the two-party
+`EmergencyUpgradeBoard` (Security Council + ZK Foundation) and the `ProtocolUpgradeHandlerStateCheck`
+helper, and print the `Call[]` of the protocol upgrade (ZIP) that removes the Guardians from L1:
+
+1. `ProtocolUpgradeHandlerStateCheck.checkRoles(...)`: reverts unless the handler still holds the
+   Security Council, Guardians and Emergency Upgrade Board installed by v31. v31 re-initializes these
+   roles, so the removal must only execute after it; a reverted execution can be retried later.
+2. `ProtocolUpgradeHandler.updateGuardians(zkFoundationSafe)`: the legal veto extension and the
+   upgrade approval move to the ZK Foundation Safe.
+3. `ProtocolUpgradeHandler.updateEmergencyUpgradeBoard(newBoard)`.
+
+```bash
+CREATE2_FACTORY= # Optional, defaults to 0x4e59b44847b379578588920cA78FbF26c0B4956C
+CREATE2_SALT= # Optional, defaults to bytes32(0)
+DEPLOY_OUTPUT_TOML= # Optional, e.g. ./script-out/remove-guardians.toml
+NEW_GUARDIANS= # Stage only, defaults to the ZK Foundation Safe of the v31 board
+forge script scripts/MainnetRemoveGuardians.s.sol:MainnetRemoveGuardians --rpc-url $MAINNET_RPC --broadcast <signer>
+```
+
+The fork test replays the v31 handler upgrade and passes the generated proposal through the
+`ProtocolUpgradeHandler` state machine:
+
+```bash
+forge test --match-contract RemoveGuardiansForkTest --fork-url $MAINNET_RPC
+```
+
+The L2 side (the veto seats of the `ZkTokenGovernor` and `ZkGovOpsGovernor`) is handled by
+`l2-contracts/script/RedeployZkTokenGovernor.ts` and `l2-contracts/script/RedeployZkGovOpsGovernor.ts`,
+which redeploy the governors with the ZK Foundation Safe on Era as `VETO_GUARDIAN` and print the timelock
+role migration to propose on the current governors (TPP and GAP respectively).

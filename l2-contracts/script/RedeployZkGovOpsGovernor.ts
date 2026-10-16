@@ -1,13 +1,13 @@
 import { config as dotEnvConfig } from "dotenv";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
 import { Contract, Wallet } from "zksync-ethers";
-import { keccak256, toUtf8Bytes } from "ethers";
+import { getAddress, keccak256, toUtf8Bytes } from "ethers";
 import * as hre from "hardhat";
 
 // Redeploys the ZkGovOpsGovernor as part of the guardians removal: the new instance keeps
 // the live settings, token and TimelockController of the current governor, but swaps the
 // immutable veto seat:
-//   - VETO_GUARDIAN -> the ZK Foundation Safe on Era (NEW_VETO_GUARDIAN)
+//   - VETO_GUARDIAN -> the native ZK Foundation Safe on Era (NEW_VETO_GUARDIAN)
 //
 // The script does NOT touch the timelock: it prints the proposal actions that must be
 // passed through the *current* governor to hand the timelock roles over to the new one.
@@ -15,7 +15,7 @@ import * as hre from "hardhat";
 // Required env vars:
 //   DEPLOYER_PRIVATE_KEY - deployer key
 //   CURRENT_GOVERNOR     - address of the live ZkGovOpsGovernor
-//   NEW_VETO_GUARDIAN    - ZK Foundation Safe (Era) taking the veto seat
+//   NEW_VETO_GUARDIAN    - native ZK Foundation Safe (Era) taking the veto seat
 const contractName = "ZkGovOpsGovernor";
 
 function requireEnv(name: string): string {
@@ -26,12 +26,18 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function requireEqual(label: string, actual: unknown, expected: unknown) {
+  if (String(actual) !== String(expected)) {
+    throw `New governor ${label} mismatch: expected ${expected}, got ${actual}`;
+  }
+}
+
 async function main() {
   dotEnvConfig();
 
   const deployerPrivateKey = requireEnv("DEPLOYER_PRIVATE_KEY");
   const currentGovernorAddress = requireEnv("CURRENT_GOVERNOR");
-  const newVetoGuardian = requireEnv("NEW_VETO_GUARDIAN");
+  const newVetoGuardian = getAddress(requireEnv("NEW_VETO_GUARDIAN"));
 
   const zkWallet = new Wallet(deployerPrivateKey);
   const deployer = new Deployer(hre, zkWallet);
@@ -49,6 +55,14 @@ async function main() {
   const quorum = await currentGovernor.quorum(await currentGovernor.clock());
   const lateQuorumVoteExtension = await currentGovernor.lateQuorumVoteExtension();
   const oldVetoGuardian = await currentGovernor.VETO_GUARDIAN();
+
+  if (newVetoGuardian === getAddress(oldVetoGuardian)) {
+    throw "NEW_VETO_GUARDIAN must differ from the current VETO_GUARDIAN";
+  }
+  // The veto seat is held by a native multisig on Era, not by an L1 address alias.
+  if ((await deployer.zkWallet.provider.getCode(newVetoGuardian)) === "0x") {
+    throw "NEW_VETO_GUARDIAN must be a contract (multisig) on Era";
+  }
 
   console.log("=== Current ZkGovOpsGovernor ===");
   console.log(`Address: ${currentGovernorAddress}`);
@@ -84,6 +98,19 @@ async function main() {
 
   console.log(`${contractName} was deployed to ${newGovernorAddress}`);
   console.log("constructor args:" + newGovernor.interface.encodeDeploy(constructorArgs));
+
+  // Everything but the veto seat must match the current governor.
+  const deployedGovernor = new Contract(newGovernorAddress, governorArtifact.abi, deployer.zkWallet);
+  requireEqual("name", await deployedGovernor.name(), name);
+  requireEqual("token", await deployedGovernor.token(), tokenAddress);
+  requireEqual("timelock", await deployedGovernor.timelock(), timelockAddress);
+  requireEqual("voting delay", await deployedGovernor.votingDelay(), votingDelay);
+  requireEqual("voting period", await deployedGovernor.votingPeriod(), votingPeriod);
+  requireEqual("proposal threshold", await deployedGovernor.proposalThreshold(), proposalThreshold);
+  requireEqual("quorum", await deployedGovernor.quorum(await deployedGovernor.clock()), quorum);
+  requireEqual("late quorum vote extension", await deployedGovernor.lateQuorumVoteExtension(), lateQuorumVoteExtension);
+  requireEqual("VETO_GUARDIAN", getAddress(await deployedGovernor.VETO_GUARDIAN()), newVetoGuardian);
+  console.log("New governor settings verified against the current governor");
 
   // Build the timelock role migration that must be proposed on the CURRENT governor.
   const timelockArtifact = await deployer.loadArtifact("TimelockController");

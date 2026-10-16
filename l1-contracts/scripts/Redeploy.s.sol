@@ -9,6 +9,7 @@ import "./Utils.sol";
 import "./ISafeSetup.sol";
 import "./IGnosisSafeProxyFactory.sol";
 import "./ICREATE3Factory.sol";
+import "./ILegacyEmergencyUpgradeBoard.sol";
 
 import "../src/SecurityCouncil.sol";
 import "../src/Guardians.sol";
@@ -25,13 +26,6 @@ struct DeployedContracts {
     address guardians;
     address securityCouncil;
     address emergencyUpgradeBoard;
-}
-
-// The EmergencyUpgradeBoard deployed before the guardians removal exposes a `GUARDIANS()`
-// getter that no longer exists on the current EmergencyUpgradeBoard sources. This script
-// reads from the previous-generation deployment, so it needs the legacy interface.
-interface ILegacyEmergencyUpgradeBoard {
-    function GUARDIANS() external view returns (address);
 }
 
 // A common redeploy script that can be used for both mainnet and testnet scripts
