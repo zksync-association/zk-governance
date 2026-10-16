@@ -6,7 +6,6 @@ import {IGovernorTimelock} from "@openzeppelin/contracts/governance/extensions/I
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 
 import {ZkTokenGovernor} from "src/ZkTokenGovernor.sol";
-import {ZkGovOpsGovernor} from "src/ZkGovOpsGovernor.sol";
 import {GovernorGuardianVeto} from "src/extensions/GovernorGuardianVeto.sol";
 import {ProposalTest} from "test/helpers/ProposalTest.sol";
 import {ProposalBuilder} from "test/helpers/ProposalBuilder.sol";
@@ -19,10 +18,10 @@ function applyL1ToL2Alias(address _l1Address) pure returns (address) {
   }
 }
 
-/// @dev Exercises the guardians removal on the L2 governors that hold a veto seat: a redeployed
-/// governor with the ZK Foundation Safe in the `VETO_GUARDIAN` seat takes over the timelock through
-/// the role migration proposal that `RedeployZkTokenGovernor.ts` / `RedeployZkGovOpsGovernor.ts`
-/// print, passed on the current governor.
+/// @dev Exercises the guardians removal on the ZkTokenGovernor: a redeployed governor with the ZK
+/// Foundation Safe in the `VETO_GUARDIAN` seat takes over the timelock (and with it the treasury and
+/// the minter admin roles) through the role migration proposal that `RedeployZkTokenGovernor.ts`
+/// prints, passed on the current governor (TPP).
 abstract contract GuardiansRemovalGovernorMigrationTest is ProposalTest {
   uint48 constant VOTING_DELAY = 1 days;
   uint32 constant VOTING_PERIOD = 7 days;
@@ -185,28 +184,6 @@ contract ZkTokenGovernorGuardiansRemovalMigration is GuardiansRemovalGovernorMig
             vetoGuardian: _vetoGuardian,
             proposeGuardian: proposeGuardian,
             isProposeGuarded: false
-          })
-        )
-      )
-    );
-  }
-}
-
-contract ZkGovOpsGovernorGuardiansRemovalMigration is GuardiansRemovalGovernorMigrationTest {
-  function _deployGovernor(address _vetoGuardian) internal override returns (IGovernorTimelock) {
-    return IGovernorTimelock(
-      address(
-        new ZkGovOpsGovernor(
-          ZkGovOpsGovernor.ConstructorParams({
-            name: "ZkGovOpsGovernor",
-            token: token,
-            timelock: timelock,
-            initialVotingDelay: VOTING_DELAY,
-            initialVotingPeriod: VOTING_PERIOD,
-            initialProposalThreshold: PROPOSAL_THRESHOLD,
-            initialQuorum: QUORUM,
-            initialVoteExtension: VOTE_EXTENSION,
-            vetoGuardian: _vetoGuardian
           })
         )
       )
