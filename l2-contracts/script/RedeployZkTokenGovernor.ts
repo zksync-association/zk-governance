@@ -19,6 +19,7 @@ import * as hre from "hardhat";
 //   NEW_VETO_GUARDIAN     - native ZK Foundation Safe (Era) taking the veto seat
 // Optional env vars:
 //   NEW_PROPOSE_GUARDIAN  - new propose seat holder, defaults to the current PROPOSE_GUARDIAN
+//   NEW_GOVERNOR          - an already deployed new governor to verify and build the migration for
 //   PROPOSAL_THRESHOLD    - only if `isProposeGuarded` is currently true: the raw
 //                           GovernorSettings threshold cannot be read through the
 //                           overridden getter, so it must be provided explicitly.
@@ -99,28 +100,35 @@ async function main() {
   console.log(`New VETO_GUARDIAN (ZK Foundation Safe): ${newVetoGuardian}`);
   console.log(`New PROPOSE_GUARDIAN: ${newProposeGuardian}`);
 
-  console.log("");
-  console.log(`Deploying the new ${contractName}...`);
-
+  // Numbers are passed as strings: the deployment cache of hardhat-zksync-deploy can't serialize BigInts.
   const argStruct = {
     name: name,
     token: tokenAddress,
     timelock: timelockAddress,
-    initialVotingDelay: votingDelay,
-    initialVotingPeriod: votingPeriod,
-    initialProposalThreshold: proposalThreshold,
-    initialQuorum: quorum,
-    initialVoteExtension: lateQuorumVoteExtension,
+    initialVotingDelay: votingDelay.toString(),
+    initialVotingPeriod: votingPeriod.toString(),
+    initialProposalThreshold: proposalThreshold.toString(),
+    initialQuorum: quorum.toString(),
+    initialVoteExtension: lateQuorumVoteExtension.toString(),
     vetoGuardian: newVetoGuardian,
     proposeGuardian: newProposeGuardian,
     isProposeGuarded: isProposeGuarded,
   };
   const constructorArgs = [argStruct];
-  const newGovernor = await deployer.deploy(governorArtifact, constructorArgs);
-  const newGovernorAddress = await newGovernor.getAddress();
 
-  console.log(`${contractName} was deployed to ${newGovernorAddress}`);
-  console.log("constructor args:" + newGovernor.interface.encodeDeploy(constructorArgs));
+  // NEW_GOVERNOR resumes from an already deployed governor (it is still verified below).
+  let newGovernorAddress: string;
+  console.log("");
+  if (process.env.NEW_GOVERNOR) {
+    newGovernorAddress = getAddress(process.env.NEW_GOVERNOR);
+    console.log(`Using the already deployed ${contractName} at ${newGovernorAddress}`);
+  } else {
+    console.log(`Deploying the new ${contractName}...`);
+    const newGovernor = await deployer.deploy(governorArtifact, constructorArgs);
+    newGovernorAddress = await newGovernor.getAddress();
+    console.log(`${contractName} was deployed to ${newGovernorAddress}`);
+  }
+  console.log("constructor args:" + currentGovernor.interface.encodeDeploy(constructorArgs));
 
   // Everything but the guardian seats must match the current governor.
   const deployedGovernor = new Contract(newGovernorAddress, governorArtifact.abi, deployer.zkWallet);
