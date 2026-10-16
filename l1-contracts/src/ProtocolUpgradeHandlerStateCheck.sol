@@ -6,8 +6,6 @@ pragma solidity 0.8.24;
 interface IProtocolUpgradeHandlerRoles {
   function securityCouncil() external view returns (address);
 
-  function guardians() external view returns (address);
-
   function emergencyUpgradeBoard() external view returns (address);
 }
 
@@ -23,16 +21,13 @@ contract ProtocolUpgradeHandlerStateCheck {
   /// @notice Reverts unless the `ProtocolUpgradeHandler` roles match the expected addresses.
   /// @param _protocolUpgradeHandler The address of the protocol upgrade handler to check.
   /// @param _expectedSecurityCouncil The expected address of the Security Council.
-  /// @param _expectedGuardians The expected address of the guardians.
   /// @param _expectedEmergencyUpgradeBoard The expected address of the Emergency Upgrade Board.
   function checkRoles(
     IProtocolUpgradeHandlerRoles _protocolUpgradeHandler,
     address _expectedSecurityCouncil,
-    address _expectedGuardians,
     address _expectedEmergencyUpgradeBoard
   ) external view {
     require(_protocolUpgradeHandler.securityCouncil() == _expectedSecurityCouncil, "Unexpected Security Council");
-    require(_protocolUpgradeHandler.guardians() == _expectedGuardians, "Unexpected guardians");
     require(
       _protocolUpgradeHandler.emergencyUpgradeBoard() == _expectedEmergencyUpgradeBoard,
       "Unexpected Emergency Upgrade Board"

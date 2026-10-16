@@ -6,13 +6,12 @@ import "forge-std/Script.sol";
 import {console2} from "forge-std/Test.sol";
 
 import {RemoveGuardians, RemoveGuardiansParams} from "./RemoveGuardians.s.sol";
-import {EmergencyUpgradeBoard} from "../src/EmergencyUpgradeBoard.sol";
 
 /// @title MainnetRemoveGuardians
-/// @notice Removes the Guardians from the L1 side of ZKsync governance on mainnet:
-/// deploys the new two-party EmergencyUpgradeBoard (Security Council + ZK Foundation)
-/// and generates the protocol upgrade Call[] that hands the guardians role on the
-/// ProtocolUpgradeHandler over to the ZK Foundation Safe.
+/// @notice Removes the Guardians from the L1 side of ZKsync governance on mainnet: deploys the
+/// new ProtocolUpgradeHandler implementation (ZK Foundation instead of Guardians) and the new
+/// two-party EmergencyUpgradeBoard (Security Council + ZK Foundation), and generates the protocol
+/// upgrade Call[] that installs them and hands the ZK Foundation role to the ZK Foundation Safe.
 ///
 /// The Call[] is built against the governance set installed by the v31 upgrade (ZIP-18,
 /// stage 0 `initialize` of the ProtocolUpgradeHandler) and reverts until it is in place,
@@ -32,23 +31,20 @@ contract MainnetRemoveGuardians is RemoveGuardians {
     // l1-contracts/upgrade-envs/v0.31.0-interopB/output/mainnet/ecosystem.toml and the
     // stage 0 `upgradeAndCall(..., initialize(...))` call in transaction-simulator
     // decoded-calldata/2026-09-08-v31-interopB-mainnet.json.
+    address constant V31_PROTOCOL_UPGRADE_HANDLER_IMPL = 0x76C4c9897c610C554C948Ece32BEF1257ddE3811;
     address constant V31_SECURITY_COUNCIL = 0x29D2e773A31C07D375c50F0110422832bd044d08;
-    address constant V31_GUARDIANS = 0x8f525e55F76050d8dFdDa4870DA1b3ede54E908F;
     address constant V31_EMERGENCY_UPGRADE_BOARD = 0x91989F9BB8391D3471D2672Ec001921cB14C4b7C;
 
     function run() external {
-        // The guardians role goes to the same ZK Foundation Safe that co-signs emergency upgrades.
-        address zkFoundationSafe = EmergencyUpgradeBoard(V31_EMERGENCY_UPGRADE_BOARD).ZK_FOUNDATION_SAFE();
-
         console2.log("=== Mainnet Guardians Removal ===");
 
         runRemoveGuardians(
             RemoveGuardiansParams({
                 protocolUpgradeHandler: PROTOCOL_UPGRADE_HANDLER,
+                v31Implementation: V31_PROTOCOL_UPGRADE_HANDLER_IMPL,
+                useTestnetHandler: false,
                 expectedSecurityCouncil: V31_SECURITY_COUNCIL,
-                expectedGuardians: V31_GUARDIANS,
-                expectedEmergencyUpgradeBoard: V31_EMERGENCY_UPGRADE_BOARD,
-                newGuardians: zkFoundationSafe
+                expectedEmergencyUpgradeBoard: V31_EMERGENCY_UPGRADE_BOARD
             })
         );
     }
