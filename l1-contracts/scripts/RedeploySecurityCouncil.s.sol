@@ -8,7 +8,6 @@ import {Vm, console2} from "forge-std/Test.sol";
 import "./Utils.sol";
 
 import "../src/SecurityCouncil.sol";
-import "../src/Guardians.sol";
 import "../src/EmergencyUpgradeBoard.sol";
 import "../src/Multisig.sol";
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
@@ -58,7 +57,6 @@ contract RedeploySecurityCouncil is Script {
         ProtocolUpgradeHandler currentHandler = ProtocolUpgradeHandler(payable(_currentHandler));
 
         address currentSecurityCouncil = currentHandler.securityCouncil();
-        address currentGuardians = currentHandler.guardians();
         address currentEmergencyUpgradeBoard = currentHandler.emergencyUpgradeBoard();
         EmergencyUpgradeBoard eub = EmergencyUpgradeBoard(currentEmergencyUpgradeBoard);
         address zkFoundationSafe = eub.ZK_FOUNDATION_SAFE();
@@ -66,7 +64,6 @@ contract RedeploySecurityCouncil is Script {
         console2.log("=== Current System State ===");
         console2.log("ProtocolUpgradeHandler:", _currentHandler);
         console2.log("Current SecurityCouncil:", currentSecurityCouncil);
-        console2.log("Current Guardians:", currentGuardians);
         console2.log("Current EmergencyUpgradeBoard:", currentEmergencyUpgradeBoard);
         console2.log("ZK Foundation Safe:", zkFoundationSafe);
 
@@ -112,7 +109,6 @@ contract RedeploySecurityCouncil is Script {
         EmergencyUpgradeBoard newEmergencyUpgradeBoard = new EmergencyUpgradeBoard(
             IProtocolUpgradeHandler(_currentHandler),
             address(newSecurityCouncil),
-            currentGuardians,
             zkFoundationSafe
         );
         vm.stopBroadcast();

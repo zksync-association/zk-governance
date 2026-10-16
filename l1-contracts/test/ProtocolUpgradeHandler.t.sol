@@ -29,7 +29,7 @@ contract TestProtocolUpgradeHandler is Test {
   using stdStorage for StdStorage;
 
   address securityCouncil;
-  address guardians;
+  address zkFoundation;
   address emergencyUpgradeBoard;
   address l2ProtocolGovernor;
   IChainTypeManager chainTypeManager;
@@ -115,16 +115,16 @@ contract TestProtocolUpgradeHandler is Test {
     handler.approveUpgradeSecurityCouncil(_id);
   }
 
-  function _approveByGuardians(bytes32 _id) internal {
-    vm.prank(guardians);
-    handler.approveUpgradeGuardians(_id);
+  function _approveByZkFoundation(bytes32 _id) internal {
+    vm.prank(zkFoundation);
+    handler.approveUpgradeZkFoundation(_id);
   }
 
   function _passLegalVeto(bool _extendedLegalPeriod, bytes32 _id) internal {
     if (_extendedLegalPeriod) {
       (uint48 creationTimestamp,,,,) = handler.upgradeStatus(_id);
       vm.warp(creationTimestamp + 3 days - 1);
-      vm.prank(guardians);
+      vm.prank(zkFoundation);
       handler.extendLegalVeto(_id);
       vm.warp(creationTimestamp + 7 days);
     } else {
@@ -135,15 +135,15 @@ contract TestProtocolUpgradeHandler is Test {
 
   function _makeUpgradeReady(
     bool _extendedLegalPeriod,
-    bool _approvedByGuardians,
+    bool _approvedByZkFoundation,
     bool _approvedBySecurityCouncil,
     bytes32 _id,
     uint256 _delayAfterApprove
   ) internal {
     _passLegalVeto(_extendedLegalPeriod, _id);
-    vm.assume(_approvedByGuardians || _approvedBySecurityCouncil);
-    if (_approvedByGuardians) {
-      _approveByGuardians(_id);
+    vm.assume(_approvedByZkFoundation || _approvedBySecurityCouncil);
+    if (_approvedByZkFoundation) {
+      _approveByZkFoundation(_id);
     }
 
     if (_approvedBySecurityCouncil) {
@@ -160,7 +160,7 @@ contract TestProtocolUpgradeHandler is Test {
     chainIds.push(300);
     chainIds.push(324);
     securityCouncil = makeAddr("securityCouncil");
-    guardians = makeAddr("guardians");
+    zkFoundation = makeAddr("zkFoundation");
     emergencyUpgradeBoard = makeAddr("emergencyUpgradeBoard");
     l2ProtocolGovernor = makeAddr("l2ProtocolGovernor");
 
@@ -186,7 +186,7 @@ contract TestProtocolUpgradeHandler is Test {
 
     handler = _deployProtocolUpgradeHanlder(
       securityCouncil,
-      guardians,
+      zkFoundation,
       emergencyUpgradeBoard,
       l2ProtocolGovernor,
       chainTypeManager,
@@ -201,7 +201,7 @@ contract TestProtocolUpgradeHandler is Test {
 
   function _deployProtocolUpgradeHanlder(
     address securityCouncil,
-    address guardians,
+    address zkFoundation,
     address emergencyUpgradeBoard,
     address l2ProtocolGovernor,
     IChainTypeManager chainTypeManager,
@@ -227,7 +227,7 @@ contract TestProtocolUpgradeHandler is Test {
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
       address(impl),
       makeAddr("handlerOwner"),
-      abi.encodeCall(ProtocolUpgradeHandler.initialize, (securityCouncil, guardians, emergencyUpgradeBoard))
+      abi.encodeCall(ProtocolUpgradeHandler.initialize, (securityCouncil, zkFoundation, emergencyUpgradeBoard))
     );
 
     handler = ProtocolUpgradeHandler(payable(proxy));
@@ -237,13 +237,13 @@ contract TestProtocolUpgradeHandler is Test {
     vm.expectEmit(true, false, false, true);
     emit IProtocolUpgradeHandler.ChangeSecurityCouncil(address(0), securityCouncil);
     vm.expectEmit(true, false, false, true);
-    emit IProtocolUpgradeHandler.ChangeGuardians(address(0), guardians);
+    emit IProtocolUpgradeHandler.ChangeZkFoundation(address(0), zkFoundation);
     vm.expectEmit(true, false, false, true);
     emit IProtocolUpgradeHandler.ChangeEmergencyUpgradeBoard(address(0), emergencyUpgradeBoard);
 
     ProtocolUpgradeHandler testHandler = _deployProtocolUpgradeHanlder(
       securityCouncil,
-      guardians,
+      zkFoundation,
       emergencyUpgradeBoard,
       l2ProtocolGovernor,
       chainTypeManager,
@@ -255,7 +255,7 @@ contract TestProtocolUpgradeHandler is Test {
       chainIds[1]
     );
     assertEq(testHandler.securityCouncil(), securityCouncil);
-    assertEq(testHandler.guardians(), guardians);
+    assertEq(testHandler.zkFoundation(), zkFoundation);
     assertEq(testHandler.emergencyUpgradeBoard(), emergencyUpgradeBoard);
     assertEq(testHandler.L2_PROTOCOL_GOVERNOR(), l2ProtocolGovernor);
     assertEq(address(testHandler.ERA_CHAIN_TYPE_MANAGER()), address(chainTypeManager));
@@ -316,8 +316,8 @@ contract TestProtocolUpgradeHandler is Test {
     IProtocolUpgradeHandler.UpgradeStatus memory expectedStatus = IProtocolUpgradeHandler.UpgradeStatus({
       creationTimestamp: uint48(block.timestamp),
       securityCouncilApprovalTimestamp: 0,
-      guardiansApproval: false,
-      guardiansExtendedLegalVeto: false,
+      zkFoundationApproval: false,
+      zkFoundationExtendedLegalVeto: false,
       executed: false
     });
 
@@ -345,12 +345,12 @@ contract TestProtocolUpgradeHandler is Test {
     handler.approveUpgradeSecurityCouncil(id);
   }
 
-  function test_RevertWhen_ApproveGuardiansInLegalVeto() public {
+  function test_RevertWhen_ApproveZkFoundationInLegalVeto() public {
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal(bytes32("5"));
     bytes32 id = keccak256(abi.encode(proposal));
-    vm.expectRevert("Upgrade with this id is not waiting for the approval from Guardians");
-    vm.prank(guardians);
-    handler.approveUpgradeGuardians(id);
+    vm.expectRevert("Upgrade with this id is not waiting for the approval from ZK Foundation");
+    vm.prank(zkFoundation);
+    handler.approveUpgradeZkFoundation(id);
   }
 
   function test_RevertWhen_ApproveUpgradeSecurityCouncilOnlySecurityCouncil() public {
@@ -368,14 +368,14 @@ contract TestProtocolUpgradeHandler is Test {
     handler.hardFreeze();
   }
 
-  function test_RevertWhen_ExtendLegalVetoOnlyGuardians() public {
-    vm.expectRevert("Only guardians is allowed to call this function");
+  function test_RevertWhen_ExtendLegalVetoOnlyZkFoundation() public {
+    vm.expectRevert("Only ZK Foundation is allowed to call this function");
     handler.extendLegalVeto(bytes32(uint256(0x01)));
   }
 
-  function test_RevertWhen_ApproveUpgradeGuardiansOnlyGuardians() public {
-    vm.expectRevert("Only guardians is allowed to call this function");
-    handler.approveUpgradeGuardians(bytes32(uint256(0x01)));
+  function test_RevertWhen_ApproveUpgradeZkFoundationOnlyZkFoundation() public {
+    vm.expectRevert("Only ZK Foundation is allowed to call this function");
+    handler.approveUpgradeZkFoundation(bytes32(uint256(0x01)));
   }
 
   function test_RevertWhen_ApproveUpgradeSecurityCouncilNotStarted() public {
@@ -398,7 +398,7 @@ contract TestProtocolUpgradeHandler is Test {
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.LegalVetoPeriod));
 
     vm.warp(startTimestamp + 3 days - 1);
-    vm.prank(guardians);
+    vm.prank(zkFoundation);
     handler.extendLegalVeto(id);
     vm.warp(startTimestamp + 7 days - 1);
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.LegalVetoPeriod));
@@ -446,32 +446,32 @@ contract TestProtocolUpgradeHandler is Test {
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.ExecutionPending));
   }
 
-  function testApproveUpgradeGuardiansNotWaiting(bool _extendedOrNotLegalVeto) public {
+  function testApproveUpgradeZkFoundationNotWaiting(bool _extendedOrNotLegalVeto) public {
     bytes32 id = _startUpgrade(_emptyProposal(bytes32("16")));
     _passLegalVeto(_extendedOrNotLegalVeto, id);
     _approveBySecurityCouncil(id);
 
-    vm.prank(guardians);
-    vm.expectRevert("Upgrade with this id is not waiting for the approval from Guardians");
-    handler.approveUpgradeGuardians(bytes32(uint256(0x01)));
+    vm.prank(zkFoundation);
+    vm.expectRevert("Upgrade with this id is not waiting for the approval from ZK Foundation");
+    handler.approveUpgradeZkFoundation(bytes32(uint256(0x01)));
   }
 
-  function testApprovalFromGuardians(bool _extendedOrNotLegalVeto) public {
+  function testApprovalFromZkFoundation(bool _extendedOrNotLegalVeto) public {
     bytes32 id = _startUpgrade(_emptyProposal("20"));
     _passLegalVeto(_extendedOrNotLegalVeto, id);
 
     IProtocolUpgradeHandler.UpgradeStatus memory expectedStatus = IProtocolUpgradeHandler.UpgradeStatus({
       creationTimestamp: uint48(block.timestamp),
       securityCouncilApprovalTimestamp: 0,
-      guardiansApproval: true,
-      guardiansExtendedLegalVeto: false,
+      zkFoundationApproval: true,
+      zkFoundationExtendedLegalVeto: false,
       executed: false
     });
 
-    vm.prank(guardians);
+    vm.prank(zkFoundation);
     vm.expectEmit(true, false, false, true);
-    emit IProtocolUpgradeHandler.UpgradeApprovedByGuardians(id);
-    handler.approveUpgradeGuardians(id);
+    emit IProtocolUpgradeHandler.UpgradeApprovedByZkFoundation(id);
+    handler.approveUpgradeZkFoundation(id);
   }
 
   function testUpgradeExpiration(bool _extendedOrNotLegalVeto) public {
@@ -484,11 +484,11 @@ contract TestProtocolUpgradeHandler is Test {
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Expired));
   }
 
-  function testUpgradeReadyUnderGuardiansApproval(bool _extendedOrNotLegalVeto) public {
+  function testUpgradeReadyUnderZkFoundationApproval(bool _extendedOrNotLegalVeto) public {
     bytes32 id = _startUpgrade(_emptyProposal("21"));
     _passLegalVeto(_extendedOrNotLegalVeto, id);
 
-    _approveByGuardians(id);
+    _approveByZkFoundation(id);
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Waiting));
 
     vm.warp(block.timestamp + 30 days);
@@ -503,7 +503,7 @@ contract TestProtocolUpgradeHandler is Test {
     bytes32 id = _startUpgrade(proposal);
     _passLegalVeto(_extendedOrNotLegalVeto, id);
 
-    _approveByGuardians(id);
+    _approveByZkFoundation(id);
 
     vm.expectRevert("Upgrade is not yet ready");
     handler.execute(proposal);
@@ -523,14 +523,14 @@ contract TestProtocolUpgradeHandler is Test {
 
   function testExecuteMsgSenderAuthorized(
     bool _extendedLegalPeriod,
-    bool _approvedByGuardians,
+    bool _approvedByZkFoundation,
     bool _approvedBySecurityCouncil,
     uint256 _delayAfterApprove
   ) public {
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = _emptyProposal("23");
     proposal.executor = makeAddr("executor");
     bytes32 id = _startUpgrade(proposal);
-    _makeUpgradeReady(_extendedLegalPeriod, _approvedByGuardians, _approvedBySecurityCouncil, id, _delayAfterApprove);
+    _makeUpgradeReady(_extendedLegalPeriod, _approvedByZkFoundation, _approvedBySecurityCouncil, id, _delayAfterApprove);
 
     vm.expectRevert("msg.sender is not authorized to perform the upgrade");
     handler.execute(proposal);
@@ -541,7 +541,7 @@ contract TestProtocolUpgradeHandler is Test {
 
   function testExecuteReentrancy(
     bool _extendedLegalPeriod,
-    bool _approvedByGuardians,
+    bool _approvedByZkFoundation,
     bool _approvedBySecurityCouncil,
     uint256 _delayAfterApprove
   ) public {
@@ -560,14 +560,14 @@ contract TestProtocolUpgradeHandler is Test {
     callee.setCalldataForReentrancy(abi.encodeWithSelector(IProtocolUpgradeHandler.execute.selector, proposal));
 
     bytes32 id = _startUpgrade(proposal);
-    _makeUpgradeReady(_extendedLegalPeriod, _approvedByGuardians, _approvedBySecurityCouncil, id, _delayAfterApprove);
+    _makeUpgradeReady(_extendedLegalPeriod, _approvedByZkFoundation, _approvedBySecurityCouncil, id, _delayAfterApprove);
     vm.expectRevert("Upgrade is not yet ready");
     handler.execute(proposal);
   }
 
   function testExecuteCorrectData(
     bool _extendedLegalPeriod,
-    bool _approvedByGuardians,
+    bool _approvedByZkFoundation,
     bool _approvedBySecurityCouncil,
     uint256 _delayAfterApprove
   ) public {
@@ -596,7 +596,7 @@ contract TestProtocolUpgradeHandler is Test {
       salt: bytes32(0)
     });
     bytes32 id = _startUpgrade(proposal);
-    _makeUpgradeReady(_extendedLegalPeriod, _approvedByGuardians, _approvedBySecurityCouncil, id, _delayAfterApprove);
+    _makeUpgradeReady(_extendedLegalPeriod, _approvedByZkFoundation, _approvedBySecurityCouncil, id, _delayAfterApprove);
 
     vm.deal(address(handler), 1 ether);
     handler.execute(proposal);
@@ -614,7 +614,7 @@ contract TestProtocolUpgradeHandler is Test {
     handler.updateSecurityCouncil(securityCouncil);
   }
 
-  function test_RevertWhen_UpdateGuardiansOnlySelf() public {
+  function test_RevertWhen_UpdateZkFoundationOnlySelf() public {
     vm.expectRevert("Only upgrade handler contract itself is allowed to call this function");
     handler.updateSecurityCouncil(securityCouncil);
   }
@@ -626,16 +626,16 @@ contract TestProtocolUpgradeHandler is Test {
 
   function testUpdateGuadiansAndSecurityCouncil(
     bool _extendedLegalPeriod,
-    bool _approvedByGuardians,
+    bool _approvedByZkFoundation,
     bool _approvedBySecurityCouncil,
     uint256 _delayAfterApprove
   ) public {
     address newSecurityCouncil = address(0x1000);
-    address newGuardians = address(0x1001);
+    address newZkFoundation = address(0x1001);
 
     // Just in case so that the test makes sense
     assertNotEq(newSecurityCouncil, securityCouncil);
-    assertNotEq(newGuardians, guardians);
+    assertNotEq(newZkFoundation, zkFoundation);
 
     IProtocolUpgradeHandler.Call[] memory calls = new IProtocolUpgradeHandler.Call[](2);
     calls[0] = IProtocolUpgradeHandler.Call({
@@ -646,7 +646,7 @@ contract TestProtocolUpgradeHandler is Test {
     calls[1] = IProtocolUpgradeHandler.Call({
       target: address(handler),
       value: 0,
-      data: abi.encodeWithSelector(ProtocolUpgradeHandler.updateGuardians.selector, newGuardians)
+      data: abi.encodeWithSelector(ProtocolUpgradeHandler.updateZkFoundation.selector, newZkFoundation)
     });
 
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = IProtocolUpgradeHandler.UpgradeProposal({
@@ -657,11 +657,11 @@ contract TestProtocolUpgradeHandler is Test {
     });
 
     bytes32 id = _startUpgrade(proposal);
-    _makeUpgradeReady(_extendedLegalPeriod, _approvedByGuardians, _approvedBySecurityCouncil, id, _delayAfterApprove);
+    _makeUpgradeReady(_extendedLegalPeriod, _approvedByZkFoundation, _approvedBySecurityCouncil, id, _delayAfterApprove);
     handler.execute(proposal);
 
     assertEq(handler.securityCouncil(), newSecurityCouncil);
-    assertEq(handler.guardians(), newGuardians);
+    assertEq(handler.zkFoundation(), newZkFoundation);
   }
 
   function test_softFreeze() public {

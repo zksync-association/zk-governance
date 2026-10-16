@@ -78,12 +78,12 @@ contract MainnetRedeployForkTest is Test {
       )
     );
 
-    // We upgrade to an incorrect address (guradians), we just test that we can upgrade to a different impl.
+    // We upgrade to an incorrect address (Security Council), we just test that we can upgrade to a different impl.
     emergencyUpgradeCall(
       proxyAdmin,
       abi.encodeCall(
         ProxyAdmin.upgradeAndCall,
-        (ITransparentUpgradeableProxy(addresses.protocolUpgradeHandlerProxy), addresses.guardians, hex"")
+        (ITransparentUpgradeableProxy(addresses.protocolUpgradeHandlerProxy), addresses.securityCouncil, hex"")
       )
     );
   }

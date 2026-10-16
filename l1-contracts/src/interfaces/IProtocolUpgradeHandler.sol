@@ -8,9 +8,9 @@ interface IProtocolUpgradeHandler {
   /// @dev This enumeration includes the following states:
   /// @param None Default state, indicating the upgrade has not been set.
   /// @param LegalVetoPeriod The upgrade passed L2 voting process but it is waiting for the legal veto period.
-  /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from guardians or Security
-  /// Council. @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready for
-  /// execution.
+  /// @param Waiting The upgrade passed Legal Veto period but it is waiting for the approval from the ZK Foundation or
+  /// Security Council. @param ExecutionPending The upgrade proposal is waiting for the delay period before being ready
+  /// for execution.
   /// @param Ready The upgrade proposal is ready to be executed.
   /// @param Expired The upgrade proposal was expired.
   /// @param Done The upgrade has been successfully executed.
@@ -24,17 +24,17 @@ interface IProtocolUpgradeHandler {
     Done
   }
 
-  /// @dev Represents the status of an upgrade process, including the creation timestamp and actions made by guardians
-  /// and Security Council. @param creationTimestamp The timestamp (in seconds) when the upgrade state was created.
-  /// @param securityCouncilApprovalTimestamp The timestamp (in seconds) when Security Council approved the upgrade.
-  /// @param guardiansApproval Indicates whether the upgrade has been approved by the guardians.
-  /// @param guardiansExtendedLegalVeto Indicates whether guardians extended the legal veto period.
+  /// @dev Represents the status of an upgrade process, including the creation timestamp and actions made by the ZK
+  /// Foundation and Security Council. @param creationTimestamp The timestamp (in seconds) when the upgrade state was
+  /// created. @param securityCouncilApprovalTimestamp The timestamp (in seconds) when Security Council approved the
+  /// upgrade. @param zkFoundationApproval Indicates whether the upgrade has been approved by the ZK Foundation.
+  /// @param zkFoundationExtendedLegalVeto Indicates whether the ZK Foundation extended the legal veto period.
   /// @param executed Indicates whether the proposal is executed or not.
   struct UpgradeStatus {
     uint48 creationTimestamp;
     uint48 securityCouncilApprovalTimestamp;
-    bool guardiansApproval;
-    bool guardiansExtendedLegalVeto;
+    bool zkFoundationApproval;
+    bool zkFoundationExtendedLegalVeto;
     bool executed;
   }
 
@@ -84,7 +84,7 @@ interface IProtocolUpgradeHandler {
 
   function approveUpgradeSecurityCouncil(bytes32 _id) external;
 
-  function approveUpgradeGuardians(bytes32 _id) external;
+  function approveUpgradeZkFoundation(bytes32 _id) external;
 
   function execute(UpgradeProposal calldata _proposal) external payable;
 
@@ -108,15 +108,15 @@ interface IProtocolUpgradeHandler {
 
   function updateSecurityCouncil(address _newSecurityCouncil) external;
 
-  function updateGuardians(address _newGuardians) external;
+  function updateZkFoundation(address _newZkFoundation) external;
 
   function updateEmergencyUpgradeBoard(address _newEmergencyUpgradeBoard) external;
 
   /// @notice Emitted when the security council address is changed.
   event ChangeSecurityCouncil(address indexed _securityCouncilBefore, address indexed _securityCouncilAfter);
 
-  /// @notice Emitted when the guardians address is changed.
-  event ChangeGuardians(address indexed _guardiansBefore, address indexed _guardiansAfter);
+  /// @notice Emitted when the ZK Foundation address is changed.
+  event ChangeZkFoundation(address indexed _zkFoundationBefore, address indexed _zkFoundationAfter);
 
   /// @notice Emitted when the emergency upgrade board address is changed.
   event ChangeEmergencyUpgradeBoard(
@@ -132,8 +132,8 @@ interface IProtocolUpgradeHandler {
   /// @notice Emitted when Security Council approved the upgrade.
   event UpgradeApprovedBySecurityCouncil(bytes32 indexed _id);
 
-  /// @notice Emitted when Guardians approved the upgrade.
-  event UpgradeApprovedByGuardians(bytes32 indexed _id);
+  /// @notice Emitted when the ZK Foundation approved the upgrade.
+  event UpgradeApprovedByZkFoundation(bytes32 indexed _id);
 
   /// @notice Emitted when the upgrade is executed.
   event UpgradeExecuted(bytes32 indexed _id);

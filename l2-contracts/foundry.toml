@@ -39,3 +39,7 @@
 
 [profile.default.zksync]
   zksolc = "1.5.11"
+
+# Builds the governors redeployed for the Guardians removal: the newest zksolc the Era explorer verifies.
+[profile.governors-deploy.zksync]
+  zksolc = "1.5.17"
