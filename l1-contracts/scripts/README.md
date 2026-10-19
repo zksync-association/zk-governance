@@ -57,13 +57,7 @@ The fork test replays the v31 handler upgrade and passes the generated proposal 
 forge test --match-contract RemoveGuardiansForkTest --fork-url $MAINNET_RPC
 ```
 
-The L2 side (the veto seats of the `ZkTokenGovernor` and `ZkGovOpsGovernor`, held by the L2 alias of the
-Guardians) moves to the ZK Foundation Safe on Era:
-
-- `ZkTokenGovernor`: its timelock holds the treasury and administers the ZK minters, so it is kept.
-  `l2-contracts/script/RedeployZkTokenGovernor.ts` (re)deploys the governor on the same timelock, verifies it
-  against the current one and prints the timelock role migration to propose on the current governor (TPP).
-- `ZkGovOpsGovernor`: its timelock holds nothing, so, like in ZIP-5, a new governor with a new timelock replaces
-  the pair and no proposal is needed. `l2-contracts/script/DeployZkGovOpsGovernorWithTimelock.s.sol` deploys
-  them (`FOUNDRY_PROFILE=governors-deploy`, `--zksync`), copying every setting of the current pair but the veto
-  seat, and leaves the timelock administered by itself only.
+The L2 side (the veto seats of the `ZkTokenGovernor` and `ZkGovOpsGovernor`) is handled by
+`l2-contracts/script/RedeployZkTokenGovernor.ts` and `l2-contracts/script/RedeployZkGovOpsGovernor.ts`,
+which redeploy the governors with the ZK Foundation Safe on Era as `VETO_GUARDIAN` and print the timelock
+role migration to propose on the current governors (TPP and GAP respectively).
