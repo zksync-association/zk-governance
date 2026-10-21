@@ -20,12 +20,12 @@ import {MainnetRemoveGuardians} from "../scripts/MainnetRemoveGuardians.s.sol";
 import {RemoveGuardiansDeployedContracts} from "../scripts/RemoveGuardians.s.sol";
 
 /// @dev Verifies the guardians removal flow against a mainnet fork (`--fork-url <L1_MAINNET_RPC>`):
-/// runs the MainnetRemoveGuardians script, replays the v31 handler upgrade it is built against,
+/// replays the v31 handler upgrade, runs the MainnetRemoveGuardians script against the result,
 /// passes the generated Call[] through the regular upgrade flow of the ProtocolUpgradeHandler and
 /// checks the resulting system state. Only the L2 -> L1 message proof of `startUpgrade` is skipped,
 /// the upgrade is registered by writing its creation timestamp directly.
 contract RemoveGuardiansForkTest is Test {
-  // Must match MainnetRemoveGuardians
+  // The governance set installed by v31, used to replay v31 and to cross-check what the script reads.
   address constant PROTOCOL_UPGRADE_HANDLER = 0xE30Dca3047B37dc7d88849dE4A4Dc07937ad5Ab3;
   address constant V31_PROTOCOL_UPGRADE_HANDLER_IMPL = 0x76C4c9897c610C554C948Ece32BEF1257ddE3811;
   address constant V31_SECURITY_COUNCIL = 0x29D2e773A31C07D375c50F0110422832bd044d08;
@@ -52,6 +52,10 @@ contract RemoveGuardiansForkTest is Test {
   address newEmergencyUpgradeBoard;
   address stateCheck;
 
+  // Whether the fork predates v31, and its state before the v31 replay.
+  bool forkPredatesV31;
+  uint256 preV31Snapshot;
+
   modifier onlyMainnet() {
     if (block.chainid == 1) {
       _;
@@ -64,7 +68,11 @@ contract RemoveGuardiansForkTest is Test {
     handler = ProtocolUpgradeHandler(payable(PROTOCOL_UPGRADE_HANDLER));
     zkFoundationSafe = EmergencyUpgradeBoard(V31_EMERGENCY_UPGRADE_BOARD).ZK_FOUNDATION_SAFE();
 
-    // The script only depends on the (already deployed) v31 contracts, so it runs before v31 is executed.
+    // The script reads the post-v31 state from the handler.
+    forkPredatesV31 = handler.securityCouncil() != V31_SECURITY_COUNCIL;
+    preV31Snapshot = vm.snapshot();
+    _applyV31();
+
     script = new MainnetRemoveGuardians();
     script.run();
 
@@ -164,12 +172,42 @@ contract RemoveGuardiansForkTest is Test {
     }
   }
 
+  /// @dev Goes back to the fork state before the v31 replay, keeping the contracts the script deployed.
+  function _revertV31() internal {
+    address[3] memory deployed = [newImplementation, newEmergencyUpgradeBoard, stateCheck];
+    bytes[3] memory code = [deployed[0].code, deployed[1].code, deployed[2].code];
+    vm.revertTo(preV31Snapshot);
+    for (uint256 i = 0; i < deployed.length; i++) {
+      vm.etch(deployed[i], code[i]);
+    }
+  }
+
+  function test_MainnetForkRevertWhen_ScriptRunsBeforeV31() external onlyMainnet {
+    if (!forkPredatesV31) {
+      return;
+    }
+    vm.revertTo(preV31Snapshot);
+
+    MainnetRemoveGuardians preV31Script = new MainnetRemoveGuardians();
+    vm.expectRevert("The handler must run the v31 implementation");
+    preV31Script.run();
+  }
+
+  function test_MainnetForkRevertWhen_ScriptRunsAfterRemoval() external onlyMainnet {
+    _executeRemoveGuardians();
+
+    MainnetRemoveGuardians postRemovalScript = new MainnetRemoveGuardians();
+    vm.expectRevert("Guardians are already removed");
+    postRemovalScript.run();
+  }
+
   function test_MainnetForkRevertWhen_ExecutedBeforeV31() external onlyMainnet {
-    if (handler.securityCouncil() == V31_SECURITY_COUNCIL) {
+    if (!forkPredatesV31) {
       // The fork already includes v31, the ordering can't be checked.
       return;
     }
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = _removeGuardiansProposal();
+    _revertV31();
     _passUpgrade(proposal);
 
     vm.expectRevert("Unexpected Security Council");

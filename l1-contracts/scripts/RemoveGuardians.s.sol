@@ -16,20 +16,18 @@ import {
     IProtocolUpgradeHandlerRoles
 } from "../src/ProtocolUpgradeHandlerStateCheck.sol";
 import {IProtocolUpgradeHandler} from "../src/interfaces/IProtocolUpgradeHandler.sol";
+import {IChainTypeManager} from "../src/interfaces/IChainTypeManager.sol";
 
-/// @dev Inputs of the guardians removal.
-struct RemoveGuardiansParams {
-    /// @dev The ProtocolUpgradeHandler proxy.
-    address protocolUpgradeHandler;
-    /// @dev The ProtocolUpgradeHandler implementation installed by v31. The new implementation
-    /// copies its constructor arguments (immutables) from it.
-    address v31Implementation;
-    /// @dev Whether to deploy the TestnetProtocolUpgradeHandler (zero legal veto / delay periods).
-    bool useTestnetHandler;
-    /// @dev The ProtocolUpgradeHandler roles the removal is built against, i.e. the state the
-    /// v31 upgrade leaves behind. The generated proposal reverts unless they are in place.
-    address expectedSecurityCouncil;
-    address expectedEmergencyUpgradeBoard;
+/// @dev The state of the ProtocolUpgradeHandler the removal is built against, read from the proxy.
+struct RemoveGuardiansHandlerState {
+    address proxyAdmin;
+    /// @dev The new implementation copies its constructor arguments (immutables) from it.
+    address implementation;
+    /// @dev The generated proposal reverts unless the handler still holds these roles.
+    address securityCouncil;
+    address emergencyUpgradeBoard;
+    /// @dev The ZK Foundation Safe registered in the current EmergencyUpgradeBoard.
+    address zkFoundationSafe;
 }
 
 struct RemoveGuardiansDeployedContracts {
@@ -52,10 +50,16 @@ struct RemoveGuardiansDeployedContracts {
 ///    - hands the ZK Foundation role to the ZK Foundation Safe of the current board,
 ///    - switches to the new EmergencyUpgradeBoard.
 ///
+/// The only input is the ProtocolUpgradeHandler proxy: the proxy admin, the implementation
+/// whose immutables are copied, the roles and the ZK Foundation Safe are all read from it. The
+/// script must therefore run once v31 is executed, and refuses to run before.
+///
 /// The generated Call[] must be executed by the ProtocolUpgradeHandler itself, i.e. it is
 /// meant to be included in a protocol upgrade proposal (ZIP). The leading state check makes
-/// the proposal revert if it is executed before the v31 upgrade: v31 re-initializes the
-/// handler, so executing the removal first would let v31 bring the Guardians back.
+/// the proposal revert unless the handler still holds the roles it was built against. This
+/// also keeps the ordering when the proposal is built on a fork that replays v31: v31
+/// re-initializes the handler, so executing the removal first would let v31 bring the
+/// Guardians back.
 ///
 /// Optional env vars:
 ///   CREATE2_FACTORY    - CREATE2 deployer, defaults to the deterministic deployment proxy
@@ -70,6 +74,9 @@ contract RemoveGuardians is Script {
     /// @dev EIP-1967 admin slot, `bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)`.
     bytes32 internal constant PROXY_ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
 
+    /// @dev EIP-1967 implementation slot, `bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1)`.
+    bytes32 internal constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
     RemoveGuardiansDeployedContracts internal deployedAddresses;
     IProtocolUpgradeHandler.Call[] internal generatedCalls;
 
@@ -82,28 +89,30 @@ contract RemoveGuardians is Script {
     }
 
     /// @notice Main function.
-    function runRemoveGuardians(RemoveGuardiansParams memory _params) internal {
-        (address zkFoundationSafe, address proxyAdmin) = _checkParams(_params);
+    /// @param _protocolUpgradeHandler The ProtocolUpgradeHandler proxy.
+    /// @param _useTestnetHandler Whether to deploy the TestnetProtocolUpgradeHandler (zero legal
+    /// veto / delay periods).
+    function runRemoveGuardians(address _protocolUpgradeHandler, bool _useTestnetHandler) internal {
+        RemoveGuardiansHandlerState memory state = _readHandlerState(_protocolUpgradeHandler);
 
-        console2.log("=== Expected System State (post-v31) ===");
-        console2.log("ProtocolUpgradeHandler:", _params.protocolUpgradeHandler);
-        console2.log("ProtocolUpgradeHandler ProxyAdmin:", proxyAdmin);
-        console2.log("v31 ProtocolUpgradeHandler implementation:", _params.v31Implementation);
-        console2.log("SecurityCouncil:", _params.expectedSecurityCouncil);
-        console2.log("EmergencyUpgradeBoard:", _params.expectedEmergencyUpgradeBoard);
+        console2.log("=== Current System State (post-v31) ===");
+        console2.log("ProtocolUpgradeHandler:", _protocolUpgradeHandler);
+        console2.log("ProtocolUpgradeHandler ProxyAdmin:", state.proxyAdmin);
+        console2.log("ProtocolUpgradeHandler implementation:", state.implementation);
+        console2.log("SecurityCouncil:", state.securityCouncil);
+        console2.log("EmergencyUpgradeBoard:", state.emergencyUpgradeBoard);
         console2.log("");
-        console2.log("New ZK Foundation role holder:", zkFoundationSafe);
+        console2.log("New ZK Foundation role holder:", state.zkFoundationSafe);
 
         bytes32 salt = vm.envOr("CREATE2_SALT", bytes32(0));
 
-        address newImplementation = deployViaCreate2(_implementationCreationCode(_params), salt);
+        address newImplementation =
+            deployViaCreate2(_implementationCreationCode(state.implementation, _useTestnetHandler), salt);
         address newEmergencyUpgradeBoard = deployViaCreate2(
             abi.encodePacked(
                 type(EmergencyUpgradeBoard).creationCode,
                 abi.encode(
-                    IProtocolUpgradeHandler(_params.protocolUpgradeHandler),
-                    _params.expectedSecurityCouncil,
-                    zkFoundationSafe
+                    IProtocolUpgradeHandler(_protocolUpgradeHandler), state.securityCouncil, state.zkFoundationSafe
                 )
             ),
             salt
@@ -131,9 +140,9 @@ contract RemoveGuardians is Script {
             data: abi.encodeCall(
                 ProtocolUpgradeHandlerStateCheck.checkRoles,
                 (
-                    IProtocolUpgradeHandlerRoles(_params.protocolUpgradeHandler),
-                    _params.expectedSecurityCouncil,
-                    _params.expectedEmergencyUpgradeBoard
+                    IProtocolUpgradeHandlerRoles(_protocolUpgradeHandler),
+                    state.securityCouncil,
+                    state.emergencyUpgradeBoard
                 )
             )
         });
@@ -141,22 +150,22 @@ contract RemoveGuardians is Script {
         // No re-initialization: the proxy is already initialized (by v31) at the version of
         // `initialize`, the roles are rotated by the self-calls below.
         calls[1] = IProtocolUpgradeHandler.Call({
-            target: proxyAdmin,
+            target: state.proxyAdmin,
             value: 0,
             data: abi.encodeCall(
                 ProxyAdmin.upgradeAndCall,
-                (ITransparentUpgradeableProxy(_params.protocolUpgradeHandler), newImplementation, bytes(""))
+                (ITransparentUpgradeableProxy(_protocolUpgradeHandler), newImplementation, bytes(""))
             )
         });
 
         calls[2] = IProtocolUpgradeHandler.Call({
-            target: _params.protocolUpgradeHandler,
+            target: _protocolUpgradeHandler,
             value: 0,
-            data: abi.encodeCall(ProtocolUpgradeHandler.updateZkFoundation, (zkFoundationSafe))
+            data: abi.encodeCall(ProtocolUpgradeHandler.updateZkFoundation, (state.zkFoundationSafe))
         });
 
         calls[3] = IProtocolUpgradeHandler.Call({
-            target: _params.protocolUpgradeHandler,
+            target: _protocolUpgradeHandler,
             value: 0,
             data: abi.encodeCall(ProtocolUpgradeHandler.updateEmergencyUpgradeBoard, (newEmergencyUpgradeBoard))
         });
@@ -180,7 +189,7 @@ contract RemoveGuardians is Script {
         console2.log("=== Upgrade Calls for ProtocolUpgradeHandler ===");
         console2.log("Call[0]: checkRoles (post-v31 state) ->", stateCheck);
         console2.log("Call[1]: ProxyAdmin.upgradeAndCall ->", newImplementation);
-        console2.log("Call[2]: updateZkFoundation ->", zkFoundationSafe);
+        console2.log("Call[2]: updateZkFoundation ->", state.zkFoundationSafe);
         console2.log("Call[3]: updateEmergencyUpgradeBoard ->", newEmergencyUpgradeBoard);
         console2.log("");
         console2.log("abi.encode(Call[]):");
@@ -197,47 +206,64 @@ contract RemoveGuardians is Script {
         _writeOutput(newImplementation, newEmergencyUpgradeBoard, stateCheck, encodedCalls, l2Calldata, upgradeId);
     }
 
-    /// @dev Cross-checks the inputs against the expected EmergencyUpgradeBoard and the proxy, and
-    /// returns the ZK Foundation Safe registered in the board and the proxy admin of the handler.
-    function _checkParams(RemoveGuardiansParams memory _params)
+    /// @dev Reads the state the removal is built against from the proxy and cross-checks it.
+    function _readHandlerState(address _protocolUpgradeHandler)
         internal
         view
-        returns (address zkFoundationSafe, address proxyAdmin)
+        returns (RemoveGuardiansHandlerState memory state)
     {
-        EmergencyUpgradeBoard expectedBoard = EmergencyUpgradeBoard(_params.expectedEmergencyUpgradeBoard);
-        require(
-            address(expectedBoard.PROTOCOL_UPGRADE_HANDLER()) == _params.protocolUpgradeHandler,
-            "Expected board is wired to a different handler"
-        );
-        require(
-            expectedBoard.SECURITY_COUNCIL() == _params.expectedSecurityCouncil,
-            "Expected board is wired to a different Security Council"
-        );
-        zkFoundationSafe = expectedBoard.ZK_FOUNDATION_SAFE();
-        require(zkFoundationSafe.code.length != 0, "ZK Foundation Safe must be a contract (multisig)");
+        ProtocolUpgradeHandler handler = ProtocolUpgradeHandler(payable(_protocolUpgradeHandler));
+        // The guardians removal implementation exposes `zkFoundation()` in place of `guardians()`.
+        try handler.zkFoundation() returns (address) {
+            revert("Guardians are already removed");
+        } catch {}
 
-        proxyAdmin = address(uint160(uint256(vm.load(_params.protocolUpgradeHandler, PROXY_ADMIN_SLOT))));
+        state.implementation = address(uint160(uint256(vm.load(_protocolUpgradeHandler, IMPLEMENTATION_SLOT))));
+        // Getter introduced by v31: the immutables of an older implementation can't be copied.
+        try ProtocolUpgradeHandler(payable(state.implementation)).ZKSYNC_OS_CHAIN_TYPE_MANAGER() returns (
+            IChainTypeManager
+        ) {} catch {
+            revert("The handler must run the v31 implementation");
+        }
+
+        state.proxyAdmin = address(uint160(uint256(vm.load(_protocolUpgradeHandler, PROXY_ADMIN_SLOT))));
         require(
-            ProxyAdmin(proxyAdmin).owner() == _params.protocolUpgradeHandler,
-            "ProxyAdmin must be owned by the handler"
+            ProxyAdmin(state.proxyAdmin).owner() == _protocolUpgradeHandler, "ProxyAdmin must be owned by the handler"
         );
+
+        state.securityCouncil = handler.securityCouncil();
+        state.emergencyUpgradeBoard = handler.emergencyUpgradeBoard();
+        EmergencyUpgradeBoard board = EmergencyUpgradeBoard(state.emergencyUpgradeBoard);
+        require(
+            address(board.PROTOCOL_UPGRADE_HANDLER()) == _protocolUpgradeHandler,
+            "Current board is wired to a different handler"
+        );
+        require(
+            board.SECURITY_COUNCIL() == state.securityCouncil, "Current board is wired to a different Security Council"
+        );
+        state.zkFoundationSafe = board.ZK_FOUNDATION_SAFE();
+        require(state.zkFoundationSafe.code.length != 0, "ZK Foundation Safe must be a contract (multisig)");
     }
 
-    /// @dev The new implementation keeps every immutable of the v31 one.
-    function _implementationCreationCode(RemoveGuardiansParams memory _params) internal view returns (bytes memory) {
-        ProtocolUpgradeHandler v31Implementation = ProtocolUpgradeHandler(payable(_params.v31Implementation));
+    /// @dev The new implementation keeps every immutable of the current one.
+    function _implementationCreationCode(address _currentImplementation, bool _useTestnetHandler)
+        internal
+        view
+        returns (bytes memory)
+    {
+        ProtocolUpgradeHandler currentImplementation = ProtocolUpgradeHandler(payable(_currentImplementation));
         bytes memory constructorArgs = abi.encode(
-            v31Implementation.L2_PROTOCOL_GOVERNOR(),
-            v31Implementation.ERA_CHAIN_TYPE_MANAGER(),
-            v31Implementation.ZKSYNC_OS_CHAIN_TYPE_MANAGER(),
-            v31Implementation.BRIDGE_HUB(),
-            v31Implementation.L1_NULLIFIER(),
-            v31Implementation.L1_ASSET_ROUTER(),
-            v31Implementation.L1_NATIVE_TOKEN_VAULT(),
-            v31Implementation.CHAIN_ASSET_HANDLER(),
-            v31Implementation.ERA_CHAIN_ID()
+            currentImplementation.L2_PROTOCOL_GOVERNOR(),
+            currentImplementation.ERA_CHAIN_TYPE_MANAGER(),
+            currentImplementation.ZKSYNC_OS_CHAIN_TYPE_MANAGER(),
+            currentImplementation.BRIDGE_HUB(),
+            currentImplementation.L1_NULLIFIER(),
+            currentImplementation.L1_ASSET_ROUTER(),
+            currentImplementation.L1_NATIVE_TOKEN_VAULT(),
+            currentImplementation.CHAIN_ASSET_HANDLER(),
+            currentImplementation.ERA_CHAIN_ID()
         );
-        bytes memory creationCode = _params.useTestnetHandler
+        bytes memory creationCode = _useTestnetHandler
             ? type(TestnetProtocolUpgradeHandler).creationCode
             : type(ProtocolUpgradeHandler).creationCode;
         return abi.encodePacked(creationCode, constructorArgs);

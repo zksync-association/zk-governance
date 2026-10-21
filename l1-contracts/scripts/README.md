@@ -31,17 +31,19 @@ ZK Foundation), the two-party `EmergencyUpgradeBoard` (Security Council + ZK Fou
 `ProtocolUpgradeHandlerStateCheck` helper, and print the `Call[]` of the protocol upgrade (ZIP) that
 removes the Guardians from L1:
 
-1. `ProtocolUpgradeHandlerStateCheck.checkRoles(...)`: reverts unless the handler holds the Security
-   Council and Emergency Upgrade Board installed by v31. v31 re-initializes the handler, so the removal
-   must only execute after it; a reverted execution can be retried later.
+1. `ProtocolUpgradeHandlerStateCheck.checkRoles(...)`: reverts unless the handler still holds the
+   Security Council and Emergency Upgrade Board the proposal was built against (the ones installed by
+   v31). v31 re-initializes the handler, so the removal must only execute after it; a reverted
+   execution can be retried later.
 2. `ProxyAdmin.upgradeAndCall(handler, newImplementation, "")`: no re-initialization, the proxy is
    already initialized by v31 at the version of `initialize`.
 3. `ProtocolUpgradeHandler.updateZkFoundation(zkFoundationSafe)`: the legal veto extension and the
-   upgrade approval move to the ZK Foundation Safe of the v31 board.
+   upgrade approval move to the ZK Foundation Safe of the current board.
 4. `ProtocolUpgradeHandler.updateEmergencyUpgradeBoard(newBoard)`.
 
-The new implementation copies its constructor arguments (immutables) from the v31 implementation; stage
-uses `TestnetProtocolUpgradeHandler`, like v31 does.
+The only input is the handler proxy. The proxy admin, the implementation whose immutables are copied,
+the roles and the ZK Foundation Safe are read from it, so the script runs once v31 is executed and
+reverts before (and after the removal). Stage uses `TestnetProtocolUpgradeHandler`, like v31 does.
 
 ```bash
 CREATE2_FACTORY= # Optional, defaults to 0x4e59b44847b379578588920cA78FbF26c0B4956C
@@ -50,8 +52,9 @@ DEPLOY_OUTPUT_TOML= # Optional, e.g. ./script-out/remove-guardians.toml
 forge script scripts/MainnetRemoveGuardians.s.sol:MainnetRemoveGuardians --rpc-url $MAINNET_RPC --broadcast <signer>
 ```
 
-The fork test replays the v31 handler upgrade and passes the generated proposal through the
-`ProtocolUpgradeHandler` state machine:
+The fork test replays the v31 handler upgrade, runs the script against it and passes the generated
+proposal through the `ProtocolUpgradeHandler` state machine; until v31 is executed on mainnet, this is
+how to reproduce the script output:
 
 ```bash
 forge test --match-contract RemoveGuardiansForkTest --fork-url $MAINNET_RPC
