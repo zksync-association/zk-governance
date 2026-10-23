@@ -22,11 +22,6 @@ struct SCRedeployedContracts {
 /// @notice Base script for redeploying the SecurityCouncil (8 members, 4/8 upgrade approval threshold)
 /// and EmergencyUpgradeBoard, then generating the Call[] for the ProtocolUpgradeHandler
 /// to update its references.
-///
-/// The new EmergencyUpgradeBoard checks only Security Council and ZK Foundation signatures, so the
-/// script requires a handler the Guardians are already removed from (see RemoveGuardians). Before
-/// that, the handler still relies on the Guardians for standard upgrades, and rotating the Security
-/// Council would make a pending removal proposal revert at its Security Council check.
 contract RedeploySecurityCouncil is Script {
     SCRedeployedContracts internal deployedAddresses;
 
@@ -65,15 +60,6 @@ contract RedeploySecurityCouncil is Script {
         address currentEmergencyUpgradeBoard = currentHandler.emergencyUpgradeBoard();
         EmergencyUpgradeBoard eub = EmergencyUpgradeBoard(currentEmergencyUpgradeBoard);
         address zkFoundationSafe = eub.ZK_FOUNDATION_SAFE();
-
-        // The guardians removal implementation exposes `zkFoundation()` in place of `guardians()`.
-        address handlerZkFoundation;
-        try currentHandler.zkFoundation() returns (address zkFoundation) {
-            handlerZkFoundation = zkFoundation;
-        } catch {
-            revert("The Guardians must be removed from the handler first");
-        }
-        require(handlerZkFoundation == zkFoundationSafe, "Handler and board disagree on the ZK Foundation");
 
         console2.log("=== Current System State ===");
         console2.log("ProtocolUpgradeHandler:", _currentHandler);

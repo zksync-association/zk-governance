@@ -12,8 +12,7 @@ import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
 /// @title StageRedeploySecurityCouncil
 /// @notice Redeploys the SecurityCouncil and EmergencyUpgradeBoard on stage environment.
 /// Queries the first 8 members from the existing SecurityCouncil (on stage they all
-/// use the underlying private keys so it is fine). Runs only once the Guardians are removed
-/// (StageRemoveGuardians).
+/// use the underlying private keys so it is fine).
 ///
 /// Usage:
 ///   PRIVATE_KEY=<deployer_pk> forge script scripts/StageRedeploySecurityCouncil.s.sol:StageRedeploySecurityCouncil \
