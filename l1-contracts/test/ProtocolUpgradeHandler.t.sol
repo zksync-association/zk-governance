@@ -378,6 +378,27 @@ contract TestProtocolUpgradeHandler is Test {
     handler.approveUpgradeZkFoundation(bytes32(uint256(0x01)));
   }
 
+  function test_RevertWhen_ExtendLegalVetoAlreadyExtended() public {
+    bytes32 id = _startUpgrade(_emptyProposal(bytes32("already extended")));
+
+    vm.startPrank(zkFoundation);
+    handler.extendLegalVeto(id);
+    vm.expectRevert("Legal veto period is already extended");
+    handler.extendLegalVeto(id);
+    vm.stopPrank();
+  }
+
+  function test_RevertWhen_ApproveUpgradeZkFoundationAlreadyApproved() public {
+    bytes32 id = _startUpgrade(_emptyProposal(bytes32("already approved")));
+    _passLegalVeto(false, id);
+
+    vm.startPrank(zkFoundation);
+    handler.approveUpgradeZkFoundation(id);
+    vm.expectRevert("Upgrade is already approved by ZK Foundation");
+    handler.approveUpgradeZkFoundation(id);
+    vm.stopPrank();
+  }
+
   function test_RevertWhen_ApproveUpgradeSecurityCouncilNotStarted() public {
     vm.prank(securityCouncil);
     vm.expectRevert("Upgrade with this id is not waiting for the approval from Security Council");
@@ -616,7 +637,7 @@ contract TestProtocolUpgradeHandler is Test {
 
   function test_RevertWhen_UpdateZkFoundationOnlySelf() public {
     vm.expectRevert("Only upgrade handler contract itself is allowed to call this function");
-    handler.updateSecurityCouncil(securityCouncil);
+    handler.updateZkFoundation(zkFoundation);
   }
 
   function test_RevertWhen_UpdateEmergencyProtocolBoardOnlySelf() public {

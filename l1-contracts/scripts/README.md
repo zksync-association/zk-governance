@@ -1,22 +1,21 @@
 ## Env vars required for re-deployment
 
 The below are the values required to re-deploy the **current** version given a deployment of the **previous** version [b1d1bdce1def3c036c06e449787a3763bf47e766](https://github.com/zksync-association/zk-governance/tree/b1d1bdce1def3c036c06e449787a3763bf47e766)).
+The Security Council members are copied from the current Security Council, which must have exactly 8 members (`SecurityCouncil` requires 8).
 
 `MainnetRedeploy.s.sol`
 ```bash
 PRIVATE_KEY= # Deployer
-SECURITY_COUNCIL_MEMBERS= # Comma separated addresses, exactly 12
 CREATE3_FACTORY=0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf
 L2_PROTOCOL_GOVERNOR=0x085b8B6407f150D62adB1EF926F7f304600ec714
 ZKSYNC_OS_CHAIN_TYPE_MANAGER=
 PUH_PROXY_MAINNET=0xE30Dca3047B37dc7d88849dE4A4Dc07937ad5Ab3 
-ERA_CHAIN_ID=321
+ERA_CHAIN_ID=324
 ```
 
 `TestnetRedeploy.s.sol`
 ```bash
 PRIVATE_KEY= # Deployer
-SECURITY_COUNCIL_MEMBERS= # Comma separated addresses, exactly 12
 CREATE3_FACTORY=
 L2_PROTOCOL_GOVERNOR=0x085b8B6407f150D62adB1EF926F7f304600ec714
 ZKSYNC_OS_CHAIN_TYPE_MANAGER=
@@ -59,6 +58,9 @@ how to reproduce the script output:
 ```bash
 forge test --match-contract RemoveGuardiansForkTest --fork-url $MAINNET_RPC
 ```
+
+Without `--fork-url` the mainnet fork suites are reported as skipped, and the tests that need a fork predating v31
+are skipped once mainnet runs v31.
 
 The L2 side (the veto seats of the `ZkTokenGovernor` and `ZkGovOpsGovernor`) is handled by
 `l2-contracts/script/RedeployZkTokenGovernor.ts` and `l2-contracts/script/RedeployZkGovOpsGovernor.ts`,

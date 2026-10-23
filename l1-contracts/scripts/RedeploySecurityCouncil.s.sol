@@ -29,9 +29,14 @@ struct SCRedeployedContracts {
 /// Council would make a pending removal proposal revert at its Security Council check.
 contract RedeploySecurityCouncil is Script {
     SCRedeployedContracts internal deployedAddresses;
+    IProtocolUpgradeHandler.Call[] internal generatedCalls;
 
     function getDeployedAddresses() public view returns (SCRedeployedContracts memory) {
         return deployedAddresses;
+    }
+
+    function getGeneratedCalls() public view returns (IProtocolUpgradeHandler.Call[] memory) {
+        return generatedCalls;
     }
 
     function readMembers(address _multisig) internal view returns (address[] memory members) {
@@ -151,6 +156,11 @@ contract RedeploySecurityCouncil is Script {
             value: 0,
             data: abi.encodeCall(ProtocolUpgradeHandler.updateEmergencyUpgradeBoard, (address(newEmergencyUpgradeBoard)))
         });
+
+        delete generatedCalls;
+        for (uint256 i = 0; i < calls.length; i++) {
+            generatedCalls.push(calls[i]);
+        }
 
         bytes memory encodedCalls = abi.encode(calls);
 
