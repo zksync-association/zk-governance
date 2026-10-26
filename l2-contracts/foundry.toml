@@ -1,4 +1,8 @@
 [profile.default]
+  # solc records every remapping in each contract's metadata, and the metadata hash is part of the bytecode. Remappings
+  # are listed explicitly, rather than detected from lib/, so adding a dependency (such as council-governance, which
+  # only the council project uses) leaves the bytecode of the existing contracts unchanged.
+  auto_detect_remappings = false
   evm_version = "paris"
   fs_permissions = [{ access = "read", path = "./zkout" }]
   fuzz = { runs = 50 }
@@ -9,6 +13,16 @@
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
     "@murky/=lib/murky/",
+    # Previously detected from lib/.
+    "ds-test/=lib/forge-std/lib/ds-test/src/",
+    "erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+    "flexible-voting/=lib/flexible-voting/",
+    "forge-std/=lib/forge-std/src/",
+    "murky/=lib/murky/",
+    "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+    "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+    "openzeppelin/=lib/openzeppelin-contracts/contracts/",
+    "solmate/=lib/flexible-voting/lib/solmate/src/",
   ]
   solc_version = "0.8.24"
   verbosity = 3
