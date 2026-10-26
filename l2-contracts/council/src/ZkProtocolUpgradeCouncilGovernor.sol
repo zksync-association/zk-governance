@@ -79,11 +79,10 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     revert ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled();
   }
 
-  /// @notice Returns whether a proposal's FOR votes meet quorum. AGAINST and ABSTAIN votes are ignored, so members
-  /// voting against a proposal cannot outvote its sponsor.
+  /// @notice Returns whether a proposal's FOR votes meet quorum. ABSTAIN votes do not count toward it.
   /// @param _proposalId The identifier of the proposal to check.
   /// @return Whether the proposal has at least one seat's worth of FOR votes.
-  function _voteSucceeded(uint256 _proposalId)
+  function _quorumReached(uint256 _proposalId)
     internal
     view
     virtual
@@ -92,5 +91,12 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
   {
     (, uint256 _forVotes,) = proposalVotes(_proposalId);
     return _forVotes >= quorum(proposalSnapshot(_proposalId));
+  }
+
+  /// @notice Returns true for every proposal: AGAINST votes cannot defeat a proposal, so whether it succeeds depends
+  /// only on its FOR votes reaching quorum.
+  /// @return Always true.
+  function _voteSucceeded(uint256) internal view virtual override(Governor, GovernorCountingSimple) returns (bool) {
+    return true;
   }
 }

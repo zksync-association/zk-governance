@@ -6,6 +6,7 @@ import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {BasicCouncilGovernor} from "council-governance/BasicCouncilGovernor.sol";
 import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 import {ZkProtocolUpgradeCouncilGovernor} from "src/ZkProtocolUpgradeCouncilGovernor.sol";
+import {FakeCouncilVetoGovernor} from "test/fakes/FakeCouncilVetoGovernor.sol";
 
 contract ZkProtocolUpgradeCouncilGovernorTest is Test {
   uint256 constant VOTES_PER_SEAT = 1e18;
@@ -17,16 +18,21 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test {
   uint8 constant FOR = 1;
   uint8 constant ABSTAIN = 2;
 
+  string constant PROPOSAL_DESCRIPTION = "A protocol upgrade";
+
   CouncilERC20 councilToken;
+  FakeCouncilVetoGovernor vetoGovernor;
   ZkProtocolUpgradeCouncilGovernor governor;
   address governorAdmin = makeAddr("Governor Admin");
+  address proposalTarget = makeAddr("Target");
   address[] members;
 
   function setUp() public virtual {
     vm.warp(1_700_000_000);
     councilToken = new CouncilERC20("Council Seat", "SEAT", address(this), VOTES_PER_SEAT);
+    vetoGovernor = new FakeCouncilVetoGovernor();
     governor = new ZkProtocolUpgradeCouncilGovernor(
-      "Council Governor", councilToken, IGovernor(address(0)), governorAdmin, _councilParams(0, 0)
+      "Council Governor", councilToken, IGovernor(address(vetoGovernor)), governorAdmin, _councilParams(0, 0)
     );
   }
 
@@ -55,14 +61,23 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test {
     vm.warp(block.timestamp + 1);
   }
 
+  // The actions of the proposal every test submits: one empty call to `proposalTarget`.
+  function _proposalActions()
+    internal
+    view
+    returns (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas)
+  {
+    _targets = new address[](1);
+    _targets[0] = proposalTarget;
+    _values = new uint256[](1);
+    _calldatas = new bytes[](1);
+  }
+
   // Proposes from the first member and moves to the start of voting.
   function _proposeAndOpenVoting() internal returns (uint256 _proposalId) {
-    address[] memory _targets = new address[](1);
-    _targets[0] = makeAddr("Target");
-    uint256[] memory _values = new uint256[](1);
-    bytes[] memory _calldatas = new bytes[](1);
+    (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
     vm.prank(members[0]);
-    _proposalId = governor.propose(_targets, _values, _calldatas, "A protocol upgrade");
+    _proposalId = governor.propose(_targets, _values, _calldatas, PROPOSAL_DESCRIPTION);
     vm.warp(governor.proposalSnapshot(_proposalId) + 1);
   }
 
@@ -201,7 +216,31 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
   }
 }
 
+contract Queue is ZkProtocolUpgradeCouncilGovernorTest {
+  function testFuzz_SubmitsASucceededProposalToTheVetoGovernor(uint256 _memberCount) public {
+    _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
+    uint256 _proposalId = _proposeAndOpenVoting();
+    _castVote(_proposalId, members[0], FOR);
+    (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
+
+    // Queued while its voting period is still running, since the first FOR seat already passed it.
+    governor.queue(_targets, _values, _calldatas, keccak256(bytes(PROPOSAL_DESCRIPTION)));
+
+    assertEq(vetoGovernor.submittedProposalCount(), 1);
+    assertEq(vetoGovernor.submittedTarget(0), proposalTarget);
+    assertEq(vetoGovernor.submittedDescription(), PROPOSAL_DESCRIPTION);
+    assertEq(governor.proposalEta(_proposalId), vetoGovernor.PROPOSAL_DEADLINE());
+    _assertState(_proposalId, IGovernor.ProposalState.Queued);
+  }
+}
+
 contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
+  function testFuzz_RevertIf_CalledByAnyAccount(address _caller, uint256 _newQuorumNumerator) public {
+    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
+    vm.prank(_caller);
+    governor.updateQuorumNumerator(_newQuorumNumerator);
+  }
+
   function testFuzz_RevertIf_CalledByTheGovernorAdmin(uint256 _newQuorumNumerator) public {
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
     vm.prank(governorAdmin);
@@ -210,6 +249,12 @@ contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract UpdateSuperQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
+  function testFuzz_RevertIf_CalledByAnyAccount(address _caller, uint256 _newSuperQuorumNumerator) public {
+    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
+    vm.prank(_caller);
+    governor.updateSuperQuorumNumerator(_newSuperQuorumNumerator);
+  }
+
   function testFuzz_RevertIf_CalledByTheGovernorAdmin(uint256 _newSuperQuorumNumerator) public {
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
     vm.prank(governorAdmin);
