@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BasicCouncilGovernor} from "council-governance/BasicCouncilGovernor.sol";
@@ -113,6 +113,17 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test {
       return AGAINST;
     }
     return ABSTAIN;
+  }
+
+  // Counts the recorded logs a given contract emitted. EraVM's system contracts emit their own logs on every call, so
+  // only the contract's own logs are counted.
+  function _countLogsEmittedBy(address _emitter) internal returns (uint256 _count) {
+    Vm.Log[] memory _logs = vm.getRecordedLogs();
+    for (uint256 _i = 0; _i < _logs.length; _i += 1) {
+      if (_logs[_i].emitter == _emitter) {
+        _count += 1;
+      }
+    }
   }
 
   function _jumpPastTheProposalDeadline(uint256 _proposalId) internal {
@@ -347,7 +358,7 @@ contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
     vm.prank(governorAdmin);
     governor.updateQuorumNumerator(0);
 
-    assertEq(vm.getRecordedLogs().length, 0);
+    assertEq(_countLogsEmittedBy(address(governor)), 0);
 
     assertEq(governor.quorumNumerator(), 0);
   }
@@ -376,7 +387,7 @@ contract UpdateSuperQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
     vm.prank(governorAdmin);
     governor.updateSuperQuorumNumerator(0);
 
-    assertEq(vm.getRecordedLogs().length, 0);
+    assertEq(_countLogsEmittedBy(address(governor)), 0);
 
     assertEq(governor.superQuorumNumerator(), 0);
   }
