@@ -27,3 +27,21 @@ runs:
         ./${INSTALL_DIR}/forge --version
         ./${INSTALL_DIR}/cast --version
         echo "Installed zksync-foundry version: ${VERSION}"
+
+    # zksync-foundry downloads zksolc from matter-labs/zksolc-bin, which stops at 1.5.15. The zksolc the
+    # L2 contracts are built with (l2-contracts/foundry.toml) is only released in era-compiler-solidity,
+    # so it is put where zksync-foundry looks for installed versions (~/.zksync) beforehand.
+    - name: Install zksolc
+      shell: "bash -ex {0}"
+      env:
+        ZKSOLC_VERSION: "1.5.17"
+        # sha256 of zksolc-linux-amd64-musl-v1.5.17, as listed in the GitHub release.
+        ZKSOLC_SHA256: "3bda51f97a3087e7d959c05aa992f7d00f98acedfdc9caede64b334aaa76181f"
+      run: |
+        ZKSOLC="${HOME}/.zksync/zksolc-linux-amd64-musl-v${ZKSOLC_VERSION}"
+        mkdir -p "${HOME}/.zksync"
+        curl -fsSL -o "${ZKSOLC}" \
+          "https://github.com/matter-labs/era-compiler-solidity/releases/download/${ZKSOLC_VERSION}/zksolc-linux-amd64-musl-v${ZKSOLC_VERSION}"
+        echo "${ZKSOLC_SHA256}  ${ZKSOLC}" | sha256sum --check
+        chmod +x "${ZKSOLC}"
+        "${ZKSOLC}" --version
