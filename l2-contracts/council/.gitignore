@@ -1,3 +1,7 @@
-cache/
-out/
+# cache/ and out/ are already ignored by l2-contracts/.gitignore; its zkout and broadcast rules are anchored to
+# l2-contracts/ and don't reach this project.
 zkout/
+
+# Keep broadcast logs as deployment history, except local and dry runs, as in l2-contracts.
+broadcast/*/31337/
+broadcast/**/dry-run/

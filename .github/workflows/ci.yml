@@ -217,10 +217,6 @@ jobs:
         timeout-minutes: 10
         run: forge build
 
-      - name: Build (ZKsync)
-        timeout-minutes: 15
-        run: forge build --zksync
-
       - name: Run forge tests (ZKsync)
         timeout-minutes: 30
         run: forge test --zksync
