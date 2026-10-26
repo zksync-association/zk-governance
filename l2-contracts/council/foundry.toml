@@ -12,7 +12,8 @@
   optimizer = true
   optimizer_runs = 10_000_000
   remappings = [
-    "@openzeppelin/contracts/=../lib/openzeppelin-contracts-v5/contracts/",
+    # OpenZeppelin v5 comes from council-governance's own submodule, so it is always the version upstream builds with.
+    "@openzeppelin/contracts/=../lib/council-governance/lib/openzeppelin-contracts/contracts/",
     "council-governance/=../lib/council-governance/src/",
     "ds-test/=../lib/forge-std/lib/ds-test/src/",
     "forge-std/=../lib/forge-std/src/",

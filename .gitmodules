@@ -25,6 +25,3 @@
 [submodule "l2-contracts/lib/council-governance"]
 	path = l2-contracts/lib/council-governance
 	url = https://github.com/ScopeLift/council-governance
-[submodule "l2-contracts/lib/openzeppelin-contracts-v5"]
-	path = l2-contracts/lib/openzeppelin-contracts-v5
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
