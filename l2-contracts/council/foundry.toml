@@ -19,7 +19,8 @@
     "forge-std/=../lib/forge-std/src/",
     # council-governance imports its own sources as `src/...`. These remappings are scoped to it so they never resolve
     # to this project's `src/`. Foundry ignores a remapping named exactly `src/`, so the narrower prefixes upstream
-    # actually uses are remapped instead.
+    # actually uses are remapped instead. If a council-governance update imports another `src/...` path, the build
+    # fails with a missing file under this project's `src/` until a remapping for that path is added here.
     "../lib/council-governance/:src/extensions/=../lib/council-governance/src/extensions/",
     "../lib/council-governance/:src/BasicCouncilVetoGovernor.sol=../lib/council-governance/src/BasicCouncilVetoGovernor.sol",
   ]

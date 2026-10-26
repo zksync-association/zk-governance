@@ -70,6 +70,8 @@ jobs:
         uses: dutterbutter/foundry-zksync-toolchain@v1
         with:
           version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
+          # One cache per shard, so the shards don't all try to save the same key.
+          cache-key: ${{ github.job }}-${{ matrix.shard }}-${{ github.sha }}
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -88,15 +90,20 @@ jobs:
           names = sorted({name for contracts in tests.values() for name in contracts})
           shard, count = int(os.environ["SHARD"]), int(os.environ["SHARD_COUNT"])
           selected = names[shard - 1 :: count]
-          print(f"MATCH_CONTRACT=^({'|'.join(selected)})$")
+          print(f"MATCH_CONTRACT=^({'|'.join(selected)})$" if selected else "MATCH_CONTRACT=")
           PY
 
       - name: Run forge tests
         timeout-minutes: 60
         run: |
+          if [ -z "$MATCH_CONTRACT" ]; then
+            echo "No test contracts were assigned to this shard"
+            exit 0
+          fi
           echo "Running test contracts matching $MATCH_CONTRACT"
           forge test --no-match-path "$EXCLUDED_TEST_PATH" --match-contract "$MATCH_CONTRACT" --zksync
 
+  # Hardhat compiles against OpenZeppelin from node_modules, so this job needs neither Foundry nor the submodules.
   hardhat-test:
     defaults:
       run:
@@ -106,18 +113,11 @@ jobs:
       - uses: actions/checkout@v3
         timeout-minutes: 5
         with:
-          submodules: true
           fetch-depth: 1
-
-      - name: Install Foundry
-        timeout-minutes: 5
-        uses: dutterbutter/foundry-zksync-toolchain@v1
-        with:
-          version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
 
       - name: Install dependencies
         timeout-minutes: 10
-        run: forge install && npm install
+        run: npm install
 
       - name: Build
         timeout-minutes: 15
@@ -144,6 +144,7 @@ jobs:
           [ "${{ needs.forge-test.result }}" = "success" ] && [ "${{ needs.hardhat-test.result }}" = "success" ] \
             && [ "${{ needs.council.result }}" = "success" ]
 
+  # Lints both Foundry projects with one scopelint install.
   lint:
     defaults:
       run:
@@ -183,6 +184,11 @@ jobs:
           scopelint --version
           scopelint check
 
+      - name: Check formatting (council)
+        timeout-minutes: 5
+        working-directory: ./l2-contracts/council
+        run: scopelint check
+
   council:
     defaults:
       run:
@@ -218,19 +224,3 @@ jobs:
       - name: Run forge tests (ZKsync)
         timeout-minutes: 30
         run: forge test --zksync
-
-      - name: Install scopelint
-        timeout-minutes: 5
-        uses: engineerd/configurator@v0.0.8
-        with:
-          name: scopelint
-          # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
-          # fails when the API rate limit is exceeded.
-          url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
-          pathInArchive: scopelint-x86_64-linux/scopelint
-
-      - name: Check formatting
-        timeout-minutes: 5
-        run: |
-          scopelint --version
-          scopelint check
