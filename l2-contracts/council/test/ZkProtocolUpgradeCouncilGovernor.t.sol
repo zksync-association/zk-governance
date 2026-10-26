@@ -127,9 +127,13 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
     assertEq(_governor.VOTES_PER_SEAT(), _votesPerSeat);
   }
 
-  function testFuzz_RevertIf_QuorumAndSuperQuorumFractionsAreConfigured(uint256 _quorumFraction) public {
-    _quorumFraction = bound(_quorumFraction, 1, 100);
-    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, _quorumFraction);
+  function testFuzz_RevertIf_ASuperQuorumFractionIsConfigured(uint256 _quorumFraction, uint256 _superQuorumFraction)
+    public
+  {
+    // OpenZeppelin requires the super-quorum fraction to be at least the quorum fraction.
+    _quorumFraction = bound(_quorumFraction, 0, 100);
+    _superQuorumFraction = bound(_superQuorumFraction, _quorumFraction == 0 ? 1 : _quorumFraction, 100);
+    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, _superQuorumFraction);
 
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
     new ZkProtocolUpgradeCouncilGovernor(
@@ -151,16 +155,6 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
       "Council Governor", councilToken, IGovernor(address(0)), governorAdmin, _params
     );
   }
-
-  function testFuzz_RevertIf_OnlyASuperQuorumFractionIsConfigured(uint256 _superQuorumFraction) public {
-    _superQuorumFraction = bound(_superQuorumFraction, 1, 100);
-    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(0, _superQuorumFraction);
-
-    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
-    new ZkProtocolUpgradeCouncilGovernor(
-      "Council Governor", councilToken, IGovernor(address(0)), governorAdmin, _params
-    );
-  }
 }
 
 contract CountingMode is ZkProtocolUpgradeCouncilGovernorTest {
@@ -174,6 +168,13 @@ contract Quorum is ZkProtocolUpgradeCouncilGovernorTest {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
 
     assertEq(governor.quorum(_timepoint), VOTES_PER_SEAT);
+  }
+}
+
+contract SuperQuorum is ZkProtocolUpgradeCouncilGovernorTest {
+  function testFuzz_IsOneSeatHoweverManySeatsExist(uint256 _memberCount, uint256 _timepoint) public {
+    _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
+
     assertEq(governor.superQuorum(_timepoint), VOTES_PER_SEAT);
   }
 }

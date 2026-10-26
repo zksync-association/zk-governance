@@ -70,8 +70,8 @@ jobs:
         uses: dutterbutter/foundry-zksync-toolchain@v1
         with:
           version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
-          # One cache per shard, so the shards don't all try to save the same key.
-          cache-key: ${{ github.job }}-${{ matrix.shard }}-${{ github.sha }}
+          # The action only caches RPC responses, and these tests make no RPC calls.
+          cache: false
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -88,6 +88,8 @@ jobs:
           import json, os
           tests = json.load(open("test-list.json"))
           names = sorted({name for contracts in tests.values() for name in contracts})
+          if not names:
+              raise SystemExit("forge test --list found no test contracts")
           shard, count = int(os.environ["SHARD"]), int(os.environ["SHARD_COUNT"])
           selected = names[shard - 1 :: count]
           print(f"MATCH_CONTRACT=^({'|'.join(selected)})$" if selected else "MATCH_CONTRACT=")

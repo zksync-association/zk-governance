@@ -15,7 +15,7 @@ import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 /// @author [ScopeLift](https://scopelift.co)
 /// @custom:security-contact security@zksync.io
 /// @notice A governor through which the members of a council propose protocol upgrades. Each member holds a seat in a
-/// non-transferable council token, and any member holding at least the proposal threshold can submit a proposal. A
+/// non-transferable council token, and any account whose votes meet the proposal threshold can submit a proposal. A
 /// proposal succeeds as soon as it has one seat's worth of FOR votes, however many members vote AGAINST or ABSTAIN and
 /// however many seats the council has, so a single member is enough to sponsor it. A successful proposal is not
 /// executed by this governor: queueing it submits the same actions to a veto governor, where token holders have the
@@ -45,7 +45,9 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     address _governorAdmin,
     InitialCouncilParams memory _params
   ) BasicCouncilGovernor(_name, IERC5805(address(_councilToken)), _councilVetoGovernor, _governorAdmin, _params) {
-    if (_params.initialQuorumFraction != 0 || _params.initialSuperQuorumFraction != 0) {
+    // OpenZeppelin rejects a quorum fraction larger than the super-quorum fraction, so a zero super-quorum fraction
+    // also means a zero quorum fraction.
+    if (_params.initialSuperQuorumFraction != 0) {
       revert ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled();
     }
     VOTES_PER_SEAT = _councilToken.MAX_TOKENS_PER_MEMBER();

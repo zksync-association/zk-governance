@@ -13,15 +13,15 @@
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
     "@murky/=lib/murky/",
-    # Previously detected from lib/.
+    # The set auto-detection produced from lib/ before council-governance was added.
     "ds-test/=lib/forge-std/lib/ds-test/src/",
-    "erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+    "erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/",
     "flexible-voting/=lib/flexible-voting/",
     "forge-std/=lib/forge-std/src/",
     "murky/=lib/murky/",
     "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
     "openzeppelin-contracts/=lib/openzeppelin-contracts/",
-    "openzeppelin/=lib/openzeppelin-contracts/contracts/",
+    "openzeppelin/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "solmate/=lib/flexible-voting/lib/solmate/src/",
   ]
   solc_version = "0.8.24"
@@ -39,8 +39,9 @@
 
 [fmt]
   bracket_spacing = false
-  # Deployed contracts whose sources match the verified, audited code; newer forge fmt versions format them
-  # differently, and reformatting would change their verified source.
+  # The deployed sources that the current forge fmt would reformat, which would change their verified source. The other
+  # deployed sources are already formatted as forge fmt formats them. `.scopelint` separately lists the deployed sources
+  # that break a naming rule.
   ignore = [
     "src/ZkGovOpsGovernor.sol",
     "src/ZkMerkleDistributor.sol",
