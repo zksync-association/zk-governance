@@ -3,6 +3,9 @@ pragma solidity 0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
+import {
+  GovernorVotesSuperQuorumFraction
+} from "@openzeppelin/contracts/governance/extensions/GovernorVotesSuperQuorumFraction.sol";
 import {BasicCouncilGovernor} from "council-governance/BasicCouncilGovernor.sol";
 import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 import {ZkProtocolUpgradeCouncilGovernor} from "src/ZkProtocolUpgradeCouncilGovernor.sol";
@@ -73,6 +76,18 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test {
     _calldatas = new bytes[](1);
   }
 
+  // Mints less than a full seat to a new member.
+  function _mintPartialSeat(string memory _name, uint256 _votes) internal returns (address _member) {
+    _member = makeAddr(_name);
+    councilToken.mint(_member, _votes);
+    vm.warp(block.timestamp + 1);
+  }
+
+  // Excludes the addresses below 0x10000, where EraVM keeps its system contracts and precompiles.
+  function _assumeNotASystemAddress(address _account) internal pure {
+    vm.assume(uint160(_account) > 0xFFFF);
+  }
+
   // Proposes from the first member and moves to the start of voting.
   function _proposeAndOpenVoting() internal returns (uint256 _proposalId) {
     (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
@@ -112,11 +127,26 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
     assertEq(_governor.VOTES_PER_SEAT(), _votesPerSeat);
   }
 
-  function testFuzz_RevertIf_AQuorumFractionIsConfigured(uint256 _quorumFraction) public {
+  function testFuzz_RevertIf_QuorumAndSuperQuorumFractionsAreConfigured(uint256 _quorumFraction) public {
     _quorumFraction = bound(_quorumFraction, 1, 100);
     BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, _quorumFraction);
 
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
+    new ZkProtocolUpgradeCouncilGovernor(
+      "Council Governor", councilToken, IGovernor(address(0)), governorAdmin, _params
+    );
+  }
+
+  function testFuzz_RevertIf_OnlyAQuorumFractionIsConfigured(uint256 _quorumFraction) public {
+    _quorumFraction = bound(_quorumFraction, 1, 100);
+    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, 0);
+
+    // OpenZeppelin rejects a quorum fraction above the super-quorum fraction before this governor's own check runs.
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        GovernorVotesSuperQuorumFraction.GovernorInvalidSuperQuorumTooSmall.selector, 0, _quorumFraction
+      )
+    );
     new ZkProtocolUpgradeCouncilGovernor(
       "Council Governor", councilToken, IGovernor(address(0)), governorAdmin, _params
     );
@@ -201,18 +231,30 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _assertState(_proposalId, IGovernor.ProposalState.Defeated);
   }
 
-  function testFuzz_ReturnsDefeatedWhenTheOnlyForVoteIsLessThanOneSeat(uint256 _partialSeatVotes) public {
+  function testFuzz_ReturnsActiveThenDefeatedWhenTheOnlyForVoteIsLessThanOneSeat(uint256 _partialSeatVotes) public {
     _partialSeatVotes = bound(_partialSeatVotes, 1, VOTES_PER_SEAT - 1);
     _seatMembers(1);
-    address _partialMember = makeAddr("Partial Member");
-    councilToken.mint(_partialMember, _partialSeatVotes);
-    vm.warp(block.timestamp + 1);
+    address _partialMember = _mintPartialSeat("Partial Member", _partialSeatVotes);
     uint256 _proposalId = _proposeAndOpenVoting();
 
     _castVote(_proposalId, _partialMember, FOR);
-    _jumpPastTheProposalDeadline(_proposalId);
+    _assertState(_proposalId, IGovernor.ProposalState.Active);
 
+    _jumpPastTheProposalDeadline(_proposalId);
     _assertState(_proposalId, IGovernor.ProposalState.Defeated);
+  }
+
+  function testFuzz_ReturnsSucceededAsSoonAsPartialForVotesAddUpToOneSeat(uint256 _firstPartialSeatVotes) public {
+    _firstPartialSeatVotes = bound(_firstPartialSeatVotes, 1, VOTES_PER_SEAT - 1);
+    _seatMembers(1);
+    address _firstPartialMember = _mintPartialSeat("First Partial Member", _firstPartialSeatVotes);
+    address _secondPartialMember = _mintPartialSeat("Second Partial Member", VOTES_PER_SEAT - _firstPartialSeatVotes);
+    uint256 _proposalId = _proposeAndOpenVoting();
+
+    _castVote(_proposalId, _firstPartialMember, FOR);
+    _castVote(_proposalId, _secondPartialMember, FOR);
+
+    _assertState(_proposalId, IGovernor.ProposalState.Succeeded);
   }
 }
 
@@ -226,9 +268,8 @@ contract Queue is ZkProtocolUpgradeCouncilGovernorTest {
     // Queued while its voting period is still running, since the first FOR seat already passed it.
     governor.queue(_targets, _values, _calldatas, keccak256(bytes(PROPOSAL_DESCRIPTION)));
 
-    assertEq(vetoGovernor.submittedProposalCount(), 1);
-    assertEq(vetoGovernor.submittedTarget(0), proposalTarget);
-    assertEq(vetoGovernor.submittedDescription(), PROPOSAL_DESCRIPTION);
+    // The veto governor received the same actions and description, so it identifies the proposal by the same ID.
+    assertTrue(vetoGovernor.isSubmitted(_proposalId));
     assertEq(governor.proposalEta(_proposalId), vetoGovernor.PROPOSAL_DEADLINE());
     _assertState(_proposalId, IGovernor.ProposalState.Queued);
   }
@@ -236,6 +277,7 @@ contract Queue is ZkProtocolUpgradeCouncilGovernorTest {
 
 contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
   function testFuzz_RevertIf_CalledByAnyAccount(address _caller, uint256 _newQuorumNumerator) public {
+    _assumeNotASystemAddress(_caller);
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
     vm.prank(_caller);
     governor.updateQuorumNumerator(_newQuorumNumerator);
@@ -250,6 +292,7 @@ contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
 
 contract UpdateSuperQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
   function testFuzz_RevertIf_CalledByAnyAccount(address _caller, uint256 _newSuperQuorumNumerator) public {
+    _assumeNotASystemAddress(_caller);
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled.selector);
     vm.prank(_caller);
     governor.updateSuperQuorumNumerator(_newSuperQuorumNumerator);

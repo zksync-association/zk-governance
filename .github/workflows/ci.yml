@@ -46,7 +46,7 @@ jobs:
   # split across parallel shards. Test contracts are assigned round-robin by name, so every suite runs in exactly one
   # shard (contracts that share a name across files stay together) and new test files are picked up automatically.
   forge-test:
-    name: forge-test (${{ matrix.shard }}/4)
+    name: forge-test (${{ matrix.shard }}/${{ strategy.job-total }})
     defaults:
       run:
         working-directory: ./l2-contracts
@@ -81,7 +81,7 @@ jobs:
         timeout-minutes: 10
         env:
           SHARD: ${{ matrix.shard }}
-          SHARD_COUNT: 4
+          SHARD_COUNT: ${{ strategy.job-total }}
         run: |
           forge test --list --json --no-match-path "$EXCLUDED_TEST_PATH" > test-list.json
           python3 - <<'PY' >> "$GITHUB_ENV"
@@ -213,10 +213,7 @@ jobs:
         working-directory: ./l2-contracts
         run: forge install
 
-      - name: Build
-        timeout-minutes: 10
-        run: forge build
-
+      # Compiles for both the EVM and EraVM, so there is no separate build step.
       - name: Run forge tests (ZKsync)
         timeout-minutes: 30
         run: forge test --zksync

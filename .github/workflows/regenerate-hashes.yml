@@ -33,11 +33,8 @@ jobs:
           submodules: true
           fetch-depth: 1
 
-      # Pinned to the same foundry-zksync version as ci.yml, since the zksolc version is part of every bytecode hash.
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
-        with:
-          version: v0.1.10
 
       - name: Install l1-contracts deps + build (EVM)
         working-directory: ./l1-contracts

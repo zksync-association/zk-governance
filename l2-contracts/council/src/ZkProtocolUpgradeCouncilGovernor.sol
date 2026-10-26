@@ -22,8 +22,9 @@ import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 /// chance to stop them before they are executed.
 /// @dev Quorum and super-quorum are both fixed at one seat, the council token's `MAX_TOKENS_PER_MEMBER`, rather than a
 /// fraction of the seat supply. The fraction settings inherited from `GovernorVotesQuorumFraction` and
-/// `GovernorVotesSuperQuorumFraction` are unused: the constructor requires both fractions to be zero, and
-/// `updateQuorumNumerator` and `updateSuperQuorumNumerator` revert.
+/// `GovernorVotesSuperQuorumFraction` are unused: the constructor requires both fractions to be zero,
+/// `updateQuorumNumerator` and `updateSuperQuorumNumerator` revert, and `quorumNumerator` and `superQuorumNumerator`
+/// always return zero. Read `quorum` and `superQuorum` for the votes a proposal needs.
 contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
   /// @notice The votes one council seat carries: the most council tokens a member can hold.
   uint256 public immutable VOTES_PER_SEAT;
