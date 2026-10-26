@@ -3,9 +3,7 @@ pragma solidity 0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
-import {
-  GovernorVotesSuperQuorumFraction
-} from "@openzeppelin/contracts/governance/extensions/GovernorVotesSuperQuorumFraction.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BasicCouncilGovernor} from "council-governance/BasicCouncilGovernor.sol";
 import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 import {ZkProtocolUpgradeCouncilGovernor} from "src/ZkProtocolUpgradeCouncilGovernor.sol";
@@ -138,12 +136,9 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
     assertEq(_governor.VOTES_PER_SEAT(), _votesPerSeat);
   }
 
-  function testFuzz_RevertIf_ASuperQuorumFractionIsConfigured(uint256 _quorumFraction, uint256 _superQuorumFraction)
-    public
-  {
-    // OpenZeppelin requires the super-quorum fraction to be at least the quorum fraction.
-    _superQuorumFraction = bound(_superQuorumFraction, 1, 100);
-    _quorumFraction = bound(_quorumFraction, 0, _superQuorumFraction);
+  function testFuzz_RevertIf_AQuorumFractionIsConfigured(uint256 _quorumFraction, uint256 _superQuorumFraction) public {
+    _quorumFraction = bound(_quorumFraction, 1, 100);
+    _superQuorumFraction = bound(_superQuorumFraction, 0, 100);
     BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, _superQuorumFraction);
 
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
@@ -152,16 +147,11 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
     );
   }
 
-  function testFuzz_RevertIf_OnlyAQuorumFractionIsConfigured(uint256 _quorumFraction) public {
-    _quorumFraction = bound(_quorumFraction, 1, 100);
-    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, 0);
+  function testFuzz_RevertIf_ASuperQuorumFractionIsConfigured(uint256 _superQuorumFraction) public {
+    _superQuorumFraction = bound(_superQuorumFraction, 1, 100);
+    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(0, _superQuorumFraction);
 
-    // OpenZeppelin rejects a quorum fraction above the super-quorum fraction before this governor's own check runs.
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        GovernorVotesSuperQuorumFraction.GovernorInvalidSuperQuorumTooSmall.selector, 0, _quorumFraction
-      )
-    );
+    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
     new ZkProtocolUpgradeCouncilGovernor(
       "Council Governor", councilToken, IGovernor(address(0)), governorAdmin, _params
     );
@@ -333,6 +323,7 @@ contract Execute is ZkProtocolUpgradeCouncilGovernorTest {
   function testFuzz_ExecutesAQueuedProposalThroughTheVetoGovernor(uint256 _memberCount) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
     uint256 _proposalId = _passAndQueue();
+    vetoGovernor.succeed(_proposalId);
     (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
 
     governor.execute(_targets, _values, _calldatas, keccak256(bytes(PROPOSAL_DESCRIPTION)));
@@ -342,33 +333,54 @@ contract Execute is ZkProtocolUpgradeCouncilGovernorTest {
   }
 }
 
-// The setters ignore the new numerator, so these tests fuzz only the caller.
 contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
-  function test_RevertIf_CalledByTheGovernorAdmin() public {
+  function testFuzz_RevertIf_TheAdminSetsANonZeroQuorumFraction(uint256 _newQuorumNumerator) public {
+    _newQuorumNumerator = bound(_newQuorumNumerator, 1, type(uint256).max);
+
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
     vm.prank(governorAdmin);
-    governor.updateQuorumNumerator(1);
+    governor.updateQuorumNumerator(_newQuorumNumerator);
   }
 
-  function testFuzz_RevertIf_CalledByAnyOtherAccount(address _caller) public {
+  function test_LetsTheAdminSetAZeroQuorumFraction() public {
+    vm.prank(governorAdmin);
+    governor.updateQuorumNumerator(0);
+
+    assertEq(governor.quorumNumerator(), 0);
+  }
+
+  function testFuzz_RevertIf_TheCallerIsNotTheGovernorAdmin(address _caller) public {
     _assumeNotASystemAddress(_caller);
-    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
+    vm.assume(_caller != governorAdmin);
+
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _caller));
     vm.prank(_caller);
-    governor.updateQuorumNumerator(1);
+    governor.updateQuorumNumerator(0);
   }
 }
 
 contract UpdateSuperQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
-  function test_RevertIf_CalledByTheGovernorAdmin() public {
+  function testFuzz_RevertIf_TheAdminSetsANonZeroSuperQuorumFraction(uint256 _newSuperQuorumNumerator) public {
+    _newSuperQuorumNumerator = bound(_newSuperQuorumNumerator, 1, type(uint256).max);
+
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
     vm.prank(governorAdmin);
-    governor.updateSuperQuorumNumerator(1);
+    governor.updateSuperQuorumNumerator(_newSuperQuorumNumerator);
   }
 
-  function testFuzz_RevertIf_CalledByAnyOtherAccount(address _caller) public {
+  function test_LetsTheAdminSetAZeroSuperQuorumFraction() public {
+    vm.prank(governorAdmin);
+    governor.updateSuperQuorumNumerator(0);
+
+    assertEq(governor.superQuorumNumerator(), 0);
+  }
+
+  function testFuzz_RevertIf_TheCallerIsNotTheGovernorAdmin(address _caller) public {
     _assumeNotASystemAddress(_caller);
-    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
+    vm.assume(_caller != governorAdmin);
+
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _caller));
     vm.prank(_caller);
-    governor.updateSuperQuorumNumerator(1);
+    governor.updateSuperQuorumNumerator(0);
   }
 }

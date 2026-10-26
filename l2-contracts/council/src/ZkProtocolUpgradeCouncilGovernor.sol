@@ -22,13 +22,11 @@ import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 /// chance to stop them before they are executed.
 /// @dev Quorum and super-quorum are both fixed at one seat, the council token's `MAX_TOKENS_PER_MEMBER`, rather than a
 /// fraction of the seat supply. The fraction settings inherited from `GovernorVotesQuorumFraction` and
-/// `GovernorVotesSuperQuorumFraction` are unused: the constructor requires both fractions to be zero,
-/// `updateQuorumNumerator` and `updateSuperQuorumNumerator` revert, and `quorumNumerator` and `superQuorumNumerator`
-/// always return zero. Read `quorum` and `superQuorum` for the votes a proposal needs.
+/// `GovernorVotesSuperQuorumFraction` are unused: both fractions can only be set to zero, at construction or through
+/// `updateQuorumNumerator` and `updateSuperQuorumNumerator`, so `quorumNumerator` and `superQuorumNumerator` always
+/// return zero. Read `quorum` and `superQuorum` for the votes a proposal needs.
 contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
-  /// @notice Thrown when a super-quorum fraction is configured at construction, or when either fraction setter is
-  /// called. A quorum fraction configured on its own is rejected earlier by OpenZeppelin, with
-  /// `GovernorInvalidSuperQuorumTooSmall`.
+  /// @notice Thrown when a quorum or super-quorum fraction other than zero is set, at construction or by the admin.
   error ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
 
   /// @notice The votes one council seat carries: the most council tokens a member can hold.
@@ -47,11 +45,6 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     address _governorAdmin,
     InitialCouncilParams memory _params
   ) BasicCouncilGovernor(_name, IERC5805(address(_councilToken)), _councilVetoGovernor, _governorAdmin, _params) {
-    // OpenZeppelin rejects a quorum fraction larger than the super-quorum fraction, so a zero super-quorum fraction
-    // also means a zero quorum fraction.
-    if (_params.initialSuperQuorumFraction != 0) {
-      revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
-    }
     VOTES_PER_SEAT = _councilToken.MAX_TOKENS_PER_MEMBER();
   }
 
@@ -74,16 +67,6 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     return VOTES_PER_SEAT;
   }
 
-  /// @notice Always reverts. Quorum is fixed at one seat.
-  function updateQuorumNumerator(uint256) external virtual override {
-    revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
-  }
-
-  /// @notice Always reverts. Super-quorum is fixed at one seat.
-  function updateSuperQuorumNumerator(uint256) public virtual override {
-    revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
-  }
-
   /// @notice Returns whether a proposal's FOR votes meet quorum. ABSTAIN votes do not count toward it.
   /// @param _proposalId The identifier of the proposal to check.
   /// @return Whether the proposal has at least one seat's worth of FOR votes.
@@ -95,7 +78,7 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     returns (bool)
   {
     (, uint256 _forVotes,) = proposalVotes(_proposalId);
-    return _forVotes >= VOTES_PER_SEAT;
+    return _forVotes >= quorum(proposalSnapshot(_proposalId));
   }
 
   /// @notice Returns true for every proposal: AGAINST votes cannot defeat a proposal, so whether it succeeds depends
@@ -103,5 +86,25 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
   /// @return Always true.
   function _voteSucceeded(uint256) internal view virtual override(Governor, GovernorCountingSimple) returns (bool) {
     return true;
+  }
+
+  /// @notice Records a new quorum fraction, which must be zero: quorum is fixed at one seat. Runs at construction and
+  /// for every `updateQuorumNumerator` call.
+  /// @param _newQuorumNumerator The new quorum fraction's numerator.
+  function _updateQuorumNumerator(uint256 _newQuorumNumerator) internal virtual override {
+    if (_newQuorumNumerator != 0) {
+      revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
+    }
+    super._updateQuorumNumerator(_newQuorumNumerator);
+  }
+
+  /// @notice Records a new super-quorum fraction, which must be zero: super-quorum is fixed at one seat. Runs at
+  /// construction and for every `updateSuperQuorumNumerator` call.
+  /// @param _newSuperQuorumNumerator The new super-quorum fraction's numerator.
+  function _updateSuperQuorumNumerator(uint256 _newSuperQuorumNumerator) internal virtual override {
+    if (_newSuperQuorumNumerator != 0) {
+      revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
+    }
+    super._updateSuperQuorumNumerator(_newSuperQuorumNumerator);
   }
 }
