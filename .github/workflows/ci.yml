@@ -9,9 +9,10 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  # The duplicate-minter factory tests expect the Era system contracts' `HashIsNonZero` error, so the toolchain is pinned
+  # for every job here.
+  FOUNDRY_ZKSYNC_VERSION: v0.1.10
 
-# foundry-zksync is pinned in every job so a new release can't change test results without a code change.
-#
 # Every step has a timeout so a hung step (e.g. a stalled --zksync build or test) fails instead of holding a runner until
 # the 6-hour job limit. Each timeout is a few times the step's slowest observed duration.
 jobs:
@@ -31,7 +32,7 @@ jobs:
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
         with:
-          version: v0.1.10
+          version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -54,6 +55,9 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
+    env:
+      # Integration tests are excluded from both the shard selection and the run, so the two stay in step.
+      EXCLUDED_TEST_PATH: test/*.integration.t.sol
     steps:
       - uses: actions/checkout@v3
         timeout-minutes: 5
@@ -65,7 +69,7 @@ jobs:
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
         with:
-          version: v0.1.10
+          version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -77,7 +81,7 @@ jobs:
           SHARD: ${{ matrix.shard }}
           SHARD_COUNT: 4
         run: |
-          forge test --list --json --no-match-path 'test/*.integration.t.sol' > test-list.json
+          forge test --list --json --no-match-path "$EXCLUDED_TEST_PATH" > test-list.json
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json, os
           tests = json.load(open("test-list.json"))
@@ -91,7 +95,7 @@ jobs:
         timeout-minutes: 60
         run: |
           echo "Running test contracts matching $MATCH_CONTRACT"
-          forge test --no-match-path 'test/*.integration.t.sol' --match-contract "$MATCH_CONTRACT" --zksync
+          forge test --no-match-path "$EXCLUDED_TEST_PATH" --match-contract "$MATCH_CONTRACT" --zksync
 
   hardhat-test:
     defaults:
@@ -109,7 +113,7 @@ jobs:
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
         with:
-          version: v0.1.10
+          version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -127,16 +131,18 @@ jobs:
         timeout-minutes: 15
         run: npx hardhat test
 
-  # Single status that covers every test job, so branch protection can keep requiring a check named `test`.
+  # Single status that covers every test job, so branch protection can keep requiring a check named `test`. It runs
+  # when a test job fails or is skipped, so those still fail the check, but not when the workflow is cancelled.
   test:
-    if: always()
-    needs: [forge-test, hardhat-test]
+    if: ${{ !cancelled() }}
+    needs: [forge-test, hardhat-test, council]
     runs-on: ubuntu-latest
     steps:
       - name: Check test results
         timeout-minutes: 5
         run: |
-          [ "${{ needs.forge-test.result }}" = "success" ] && [ "${{ needs.hardhat-test.result }}" = "success" ]
+          [ "${{ needs.forge-test.result }}" = "success" ] && [ "${{ needs.hardhat-test.result }}" = "success" ] \
+            && [ "${{ needs.council.result }}" = "success" ]
 
   lint:
     defaults:
@@ -155,7 +161,7 @@ jobs:
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
         with:
-          version: v0.1.10
+          version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -194,7 +200,7 @@ jobs:
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
         with:
-          version: v0.1.10
+          version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -208,6 +214,10 @@ jobs:
       - name: Build (ZKsync)
         timeout-minutes: 15
         run: forge build --zksync
+
+      - name: Run forge tests (ZKsync)
+        timeout-minutes: 30
+        run: forge test --zksync
 
       - name: Install scopelint
         timeout-minutes: 5

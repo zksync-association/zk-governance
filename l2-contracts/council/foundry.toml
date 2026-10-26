@@ -14,6 +14,7 @@
   remappings = [
     "@openzeppelin/contracts/=../lib/openzeppelin-contracts-v5/contracts/",
     "council-governance/=../lib/council-governance/src/",
+    "ds-test/=../lib/forge-std/lib/ds-test/src/",
     "forge-std/=../lib/forge-std/src/",
     # council-governance imports its own sources as `src/...`. These remappings are scoped to it so they never resolve
     # to this project's `src/`. Foundry ignores a remapping named exactly `src/`, so the narrower prefixes upstream
@@ -24,9 +25,11 @@
   solc_version = "0.8.30"
   verbosity = 3
 
+# CI runs the council tests under --zksync, where every fuzz run executes in an emulated EraVM, so it uses fewer runs
+# than the main project.
 [profile.ci]
-  fuzz = { runs = 2500 }
-  invariant = { runs = 1000 }
+  fuzz = { runs = 256 }
+  invariant = { runs = 64 }
 
 [profile.lite]
   fuzz = { runs = 50 }
