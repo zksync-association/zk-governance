@@ -7,6 +7,10 @@
 # overwriting each other's artifacts. The project is self-contained: council-governance is its only dependency, and
 # OpenZeppelin v5 and forge-std come from council-governance's own submodules, the versions upstream builds and tests
 # with.
+#
+# EraVM bytecode depends on the zksolc version. Build and deploy with foundry-zksync v0.1.10 (zksolc 1.5.15), the
+# release CI pins in .github/actions/setup-foundry-zksync. zksolc isn't pinned here, because stock forge warns about the
+# `zksync` section and scopelint then fails the formatting check.
 [profile.default]
   auto_detect_remappings = false
   evm_version = "cancun"

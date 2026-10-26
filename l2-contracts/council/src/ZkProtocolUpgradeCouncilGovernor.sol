@@ -17,7 +17,8 @@ import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 /// @notice A governor through which the members of a council propose protocol upgrades. Each member holds a seat in a
 /// non-transferable council token, and any account whose votes meet the proposal threshold can submit a proposal. A
 /// proposal succeeds as soon as it has one seat's worth of FOR votes, however many members vote AGAINST or ABSTAIN and
-/// however many seats the council has, so a single member is enough to sponsor it. A successful proposal is not
+/// however many seats the council has, so a single member holding a full seat is enough to sponsor it. A successful
+/// proposal is not
 /// executed by this governor: queueing it submits the same actions to a veto governor, where token holders have the
 /// chance to stop them before they are executed.
 /// @dev Quorum and super-quorum are both fixed at one seat, the council token's `MAX_TOKENS_PER_MEMBER`, rather than a
@@ -88,23 +89,25 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     return true;
   }
 
-  /// @notice Records a new quorum fraction, which must be zero: quorum is fixed at one seat. Runs at construction and
-  /// for every `updateQuorumNumerator` call.
+  /// @notice Accepts only a zero quorum fraction, and records nothing, since quorum is fixed at one seat. Runs at
+  /// construction and for every `updateQuorumNumerator` call.
   /// @param _newQuorumNumerator The new quorum fraction's numerator.
   function _updateQuorumNumerator(uint256 _newQuorumNumerator) internal virtual override {
-    if (_newQuorumNumerator != 0) {
-      revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
-    }
-    super._updateQuorumNumerator(_newQuorumNumerator);
+    _revertIfQuorumFractionIsNonZero(_newQuorumNumerator);
   }
 
-  /// @notice Records a new super-quorum fraction, which must be zero: super-quorum is fixed at one seat. Runs at
-  /// construction and for every `updateSuperQuorumNumerator` call.
+  /// @notice Accepts only a zero super-quorum fraction, and records nothing, since super-quorum is fixed at one seat.
+  /// Runs at construction and for every `updateSuperQuorumNumerator` call.
   /// @param _newSuperQuorumNumerator The new super-quorum fraction's numerator.
   function _updateSuperQuorumNumerator(uint256 _newSuperQuorumNumerator) internal virtual override {
-    if (_newSuperQuorumNumerator != 0) {
+    _revertIfQuorumFractionIsNonZero(_newSuperQuorumNumerator);
+  }
+
+  /// @notice Reverts unless a quorum or super-quorum fraction's numerator is zero.
+  /// @param _numerator The numerator to check.
+  function _revertIfQuorumFractionIsNonZero(uint256 _numerator) internal pure {
+    if (_numerator != 0) {
       revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
     }
-    super._updateSuperQuorumNumerator(_newSuperQuorumNumerator);
   }
 }

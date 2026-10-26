@@ -1,0 +1,13 @@
+name: Set up scopelint
+description: Installs the scopelint release every workflow in this repository lints with.
+
+runs:
+  using: composite
+  steps:
+    - uses: engineerd/configurator@v0.0.8
+      with:
+        name: scopelint
+        # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
+        # fails when the API rate limit is exceeded.
+        url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
+        pathInArchive: scopelint-x86_64-linux/scopelint

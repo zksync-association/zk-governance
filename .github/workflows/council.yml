@@ -8,6 +8,7 @@ on:
       - "l2-contracts/council/**"
       - ".github/workflows/council.yml"
       - ".github/actions/**"
+      - ".gitmodules"
   push:
     branches:
       - master
@@ -15,6 +16,7 @@ on:
       - "l2-contracts/council/**"
       - ".github/workflows/council.yml"
       - ".github/actions/**"
+      - ".gitmodules"
 
 env:
   FOUNDRY_PROFILE: ci
@@ -28,7 +30,7 @@ jobs:
         working-directory: ./l2-contracts/council
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         timeout-minutes: 5
         with:
           fetch-depth: 1
@@ -54,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # scopelint only reads the sources, so the job needs no submodules.
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         timeout-minutes: 5
         with:
           fetch-depth: 1
@@ -65,13 +67,7 @@ jobs:
 
       - name: Install scopelint
         timeout-minutes: 5
-        uses: engineerd/configurator@v0.0.8
-        with:
-          name: scopelint
-          # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
-          # fails when the API rate limit is exceeded.
-          url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
-          pathInArchive: scopelint-x86_64-linux/scopelint
+        uses: ./.github/actions/setup-scopelint
 
       - name: Check formatting
         timeout-minutes: 5

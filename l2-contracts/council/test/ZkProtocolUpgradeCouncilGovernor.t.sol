@@ -342,9 +342,12 @@ contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
     governor.updateQuorumNumerator(_newQuorumNumerator);
   }
 
-  function test_LetsTheAdminSetAZeroQuorumFraction() public {
+  function test_LetsTheAdminSetAZeroQuorumFractionWithoutRecordingIt() public {
+    vm.recordLogs();
     vm.prank(governorAdmin);
     governor.updateQuorumNumerator(0);
+
+    assertEq(vm.getRecordedLogs().length, 0);
 
     assertEq(governor.quorumNumerator(), 0);
   }
@@ -368,9 +371,12 @@ contract UpdateSuperQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
     governor.updateSuperQuorumNumerator(_newSuperQuorumNumerator);
   }
 
-  function test_LetsTheAdminSetAZeroSuperQuorumFraction() public {
+  function test_LetsTheAdminSetAZeroSuperQuorumFractionWithoutRecordingIt() public {
+    vm.recordLogs();
     vm.prank(governorAdmin);
     governor.updateSuperQuorumNumerator(0);
+
+    assertEq(vm.getRecordedLogs().length, 0);
 
     assertEq(governor.superQuorumNumerator(), 0);
   }
