@@ -10,6 +10,8 @@ on:
 env:
   FOUNDRY_PROFILE: ci
 
+# foundry-zksync is pinned in every job so a new release can't change test results without a code change.
+#
 # Every step has a timeout so a hung step (e.g. a stalled --zksync build or test) fails instead of holding a runner until
 # the 6-hour job limit. Each timeout is a few times the step's slowest observed duration.
 jobs:
@@ -28,6 +30,8 @@ jobs:
       - name: Install Foundry
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
+        with:
+          version: v0.1.10
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -60,6 +64,8 @@ jobs:
       - name: Install Foundry
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
+        with:
+          version: v0.1.10
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -102,6 +108,8 @@ jobs:
       - name: Install Foundry
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
+        with:
+          version: v0.1.10
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -146,6 +154,8 @@ jobs:
       - name: Install Foundry
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
+        with:
+          version: v0.1.10
 
       - name: Install dependencies
         timeout-minutes: 10
@@ -183,6 +193,8 @@ jobs:
       - name: Install Foundry
         timeout-minutes: 5
         uses: dutterbutter/foundry-zksync-toolchain@v1
+        with:
+          version: v0.1.10
 
       - name: Install dependencies
         timeout-minutes: 10

@@ -37,8 +37,9 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
   /// voting against a proposal cannot outvote its sponsor.
   /// @param _proposalId The identifier of the proposal to check.
   /// @return Whether the proposal has at least one FOR vote and its FOR votes meet quorum at the proposal snapshot.
-  /// @dev Requiring at least one FOR vote keeps a proposal with no votes from succeeding if quorum is ever zero, e.g.
-  /// when no seats exist at the snapshot.
+  /// @dev Quorum is `supply * quorumNumerator / quorumDenominator`, rounded down, so it is zero whenever
+  /// `supply * quorumNumerator` is below the denominator. Requiring at least one FOR vote keeps a proposal with no
+  /// votes from succeeding in that case.
   function _voteSucceeded(uint256 _proposalId)
     internal
     view

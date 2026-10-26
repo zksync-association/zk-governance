@@ -108,8 +108,7 @@ contract CreateCappedMinter is ZkCappedMinterV2FactoryTest {
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
     );
 
-    // The ZKsync ContractDeployer reverts with `HashIsNonZero(bytes32)` when the address already has code. Older
-    // versions of the Era system contracts reverted with the string "Code hash is non-zero" instead.
+    // The ZKsync ContractDeployer reverts with `HashIsNonZero(bytes32)` when the address already has code.
     vm.expectRevert(abi.encodeWithSignature("HashIsNonZero(bytes32)", factory.BYTECODE_HASH()));
     factory.createCappedMinter(
       IMintable(address(token)), _cappedMinterAdmin, _cap, _startTime, _expirationTime, _saltNonce
