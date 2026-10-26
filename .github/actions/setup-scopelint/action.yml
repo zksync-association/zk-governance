@@ -4,10 +4,16 @@ description: Installs the scopelint release every workflow in this repository li
 runs:
   using: composite
   steps:
-    - uses: engineerd/configurator@v0.0.8
-      with:
-        name: scopelint
-        # Pinned so the job downloads a fixed release instead of querying the GitHub API for the latest one, which
-        # fails when the API rate limit is exceeded.
-        url: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
-        pathInArchive: scopelint-x86_64-linux/scopelint
+    # A pinned release is downloaded directly, which needs no GitHub API call (and so no rate limit) and no third-party
+    # installer action.
+    - shell: bash
+      env:
+        SCOPELINT_URL: https://github.com/ScopeLift/scopelint/releases/download/v0.2.0/scopelint-x86_64-linux.tar.xz
+      run: |
+        set -euo pipefail
+        install_dir="$RUNNER_TEMP/scopelint"
+        mkdir -p "$install_dir"
+        curl --fail --silent --show-error --location "$SCOPELINT_URL" \
+          | tar --extract --xz --strip-components=1 --directory "$install_dir"
+        echo "$install_dir" >> "$GITHUB_PATH"
+        "$install_dir/scopelint" --version
