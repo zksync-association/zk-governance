@@ -140,7 +140,7 @@ jobs:
         timeout-minutes: 15
         run: npx hardhat test
 
-  l2-contracts-lint:
+  lint:
     defaults:
       run:
         working-directory: ./l2-contracts
@@ -170,9 +170,9 @@ jobs:
         timeout-minutes: 5
         run: scopelint check
 
-  # One check covering the build and every test job, so branch protection can require a single `l2-contracts-test`.
-  # It always runs, because GitHub reports a skipped required check as passed.
-  l2-contracts-test:
+  # One check covering the build and every test job, so branch protection can require a single `test`. It always runs,
+  # because GitHub reports a skipped required check as passed.
+  test:
     if: always()
     needs: [build, forge-test, hardhat-test]
     runs-on: ubuntu-latest
