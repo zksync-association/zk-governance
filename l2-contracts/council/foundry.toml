@@ -4,24 +4,24 @@
 # OpenZeppelin v5 and the Cancun EVM version (OpenZeppelin v5.4 uses `mcopy`), while the existing contracts are pinned
 # to solc 0.8.24, OpenZeppelin v4 and Paris. foundry-zksync applies one EVM version to a whole build and always writes
 # artifacts to `<project root>/zkout`, so the two cannot share a project without changing existing bytecode or
-# overwriting each other's artifacts. Dependencies are shared with l2-contracts via `../lib`.
+# overwriting each other's artifacts. The project is self-contained: council-governance is its only dependency, and
+# OpenZeppelin v5 and forge-std come from council-governance's own submodules, the versions upstream builds and tests
+# with.
 [profile.default]
   auto_detect_remappings = false
   evm_version = "cancun"
-  libs = ["../lib"]
+  libs = ["lib"]
   optimizer = true
   optimizer_runs = 10_000_000
   remappings = [
-    # OpenZeppelin v5 comes from council-governance's own submodule, so it is always the version upstream builds with.
-    "@openzeppelin/contracts/=../lib/council-governance/lib/openzeppelin-contracts/contracts/",
-    "council-governance/=../lib/council-governance/src/",
-    "ds-test/=../lib/forge-std/lib/ds-test/src/",
-    "forge-std/=../lib/forge-std/src/",
-    # council-governance imports its own sources as `src/...`. These remappings are scoped to it so they never resolve
-    # to this project's `src/`. Foundry ignores a remapping named exactly `src/`, so the narrower prefixes upstream
-    # actually uses are remapped instead. If a council-governance update imports another `src/...` path, the build
-    # fails with a missing file under this project's `src/` until a remapping for that path is added here.
-    "../lib/council-governance/:src/extensions/=../lib/council-governance/src/extensions/",
+    "@openzeppelin/contracts/=lib/council-governance/lib/openzeppelin-contracts/contracts/",
+    "council-governance/=lib/council-governance/src/",
+    "forge-std/=lib/council-governance/lib/forge-std/src/",
+    # council-governance imports its own sources as `src/...`. This remapping is scoped to it so it never resolves to
+    # this project's `src/`. Foundry ignores a remapping named exactly `src/`, so the narrower prefix upstream actually
+    # uses is remapped instead. If a council-governance update imports another `src/...` path, the build fails with a
+    # missing file under this project's `src/` until a remapping for that path is added here.
+    "lib/council-governance/:src/extensions/=lib/council-governance/src/extensions/",
   ]
   solc_version = "0.8.30"
   verbosity = 3

@@ -121,7 +121,7 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test {
     vm.warp(governor.proposalDeadline(_proposalId) + 1);
   }
 
-  function _assertState(uint256 _proposalId, IGovernor.ProposalState _expectedState) internal {
+  function _assertState(uint256 _proposalId, IGovernor.ProposalState _expectedState) internal view {
     assertEq(uint8(governor.state(_proposalId)), uint8(_expectedState));
   }
 }
@@ -169,7 +169,7 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract CountingMode is ZkProtocolUpgradeCouncilGovernorTest {
-  function test_ReportsThatOnlyForVotesCountTowardQuorum() public {
+  function test_ReportsThatOnlyForVotesCountTowardQuorum() public view {
     assertEq(governor.COUNTING_MODE(), "support=bravo&quorum=for");
   }
 }

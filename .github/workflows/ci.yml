@@ -211,9 +211,9 @@ jobs:
         with:
           version: ${{ env.FOUNDRY_ZKSYNC_VERSION }}
 
+      # The council project's only dependency is council-governance and its own nested submodules.
       - name: Install dependencies
         timeout-minutes: 10
-        working-directory: ./l2-contracts
         run: forge install
 
       # Compiles for both the EVM and EraVM, so there is no separate build step.
