@@ -43,6 +43,14 @@ jobs:
         timeout-minutes: 5
         uses: ./.github/actions/setup-foundry-zksync
 
+      # Pinned because the hardhat zksync plugin fails on newer Node releases ("maxRedirections is not supported"), which
+      # newer runner images ship by default.
+      - name: Install Node
+        timeout-minutes: 5
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Install dependencies
         timeout-minutes: 10
         run: forge install && npm install
@@ -125,6 +133,14 @@ jobs:
         timeout-minutes: 5
         with:
           fetch-depth: 1
+
+      # Pinned because the hardhat zksync plugin fails on newer Node releases ("maxRedirections is not supported"), which
+      # newer runner images ship by default.
+      - name: Install Node
+        timeout-minutes: 5
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install dependencies
         timeout-minutes: 10
