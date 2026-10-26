@@ -18,9 +18,8 @@ import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 /// non-transferable council token, and any account whose votes meet the proposal threshold can submit a proposal. A
 /// proposal succeeds as soon as it has one seat's worth of FOR votes, however many members vote AGAINST or ABSTAIN and
 /// however many seats the council has, so a single member holding a full seat is enough to sponsor it. A successful
-/// proposal is not
-/// executed by this governor: queueing it submits the same actions to a veto governor, where token holders have the
-/// chance to stop them before they are executed.
+/// proposal is not executed by this governor: queueing it submits the same actions to a veto governor, where token
+/// holders have the chance to stop them before they are executed.
 /// @dev Quorum and super-quorum are both fixed at one seat, the council token's `MAX_TOKENS_PER_MEMBER`, rather than a
 /// fraction of the seat supply. The fraction settings inherited from `GovernorVotesQuorumFraction` and
 /// `GovernorVotesSuperQuorumFraction` are unused: both fractions can only be set to zero, at construction or through

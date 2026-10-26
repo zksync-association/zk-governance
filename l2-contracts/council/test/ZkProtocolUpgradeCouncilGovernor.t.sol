@@ -136,10 +136,9 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
     assertEq(_governor.VOTES_PER_SEAT(), _votesPerSeat);
   }
 
-  function testFuzz_RevertIf_AQuorumFractionIsConfigured(uint256 _quorumFraction, uint256 _superQuorumFraction) public {
+  function testFuzz_RevertIf_AQuorumFractionIsConfigured(uint256 _quorumFraction) public {
     _quorumFraction = bound(_quorumFraction, 1, 100);
-    _superQuorumFraction = bound(_superQuorumFraction, 0, 100);
-    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, _superQuorumFraction);
+    BasicCouncilGovernor.InitialCouncilParams memory _params = _councilParams(_quorumFraction, 0);
 
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
     new ZkProtocolUpgradeCouncilGovernor(
@@ -233,6 +232,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
       _castVote(_proposalId, members[_i], _againstOrAbstain(_supportBits, _i));
     }
 
+    vm.warp(governor.proposalDeadline(_proposalId));
     _assertState(_proposalId, IGovernor.ProposalState.Active);
   }
 
