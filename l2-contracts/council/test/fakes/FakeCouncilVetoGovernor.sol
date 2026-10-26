@@ -5,9 +5,10 @@ import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 
 // Stands in for the veto governor a council governor submits successful proposals to. Like a real governor, it
 // identifies a proposal by the hash of its actions and description. A submitted proposal is pending until it is
-// executed, or until a test defeats it to simulate a veto. Each has a fixed deadline and no ETA. It reverts for any
-// proposal it was never given.
+// executed, or until a test defeats it to simulate a veto. Each has a fixed deadline and no ETA. Like a real governor,
+// it rejects a proposal submitted twice, and it reverts for any proposal it was never given.
 contract FakeCouncilVetoGovernor {
+  error FakeCouncilVetoGovernor__DuplicateProposal(uint256 proposalId);
   error FakeCouncilVetoGovernor__UnknownProposal(uint256 proposalId);
 
   uint256 public constant PROPOSAL_DEADLINE = 2_000_000_000;
@@ -37,6 +38,9 @@ contract FakeCouncilVetoGovernor {
     string memory _description
   ) external returns (uint256 _proposalId) {
     _proposalId = _hashProposal(_targets, _values, _calldatas, keccak256(bytes(_description)));
+    if (isSubmitted[_proposalId]) {
+      revert FakeCouncilVetoGovernor__DuplicateProposal(_proposalId);
+    }
     isSubmitted[_proposalId] = true;
     proposalStates[_proposalId] = IGovernor.ProposalState.Pending;
   }

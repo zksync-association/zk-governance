@@ -22,15 +22,13 @@
     # actually uses are remapped instead. If a council-governance update imports another `src/...` path, the build
     # fails with a missing file under this project's `src/` until a remapping for that path is added here.
     "../lib/council-governance/:src/extensions/=../lib/council-governance/src/extensions/",
-    "../lib/council-governance/:src/BasicCouncilVetoGovernor.sol=../lib/council-governance/src/BasicCouncilVetoGovernor.sol",
   ]
   solc_version = "0.8.30"
   verbosity = 3
 
 # CI runs the council tests under --zksync, where every run executes in an emulated EraVM, so it keeps Foundry's default
-# 256 fuzz runs (the main project's CI uses 2,500) and lowers the invariant runs.
+# 256 fuzz runs rather than the main project's 2,500.
 [profile.ci]
-  invariant = { runs = 64 }
 
 [profile.lite]
   fuzz = { runs = 50 }

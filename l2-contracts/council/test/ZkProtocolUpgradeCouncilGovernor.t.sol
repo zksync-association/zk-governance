@@ -306,32 +306,33 @@ contract Execute is ZkProtocolUpgradeCouncilGovernorTest {
   }
 }
 
+// The setters ignore the new numerator, so these tests fuzz only the caller.
 contract UpdateQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_RevertIf_CalledByAnyAccount(address _caller, uint256 _newQuorumNumerator) public {
+  function test_RevertIf_CalledByTheGovernorAdmin() public {
+    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
+    vm.prank(governorAdmin);
+    governor.updateQuorumNumerator(1);
+  }
+
+  function testFuzz_RevertIf_CalledByAnyOtherAccount(address _caller) public {
     _assumeNotASystemAddress(_caller);
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
     vm.prank(_caller);
-    governor.updateQuorumNumerator(_newQuorumNumerator);
-  }
-
-  function testFuzz_RevertIf_CalledByTheGovernorAdmin(uint256 _newQuorumNumerator) public {
-    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
-    vm.prank(governorAdmin);
-    governor.updateQuorumNumerator(_newQuorumNumerator);
+    governor.updateQuorumNumerator(1);
   }
 }
 
 contract UpdateSuperQuorumNumerator is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_RevertIf_CalledByAnyAccount(address _caller, uint256 _newSuperQuorumNumerator) public {
+  function test_RevertIf_CalledByTheGovernorAdmin() public {
+    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
+    vm.prank(governorAdmin);
+    governor.updateSuperQuorumNumerator(1);
+  }
+
+  function testFuzz_RevertIf_CalledByAnyOtherAccount(address _caller) public {
     _assumeNotASystemAddress(_caller);
     vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
     vm.prank(_caller);
-    governor.updateSuperQuorumNumerator(_newSuperQuorumNumerator);
-  }
-
-  function testFuzz_RevertIf_CalledByTheGovernorAdmin(uint256 _newSuperQuorumNumerator) public {
-    vm.expectRevert(ZkProtocolUpgradeCouncilGovernor.ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled.selector);
-    vm.prank(governorAdmin);
-    governor.updateSuperQuorumNumerator(_newSuperQuorumNumerator);
+    governor.updateSuperQuorumNumerator(1);
   }
 }

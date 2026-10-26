@@ -85,14 +85,15 @@ jobs:
         run: |
           forge test --list --json --no-match-path "$EXCLUDED_TEST_PATH" > test-list.json
           python3 - <<'PY' >> "$GITHUB_ENV"
-          import json, os
+          import json, os, re
           tests = json.load(open("test-list.json"))
           names = sorted({name for contracts in tests.values() for name in contracts})
           if not names:
               raise SystemExit("forge test --list found no test contracts")
           shard, count = int(os.environ["SHARD"]), int(os.environ["SHARD_COUNT"])
           selected = names[shard - 1 :: count]
-          print(f"MATCH_CONTRACT=^({'|'.join(selected)})$" if selected else "MATCH_CONTRACT=")
+          # Solidity identifiers may contain `$`, so names are escaped before joining them into a regex.
+          print(f"MATCH_CONTRACT=^({'|'.join(map(re.escape, selected))})$" if selected else "MATCH_CONTRACT=")
           PY
 
       - name: Run forge tests
