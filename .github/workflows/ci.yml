@@ -5,7 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - master
 
 env:
   FOUNDRY_PROFILE: ci
@@ -133,10 +133,10 @@ jobs:
         timeout-minutes: 15
         run: npx hardhat test
 
-  # Single status that covers every test job, so branch protection can keep requiring a check named `test`. It runs
-  # when a test job fails or is skipped, so those still fail the check, but not when the workflow is cancelled.
+  # Single status that covers every test job, so branch protection can keep requiring a check named `test`. It always
+  # runs, so a failed, skipped or cancelled test job fails the check: GitHub reports a skipped required check as passed.
   test:
-    if: ${{ !cancelled() }}
+    if: always()
     needs: [forge-test, hardhat-test, council]
     runs-on: ubuntu-latest
     steps:

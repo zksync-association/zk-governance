@@ -27,10 +27,9 @@
   solc_version = "0.8.30"
   verbosity = 3
 
-# CI runs the council tests under --zksync, where every fuzz run executes in an emulated EraVM, so it uses fewer runs
-# than the main project.
+# CI runs the council tests under --zksync, where every run executes in an emulated EraVM, so it keeps Foundry's default
+# 256 fuzz runs (the main project's CI uses 2,500) and lowers the invariant runs.
 [profile.ci]
-  fuzz = { runs = 256 }
   invariant = { runs = 64 }
 
 [profile.lite]

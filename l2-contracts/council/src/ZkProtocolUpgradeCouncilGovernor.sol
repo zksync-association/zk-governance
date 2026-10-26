@@ -26,11 +26,13 @@ import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 /// `updateQuorumNumerator` and `updateSuperQuorumNumerator` revert, and `quorumNumerator` and `superQuorumNumerator`
 /// always return zero. Read `quorum` and `superQuorum` for the votes a proposal needs.
 contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
+  /// @notice Thrown when a super-quorum fraction is configured at construction, or when either fraction setter is
+  /// called. A quorum fraction configured on its own is rejected earlier by OpenZeppelin, with
+  /// `GovernorInvalidSuperQuorumTooSmall`.
+  error ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
+
   /// @notice The votes one council seat carries: the most council tokens a member can hold.
   uint256 public immutable VOTES_PER_SEAT;
-
-  /// @notice Thrown when a quorum or super-quorum fraction is configured, at construction or through its setter.
-  error ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled();
 
   /// @param _name The name used as the EIP712 signing domain.
   /// @param _councilToken The council token, whose seats carry the voting power.
@@ -48,7 +50,7 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     // OpenZeppelin rejects a quorum fraction larger than the super-quorum fraction, so a zero super-quorum fraction
     // also means a zero quorum fraction.
     if (_params.initialSuperQuorumFraction != 0) {
-      revert ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled();
+      revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
     }
     VOTES_PER_SEAT = _councilToken.MAX_TOKENS_PER_MEMBER();
   }
@@ -74,12 +76,12 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
 
   /// @notice Always reverts. Quorum is fixed at one seat.
   function updateQuorumNumerator(uint256) external virtual override {
-    revert ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled();
+    revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
   }
 
   /// @notice Always reverts. Super-quorum is fixed at one seat.
   function updateSuperQuorumNumerator(uint256) public virtual override {
-    revert ZkProtocolUpgradeCouncilGovernor_QuorumFractionDisabled();
+    revert ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
   }
 
   /// @notice Returns whether a proposal's FOR votes meet quorum. ABSTAIN votes do not count toward it.
