@@ -17,11 +17,10 @@
     "@openzeppelin/contracts/=lib/council-governance/lib/openzeppelin-contracts/contracts/",
     "council-governance/=lib/council-governance/src/",
     "forge-std/=lib/council-governance/lib/forge-std/src/",
-    # council-governance imports its own sources as `src/...`. This remapping is scoped to it so it never resolves to
-    # this project's `src/`. Foundry ignores a remapping named exactly `src/`, so the narrower prefix upstream actually
-    # uses is remapped instead. If a council-governance update imports another `src/...` path, the build fails with a
-    # missing file under this project's `src/` until a remapping for that path is added here.
-    "lib/council-governance/:src/extensions/=lib/council-governance/src/extensions/",
+    # council-governance imports its own sources as `src/...`. This remapping applies only to files inside
+    # council-governance, so those imports resolve to its `src/`, while this project's own `src/...` imports are
+    # unaffected.
+    "lib/council-governance/:src/=lib/council-governance/src/",
   ]
   solc_version = "0.8.30"
   verbosity = 3

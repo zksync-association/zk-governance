@@ -190,6 +190,23 @@ contract SuperQuorum is ZkProtocolUpgradeCouncilGovernorTest {
   }
 }
 
+contract Propose is ZkProtocolUpgradeCouncilGovernorTest {
+  function testFuzz_RevertIf_TheProposerHoldsLessThanOneSeat(uint256 _partialSeatVotes) public {
+    _partialSeatVotes = bound(_partialSeatVotes, 0, VOTES_PER_SEAT - 1);
+    _seatMembers(1);
+    address _proposer = _mintPartialSeat("Partial Member", _partialSeatVotes);
+    (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IGovernor.GovernorInsufficientProposerVotes.selector, _proposer, _partialSeatVotes, VOTES_PER_SEAT
+      )
+    );
+    vm.prank(_proposer);
+    governor.propose(_targets, _values, _calldatas, PROPOSAL_DESCRIPTION);
+  }
+}
+
 contract State is ZkProtocolUpgradeCouncilGovernorTest {
   function testFuzz_ReturnsSucceededAsSoonAsOneMemberVotesForHoweverManySeatsExist(uint256 _memberCount) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
@@ -290,6 +307,25 @@ contract Queue is ZkProtocolUpgradeCouncilGovernorTest {
     vetoGovernor.defeat(_proposalId);
 
     _assertState(_proposalId, IGovernor.ProposalState.Canceled);
+  }
+}
+
+contract CastVote is ZkProtocolUpgradeCouncilGovernorTest {
+  function testFuzz_RevertIf_VotingAfterTheFirstForSeatPassedTheProposal(uint256 _memberCount, uint8 _support) public {
+    _seatMembers(bound(_memberCount, 2, MAX_MEMBER_COUNT));
+    _support = uint8(bound(_support, AGAINST, ABSTAIN));
+    uint256 _proposalId = _proposeAndOpenVoting();
+    _castVote(_proposalId, members[0], FOR);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IGovernor.GovernorUnexpectedProposalState.selector,
+        _proposalId,
+        IGovernor.ProposalState.Succeeded,
+        bytes32(1 << uint8(IGovernor.ProposalState.Active))
+      )
+    );
+    _castVote(_proposalId, members[1], _support);
   }
 }
 

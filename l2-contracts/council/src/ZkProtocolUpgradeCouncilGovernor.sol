@@ -95,7 +95,7 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     returns (bool)
   {
     (, uint256 _forVotes,) = proposalVotes(_proposalId);
-    return _forVotes >= quorum(proposalSnapshot(_proposalId));
+    return _forVotes >= VOTES_PER_SEAT;
   }
 
   /// @notice Returns true for every proposal: AGAINST votes cannot defeat a proposal, so whether it succeeds depends
