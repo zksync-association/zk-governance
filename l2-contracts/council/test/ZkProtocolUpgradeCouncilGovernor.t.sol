@@ -20,6 +20,7 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
   address[] members;
 
   function setUp() public virtual {
+    // Starts at an arbitrary but realistic Unix time (Nov 2023); no test depends on the exact value.
     vm.warp(1_700_000_000);
     councilToken = new CouncilERC20("Council Seat", "SEAT", address(this), VOTES_PER_SEAT);
     vetoGovernor = new FakeCouncilVetoGovernor();
