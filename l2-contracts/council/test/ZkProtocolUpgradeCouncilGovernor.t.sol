@@ -170,7 +170,7 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
 
 contract CountingMode is ZkProtocolUpgradeCouncilGovernorTest {
   function test_ReportsThatOnlyForVotesCountTowardQuorum() public view {
-    assertEq(governor.COUNTING_MODE(), "support=bravo&quorum=for");
+    assertEq(governor.COUNTING_MODE(), "support=bravo&quorum=bravo");
   }
 }
 

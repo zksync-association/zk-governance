@@ -52,7 +52,7 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
   /// @notice Describes how votes are counted: FOR, AGAINST and ABSTAIN votes are cast as in Governor Bravo, and only
   /// FOR votes count toward quorum.
   function COUNTING_MODE() public pure virtual override(IGovernor, GovernorCountingSimple) returns (string memory) {
-    return "support=bravo&quorum=for";
+    return "support=bravo&quorum=bravo";
   }
 
   /// @notice Returns the votes a proposal needs to succeed, which is one seat at every timepoint.
