@@ -133,7 +133,7 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
 
 contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
   function testFuzz_SetsQuorumToTheCouncilTokensMaximumPerMember(uint256 _votesPerSeat) public {
-    _votesPerSeat = bound(_votesPerSeat, 1, type(uint208).max);
+    _votesPerSeat = bound(_votesPerSeat, 1, type(uint256).max);
     CouncilERC20 _councilToken = new CouncilERC20("Council Seat", "SEAT", address(this), _votesPerSeat);
 
     ZkProtocolUpgradeCouncilGovernor _governor = new ZkProtocolUpgradeCouncilGovernor(
