@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {Test, Vm} from "forge-std/Test.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
+import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BasicCouncilGovernor} from "council-governance/BasicCouncilGovernor.sol";
 import {CouncilERC20} from "council-governance/CouncilERC20.sol";
@@ -87,22 +88,26 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
   // Passes the proposal with one FOR seat and queues it, which submits it to the veto governor.
   function _passAndQueue() internal returns (uint256 _proposalId) {
     _proposalId = _proposeAndOpenVoting();
-    _castVote(_proposalId, members[0], FOR);
+    _castVote(_proposalId, members[0], GovernorCountingSimple.VoteType.For);
     (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
     governor.queue(_targets, _values, _calldatas, keccak256(bytes(PROPOSAL_DESCRIPTION)));
   }
 
-  function _castVote(uint256 _proposalId, address _voter, uint8 _support) internal {
+  function _castVote(uint256 _proposalId, address _voter, GovernorCountingSimple.VoteType _support) internal {
     vm.prank(_voter);
-    governor.castVote(_proposalId, _support);
+    governor.castVote(_proposalId, uint8(_support));
   }
 
   // Each bit of `_supportBits` picks whether a member votes AGAINST (0) or ABSTAIN (1).
-  function _againstOrAbstain(uint256 _supportBits, uint256 _memberIndex) internal pure returns (uint8) {
+  function _againstOrAbstain(uint256 _supportBits, uint256 _memberIndex)
+    internal
+    pure
+    returns (GovernorCountingSimple.VoteType)
+  {
     if ((_supportBits >> _memberIndex) & 1 == 0) {
-      return AGAINST;
+      return GovernorCountingSimple.VoteType.Against;
     }
-    return ABSTAIN;
+    return GovernorCountingSimple.VoteType.Abstain;
   }
 
   // Counts the recorded logs a given contract emitted. EraVM's system contracts emit their own logs on every call, so
@@ -202,7 +207,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
     uint256 _proposalId = _proposeAndOpenVoting();
 
-    _castVote(_proposalId, members[0], FOR);
+    _castVote(_proposalId, members[0], GovernorCountingSimple.VoteType.For);
 
     _assertState(_proposalId, IGovernor.ProposalState.Succeeded);
   }
@@ -218,7 +223,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     for (uint256 _i = 1; _i < members.length; _i += 1) {
       _castVote(_proposalId, members[_i], _againstOrAbstain(_supportBits, _i));
     }
-    _castVote(_proposalId, members[0], FOR);
+    _castVote(_proposalId, members[0], GovernorCountingSimple.VoteType.For);
 
     _assertState(_proposalId, IGovernor.ProposalState.Succeeded);
   }
@@ -257,7 +262,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     address _partialMember = _mintPartialSeat("Partial Member", _partialSeatVotes);
     uint256 _proposalId = _proposeAndOpenVoting();
 
-    _castVote(_proposalId, _partialMember, FOR);
+    _castVote(_proposalId, _partialMember, GovernorCountingSimple.VoteType.For);
     _assertState(_proposalId, IGovernor.ProposalState.Active);
 
     _jumpPastTheProposalDeadline(_proposalId);
@@ -271,8 +276,8 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     address _secondPartialMember = _mintPartialSeat("Second Partial Member", VOTES_PER_SEAT - _firstPartialSeatVotes);
     uint256 _proposalId = _proposeAndOpenVoting();
 
-    _castVote(_proposalId, _firstPartialMember, FOR);
-    _castVote(_proposalId, _secondPartialMember, FOR);
+    _castVote(_proposalId, _firstPartialMember, GovernorCountingSimple.VoteType.For);
+    _castVote(_proposalId, _secondPartialMember, GovernorCountingSimple.VoteType.For);
 
     _assertState(_proposalId, IGovernor.ProposalState.Succeeded);
   }
@@ -302,11 +307,12 @@ contract Queue is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract CastVote is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_RevertIf_VotingAfterTheFirstForSeatPassedTheProposal(uint256 _memberCount, uint8 _support) public {
+  function testFuzz_RevertIf_VotingAfterTheFirstForSeatPassedTheProposal(uint256 _memberCount, uint256 _supportBits)
+    public
+  {
     _seatMembers(bound(_memberCount, 2, MAX_MEMBER_COUNT));
-    _support = uint8(bound(_support, AGAINST, ABSTAIN));
     uint256 _proposalId = _proposeAndOpenVoting();
-    _castVote(_proposalId, members[0], FOR);
+    _castVote(_proposalId, members[0], GovernorCountingSimple.VoteType.For);
 
     vm.expectRevert(
       abi.encodeWithSelector(
@@ -316,7 +322,7 @@ contract CastVote is ZkProtocolUpgradeCouncilGovernorTest {
         bytes32(1 << uint8(IGovernor.ProposalState.Active))
       )
     );
-    _castVote(_proposalId, members[1], _support);
+    _castVote(_proposalId, members[1], _againstOrAbstain(_supportBits, 1));
   }
 }
 
