@@ -204,7 +204,7 @@ contract Propose is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract State is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_ReturnsSucceededAsSoonAsOneMemberVotesForWithAnyNumberOfMembers(uint256 _memberCount) public {
+  function testFuzz_SucceededAsSoonAsOneMemberVotesForWithAnyNumberOfMembers(uint256 _memberCount) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
     uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
@@ -213,10 +213,9 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _assertState(_proposalId, IGovernor.ProposalState.Succeeded);
   }
 
-  function testFuzz_ReturnsSucceededWhenEveryOtherMemberHasVotedAgainstOrAbstained(
-    uint256 _memberCount,
-    uint256 _supportBits
-  ) public {
+  function testFuzz_SucceededWhenEveryOtherMemberHasVotedAgainstOrAbstained(uint256 _memberCount, uint256 _supportBits)
+    public
+  {
     _seatMembers(bound(_memberCount, 2, MAX_MEMBER_COUNT));
     uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
@@ -229,9 +228,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _assertState(_proposalId, IGovernor.ProposalState.Succeeded);
   }
 
-  function testFuzz_ReturnsActiveUntilTheDeadlineWhenNoMemberVotesFor(uint256 _memberCount, uint256 _supportBits)
-    public
-  {
+  function testFuzz_ActiveUntilTheDeadlineWhenNoMemberVotesFor(uint256 _memberCount, uint256 _supportBits) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
     uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
@@ -243,9 +240,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _assertState(_proposalId, IGovernor.ProposalState.Active);
   }
 
-  function testFuzz_ReturnsDefeatedAfterTheDeadlineWhenNoMemberVotesFor(uint256 _memberCount, uint256 _supportBits)
-    public
-  {
+  function testFuzz_DefeatedAfterTheDeadlineWhenNoMemberVotesFor(uint256 _memberCount, uint256 _supportBits) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
     uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
@@ -257,7 +252,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _assertState(_proposalId, IGovernor.ProposalState.Defeated);
   }
 
-  function testFuzz_ReturnsActiveThenDefeatedWhenTheOnlyForVoteIsLessThanOneSeat(uint256 _partialSeatVotes) public {
+  function testFuzz_ActiveThenDefeatedWhenTheOnlyForVoteIsLessThanOneSeat(uint256 _partialSeatVotes) public {
     _partialSeatVotes = bound(_partialSeatVotes, 1, VOTES_PER_SEAT - 1);
     _seatMembers(1);
     address _partialMember = _mintPartialSeat("Partial Member", _partialSeatVotes);
@@ -270,7 +265,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _assertState(_proposalId, IGovernor.ProposalState.Defeated);
   }
 
-  function testFuzz_ReturnsSucceededAsSoonAsPartialForVotesAddUpToOneSeat(uint256 _firstPartialSeatVotes) public {
+  function testFuzz_SucceededAsSoonAsPartialForVotesAddUpToOneSeat(uint256 _firstPartialSeatVotes) public {
     _firstPartialSeatVotes = bound(_firstPartialSeatVotes, 1, VOTES_PER_SEAT - 1);
     _seatMembers(1);
     address _firstPartialMember = _mintPartialSeat("First Partial Member", _firstPartialSeatVotes);
