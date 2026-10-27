@@ -171,7 +171,7 @@ contract CountingMode is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract Quorum is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_IsOneSeatHoweverManySeatsExist(uint256 _memberCount, uint256 _timepoint) public {
+  function testFuzz_TheVotesOfOneSeatForAnyNumberOfMembers(uint256 _memberCount, uint256 _timepoint) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
 
     assertEq(governor.quorum(_timepoint), VOTES_PER_SEAT);
@@ -179,7 +179,7 @@ contract Quorum is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract SuperQuorum is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_IsOneSeatHoweverManySeatsExist(uint256 _memberCount, uint256 _timepoint) public {
+  function testFuzz_TheVotesOfOneSeatForAnyNumberOfMembers(uint256 _memberCount, uint256 _timepoint) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
 
     assertEq(governor.superQuorum(_timepoint), VOTES_PER_SEAT);
@@ -204,7 +204,7 @@ contract Propose is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract State is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_ReturnsSucceededAsSoonAsOneMemberVotesForHoweverManySeatsExist(uint256 _memberCount) public {
+  function testFuzz_ReturnsSucceededAsSoonAsOneMemberVotesForWithAnyNumberOfMembers(uint256 _memberCount) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
     uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
