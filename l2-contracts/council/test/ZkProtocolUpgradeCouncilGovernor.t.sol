@@ -136,7 +136,7 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test {
 }
 
 contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_SetsVotesPerSeatToTheCouncilTokensMaximumPerMember(uint256 _votesPerSeat) public {
+  function testFuzz_SetsQuorumToTheCouncilTokensMaximumPerMember(uint256 _votesPerSeat) public {
     _votesPerSeat = bound(_votesPerSeat, 1, type(uint208).max);
     CouncilERC20 _councilToken = new CouncilERC20("Council Seat", "SEAT", address(this), _votesPerSeat);
 
@@ -144,7 +144,7 @@ contract Constructor is ZkProtocolUpgradeCouncilGovernorTest {
       "Council Governor", _councilToken, IGovernor(address(0)), governorAdmin, _councilParams(0, 0)
     );
 
-    assertEq(_governor.VOTES_PER_SEAT(), _votesPerSeat);
+    assertEq(_governor.QUORUM(), _votesPerSeat);
   }
 
   function testFuzz_RevertIf_AQuorumFractionIsConfigured(uint256 _quorumFraction) public {

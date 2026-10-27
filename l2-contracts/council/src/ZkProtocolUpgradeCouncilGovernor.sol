@@ -29,8 +29,9 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
   /// @notice Thrown when a quorum or super-quorum fraction other than zero is set, at construction or by the admin.
   error ZkProtocolUpgradeCouncilGovernor__QuorumFractionDisabled();
 
-  /// @notice The votes one council seat carries: the most council tokens a member can hold.
-  uint256 public immutable VOTES_PER_SEAT;
+  /// @notice The votes a proposal needs for both quorum and super-quorum: one council seat, the most council tokens a
+  /// member can hold.
+  uint256 public immutable QUORUM;
 
   /// @param _name The name used as the EIP712 signing domain.
   /// @param _councilToken The council token, whose seats carry the voting power.
@@ -45,7 +46,7 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
     address _governorAdmin,
     InitialCouncilParams memory _params
   ) BasicCouncilGovernor(_name, IERC5805(address(_councilToken)), _councilVetoGovernor, _governorAdmin, _params) {
-    VOTES_PER_SEAT = _councilToken.MAX_TOKENS_PER_MEMBER();
+    QUORUM = _councilToken.MAX_TOKENS_PER_MEMBER();
   }
 
   /// @notice Describes how votes are counted: FOR, AGAINST and ABSTAIN votes are cast as in Governor Bravo, and only
@@ -57,14 +58,14 @@ contract ZkProtocolUpgradeCouncilGovernor is BasicCouncilGovernor {
   /// @notice Returns the votes a proposal needs to succeed, which is one seat at every timepoint.
   /// @return The votes of one seat.
   function quorum(uint256) public view virtual override(Governor, GovernorVotesQuorumFraction) returns (uint256) {
-    return VOTES_PER_SEAT;
+    return QUORUM;
   }
 
   /// @notice Returns the votes at which a proposal succeeds before its voting period ends, which is one seat at every
   /// timepoint.
   /// @return The votes of one seat.
   function superQuorum(uint256) public view virtual override returns (uint256) {
-    return VOTES_PER_SEAT;
+    return QUORUM;
   }
 
   /// @notice Returns whether a proposal's FOR votes meet quorum. ABSTAIN votes do not count toward it.
