@@ -78,19 +78,19 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
   }
 
   // Proposes from the first member and moves to the start of voting.
-  function _proposeAndOpenVoting() internal returns (uint256 _proposalId) {
+  function _proposeAndOpenVoting(string memory _description) internal returns (uint256 _proposalId) {
     (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
     vm.prank(members[0]);
-    _proposalId = governor.propose(_targets, _values, _calldatas, PROPOSAL_DESCRIPTION);
+    _proposalId = governor.propose(_targets, _values, _calldatas, _description);
     vm.warp(governor.proposalSnapshot(_proposalId) + 1);
   }
 
   // Passes the proposal with one FOR seat and queues it, which submits it to the veto governor.
-  function _passAndQueue() internal returns (uint256 _proposalId) {
-    _proposalId = _proposeAndOpenVoting();
+  function _passAndQueue(string memory _description) internal returns (uint256 _proposalId) {
+    _proposalId = _proposeAndOpenVoting(_description);
     _castVote(_proposalId, members[0], GovernorCountingSimple.VoteType.For);
     (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
-    governor.queue(_targets, _values, _calldatas, keccak256(bytes(PROPOSAL_DESCRIPTION)));
+    governor.queue(_targets, _values, _calldatas, keccak256(bytes(_description)));
   }
 
   function _castVote(uint256 _proposalId, address _voter, GovernorCountingSimple.VoteType _support) internal {
@@ -205,7 +205,7 @@ contract Propose is ZkProtocolUpgradeCouncilGovernorTest {
 contract State is ZkProtocolUpgradeCouncilGovernorTest {
   function testFuzz_ReturnsSucceededAsSoonAsOneMemberVotesForHoweverManySeatsExist(uint256 _memberCount) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
-    uint256 _proposalId = _proposeAndOpenVoting();
+    uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
     _castVote(_proposalId, members[0], GovernorCountingSimple.VoteType.For);
 
@@ -217,7 +217,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     uint256 _supportBits
   ) public {
     _seatMembers(bound(_memberCount, 2, MAX_MEMBER_COUNT));
-    uint256 _proposalId = _proposeAndOpenVoting();
+    uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
     // The other members vote first, since the first FOR seat ends voting.
     for (uint256 _i = 1; _i < members.length; _i += 1) {
@@ -232,7 +232,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     public
   {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
-    uint256 _proposalId = _proposeAndOpenVoting();
+    uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
     for (uint256 _i = 0; _i < members.length; _i += 1) {
       _castVote(_proposalId, members[_i], _againstOrAbstain(_supportBits, _i));
@@ -246,7 +246,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     public
   {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
-    uint256 _proposalId = _proposeAndOpenVoting();
+    uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
     for (uint256 _i = 0; _i < members.length; _i += 1) {
       _castVote(_proposalId, members[_i], _againstOrAbstain(_supportBits, _i));
@@ -260,7 +260,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _partialSeatVotes = bound(_partialSeatVotes, 1, VOTES_PER_SEAT - 1);
     _seatMembers(1);
     address _partialMember = _mintPartialSeat("Partial Member", _partialSeatVotes);
-    uint256 _proposalId = _proposeAndOpenVoting();
+    uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
     _castVote(_proposalId, _partialMember, GovernorCountingSimple.VoteType.For);
     _assertState(_proposalId, IGovernor.ProposalState.Active);
@@ -274,7 +274,7 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
     _seatMembers(1);
     address _firstPartialMember = _mintPartialSeat("First Partial Member", _firstPartialSeatVotes);
     address _secondPartialMember = _mintPartialSeat("Second Partial Member", VOTES_PER_SEAT - _firstPartialSeatVotes);
-    uint256 _proposalId = _proposeAndOpenVoting();
+    uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
 
     _castVote(_proposalId, _firstPartialMember, GovernorCountingSimple.VoteType.For);
     _castVote(_proposalId, _secondPartialMember, GovernorCountingSimple.VoteType.For);
@@ -284,11 +284,13 @@ contract State is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract Queue is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_SubmitsASucceededProposalToTheVetoGovernor(uint256 _memberCount) public {
+  function testFuzz_SubmitsASucceededProposalToTheVetoGovernor(uint256 _memberCount, string memory _description)
+    public
+  {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
 
     // Queued while its voting period is still running, since the first FOR seat already passed it.
-    uint256 _proposalId = _passAndQueue();
+    uint256 _proposalId = _passAndQueue(_description);
 
     // The veto governor received the same actions and description, so it identifies the proposal by the same ID.
     assertTrue(vetoGovernor.isSubmitted(_proposalId));
@@ -298,7 +300,7 @@ contract Queue is ZkProtocolUpgradeCouncilGovernorTest {
 
   function testFuzz_ReportsCanceledOnceTheVetoGovernorDefeatsTheProposal(uint256 _memberCount) public {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
-    uint256 _proposalId = _passAndQueue();
+    uint256 _proposalId = _passAndQueue(PROPOSAL_DESCRIPTION);
 
     vetoGovernor.defeat(_proposalId);
 
@@ -311,7 +313,7 @@ contract CastVote is ZkProtocolUpgradeCouncilGovernorTest {
     public
   {
     _seatMembers(bound(_memberCount, 2, MAX_MEMBER_COUNT));
-    uint256 _proposalId = _proposeAndOpenVoting();
+    uint256 _proposalId = _proposeAndOpenVoting(PROPOSAL_DESCRIPTION);
     _castVote(_proposalId, members[0], GovernorCountingSimple.VoteType.For);
 
     vm.expectRevert(
@@ -327,13 +329,15 @@ contract CastVote is ZkProtocolUpgradeCouncilGovernorTest {
 }
 
 contract Execute is ZkProtocolUpgradeCouncilGovernorTest {
-  function testFuzz_ExecutesAQueuedProposalThroughTheVetoGovernor(uint256 _memberCount) public {
+  function testFuzz_ExecutesAQueuedProposalThroughTheVetoGovernor(uint256 _memberCount, string memory _description)
+    public
+  {
     _seatMembers(bound(_memberCount, 1, MAX_MEMBER_COUNT));
-    uint256 _proposalId = _passAndQueue();
+    uint256 _proposalId = _passAndQueue(_description);
     vetoGovernor.succeed(_proposalId);
     (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
 
-    governor.execute(_targets, _values, _calldatas, keccak256(bytes(PROPOSAL_DESCRIPTION)));
+    governor.execute(_targets, _values, _calldatas, keccak256(bytes(_description)));
 
     assertEq(uint8(vetoGovernor.state(_proposalId)), uint8(IGovernor.ProposalState.Executed));
     _assertState(_proposalId, IGovernor.ProposalState.Executed);
