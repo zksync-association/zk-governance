@@ -8,6 +8,10 @@ on:
     paths:
       - "l2-contracts/**"
       - "!l2-contracts/council/**"
+      # Shared with the council project and imported by this project's deploy script.
+      - "l2-contracts/council/script/DeployBase.sol"
+      - "l2-contracts/council/script/SupermajorityGovernorChecks.sol"
+      - "l2-contracts/council/script/configs/**"
       - ".github/workflows/l2-contracts.yml"
       - ".github/actions/**"
       - ".gitmodules"
@@ -17,6 +21,10 @@ on:
     paths:
       - "l2-contracts/**"
       - "!l2-contracts/council/**"
+      # Shared with the council project and imported by this project's deploy script.
+      - "l2-contracts/council/script/DeployBase.sol"
+      - "l2-contracts/council/script/SupermajorityGovernorChecks.sol"
+      - "l2-contracts/council/script/configs/**"
       - ".github/workflows/l2-contracts.yml"
       - ".github/actions/**"
       - ".gitmodules"
