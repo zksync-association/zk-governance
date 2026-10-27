@@ -8,19 +8,9 @@ import {BasicCouncilGovernor} from "council-governance/BasicCouncilGovernor.sol"
 import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 import {ZkProtocolUpgradeCouncilGovernor} from "src/ZkProtocolUpgradeCouncilGovernor.sol";
 import {FakeCouncilVetoGovernor} from "test/fakes/FakeCouncilVetoGovernor.sol";
+import {Constants} from "test/utils/Constants.sol";
 
-contract ZkProtocolUpgradeCouncilGovernorTest is Test {
-  uint256 constant VOTES_PER_SEAT = 1e18;
-  uint256 constant MAX_MEMBER_COUNT = 20;
-  uint48 constant VOTING_DELAY = 1 days;
-  uint32 constant VOTING_PERIOD = 3 days;
-
-  uint8 constant AGAINST = 0;
-  uint8 constant FOR = 1;
-  uint8 constant ABSTAIN = 2;
-
-  string constant PROPOSAL_DESCRIPTION = "A protocol upgrade";
-
+contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
   CouncilERC20 councilToken;
   FakeCouncilVetoGovernor vetoGovernor;
   ZkProtocolUpgradeCouncilGovernor governor;
