@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Test, Vm} from "forge-std/Test.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -10,8 +9,9 @@ import {CouncilERC20} from "council-governance/CouncilERC20.sol";
 import {ZkProtocolUpgradeCouncilGovernor} from "src/ZkProtocolUpgradeCouncilGovernor.sol";
 import {FakeCouncilVetoGovernor} from "test/fakes/FakeCouncilVetoGovernor.sol";
 import {Constants} from "test/utils/Constants.sol";
+import {TestHelpers} from "test/utils/TestHelpers.sol";
 
-contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
+contract ZkProtocolUpgradeCouncilGovernorTest is TestHelpers, Constants {
   CouncilERC20 councilToken;
   FakeCouncilVetoGovernor vetoGovernor;
   ZkProtocolUpgradeCouncilGovernor governor;
@@ -73,11 +73,6 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
     vm.warp(block.timestamp + 1);
   }
 
-  // Excludes the addresses below 0x10000, where EraVM keeps its system contracts and precompiles.
-  function _assumeNotASystemAddress(address _account) internal pure {
-    vm.assume(uint160(_account) > 0xFFFF);
-  }
-
   // Proposes from the first member and moves to the start of voting.
   function _proposeAndOpenVoting(string memory _description) internal returns (uint256 _proposalId) {
     (address[] memory _targets, uint256[] memory _values, bytes[] memory _calldatas) = _proposalActions();
@@ -109,17 +104,6 @@ contract ZkProtocolUpgradeCouncilGovernorTest is Test, Constants {
       return GovernorCountingSimple.VoteType.Against;
     }
     return GovernorCountingSimple.VoteType.Abstain;
-  }
-
-  // Counts the recorded logs a given contract emitted. EraVM's system contracts emit their own logs on every call, so
-  // only the contract's own logs are counted.
-  function _countLogsEmittedBy(address _emitter) internal returns (uint256 _count) {
-    Vm.Log[] memory _logs = vm.getRecordedLogs();
-    for (uint256 _i = 0; _i < _logs.length; _i += 1) {
-      if (_logs[_i].emitter == _emitter) {
-        _count += 1;
-      }
-    }
   }
 
   function _jumpPastTheProposalDeadline(uint256 _proposalId) internal {
