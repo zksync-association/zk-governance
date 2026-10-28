@@ -37,9 +37,6 @@
 [rpc_endpoints]
   zksync = "${ZKSYNC_RPC_URL}"
 
+# The newest zksolc the Era explorer verifies; the governors redeployed for the Guardians removal are built with it.
 [profile.default.zksync]
-  zksolc = "1.5.11"
-
-# Builds the governors redeployed for the Guardians removal: the newest zksolc the Era explorer verifies.
-[profile.governors-deploy.zksync]
   zksolc = "1.5.17"

@@ -16,8 +16,23 @@ import {
   IProtocolUpgradeHandlerRoles
 } from "../src/ProtocolUpgradeHandlerStateCheck.sol";
 
+import {SecurityCouncil} from "../src/SecurityCouncil.sol";
+
 import {MainnetRemoveGuardians} from "../scripts/MainnetRemoveGuardians.s.sol";
 import {RemoveGuardiansDeployedContracts} from "../scripts/RemoveGuardians.s.sol";
+import {MainnetRedeploySecurityCouncil} from "../scripts/MainnetRedeploySecurityCouncil.s.sol";
+import {SCRedeployedContracts} from "../scripts/RedeploySecurityCouncil.s.sol";
+
+// Inside the `script-out` directory that `fs_permissions` lets scripts write to.
+string constant REMOVE_GUARDIANS_OUTPUT = "./script-out/remove-guardians-fork-test.toml";
+
+/// @dev MainnetRemoveGuardians writing its output TOML to a fixed path rather than to `DEPLOY_OUTPUT_TOML`: an
+/// environment variable is process-wide, so setting it would also redirect the scripts of concurrently running tests.
+contract MainnetRemoveGuardiansWithOutput is MainnetRemoveGuardians {
+  function _outputPath() internal pure override returns (string memory) {
+    return REMOVE_GUARDIANS_OUTPUT;
+  }
+}
 
 /// @dev Verifies the guardians removal flow against a mainnet fork (`--fork-url <L1_MAINNET_RPC>`):
 /// replays the v31 handler upgrade, runs the MainnetRemoveGuardians script against the result,
@@ -43,6 +58,8 @@ contract RemoveGuardiansForkTest is Test {
   // Mainnet `STANDARD_LEGAL_VETO_PERIOD` and `UPGRADE_DELAY_PERIOD` of the ProtocolUpgradeHandler.
   uint256 constant LEGAL_VETO_PERIOD = 3 days;
   uint256 constant UPGRADE_DELAY_PERIOD = 9 days;
+  // L1Messenger system contract on Era, the target of the ZIP action.
+  address constant L1_MESSENGER = 0x0000000000000000000000000000000000008008;
 
   MainnetRemoveGuardians script;
   ProtocolUpgradeHandler handler;
@@ -56,12 +73,10 @@ contract RemoveGuardiansForkTest is Test {
   bool forkPredatesV31;
   uint256 preV31Snapshot;
 
+  /// @dev Needs a mainnet fork (`--fork-url <L1_MAINNET_RPC>`), the tests are reported as skipped without one.
   modifier onlyMainnet() {
-    if (block.chainid == 1) {
-      _;
-    } else {
-      return;
-    }
+    vm.skip(block.chainid != 1);
+    _;
   }
 
   function setUp() external onlyMainnet {
@@ -183,9 +198,8 @@ contract RemoveGuardiansForkTest is Test {
   }
 
   function test_MainnetForkRevertWhen_ScriptRunsBeforeV31() external onlyMainnet {
-    if (!forkPredatesV31) {
-      return;
-    }
+    // Needs a fork that predates v31.
+    vm.skip(!forkPredatesV31);
     vm.revertTo(preV31Snapshot);
 
     MainnetRemoveGuardians preV31Script = new MainnetRemoveGuardians();
@@ -202,10 +216,8 @@ contract RemoveGuardiansForkTest is Test {
   }
 
   function test_MainnetForkRevertWhen_ExecutedBeforeV31() external onlyMainnet {
-    if (!forkPredatesV31) {
-      // The fork already includes v31, the ordering can't be checked.
-      return;
-    }
+    // Needs a fork that predates v31, the ordering can't be checked once the fork includes it.
+    vm.skip(!forkPredatesV31);
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = _removeGuardiansProposal();
     _revertV31();
     _passUpgrade(proposal);
@@ -314,5 +326,70 @@ contract RemoveGuardiansForkTest is Test {
     assertEq(
       uint8(handler.upgradeState(keccak256(abi.encode(proposal)))), uint8(IProtocolUpgradeHandler.UpgradeState.Done)
     );
+  }
+
+  function test_MainnetForkScriptOutput() external onlyMainnet {
+    vm.createDir("./script-out", true);
+    new MainnetRemoveGuardiansWithOutput().run();
+    string memory toml = vm.readFile(REMOVE_GUARDIANS_OUTPUT);
+    vm.removeFile(REMOVE_GUARDIANS_OUTPUT);
+
+    IProtocolUpgradeHandler.UpgradeProposal memory proposal = _removeGuardiansProposal();
+    assertEq(vm.parseTomlAddress(toml, ".new_puh_impl"), newImplementation);
+    assertEq(vm.parseTomlAddress(toml, ".new_emergency_upgrade_board"), newEmergencyUpgradeBoard);
+    assertEq(vm.parseTomlAddress(toml, ".state_check"), stateCheck);
+    assertEq(vm.parseTomlBytes(toml, ".governance_calls"), abi.encode(proposal.calls));
+    assertEq(vm.parseTomlAddress(toml, ".zip_target"), L1_MESSENGER);
+    assertEq(vm.parseTomlBytes(toml, ".zip_calldata"), abi.encodeWithSignature("sendToL1(bytes)", abi.encode(proposal)));
+    assertEq(vm.parseTomlBytes32(toml, ".upgrade_id"), keccak256(abi.encode(proposal)));
+  }
+
+  function _redeploySecurityCouncil() internal returns (MainnetRedeploySecurityCouncil _redeploy) {
+    vm.setEnv("PRIVATE_KEY", vm.toString(vm.createWallet("security council deployer").privateKey));
+    _redeploy = new MainnetRedeploySecurityCouncil();
+    _redeploy.run();
+  }
+
+  function test_MainnetForkRevertWhen_SecurityCouncilRedeployedBeforeRemoval() external onlyMainnet {
+    MainnetRedeploySecurityCouncil redeploy = new MainnetRedeploySecurityCouncil();
+    vm.expectRevert("The Guardians must be removed from the handler first");
+    redeploy.run();
+  }
+
+  function test_MainnetForkRevertWhen_SecurityCouncilRedeployedWithAnotherZkFoundation() external onlyMainnet {
+    _executeRemoveGuardians();
+    vm.prank(PROTOCOL_UPGRADE_HANDLER);
+    handler.updateZkFoundation(makeAddr("another ZK Foundation"));
+
+    MainnetRedeploySecurityCouncil redeploy = new MainnetRedeploySecurityCouncil();
+    vm.expectRevert("Handler and board disagree on the ZK Foundation");
+    redeploy.run();
+  }
+
+  function test_MainnetForkSecurityCouncilRedeployedAfterRemoval() external onlyMainnet {
+    _executeRemoveGuardians();
+    MainnetRedeploySecurityCouncil redeploy = _redeploySecurityCouncil();
+    SCRedeployedContracts memory redeployed = redeploy.getDeployedAddresses();
+
+    // The retained members are exactly the members of the current (v31) Security Council.
+    SecurityCouncil newSecurityCouncil = SecurityCouncil(redeployed.securityCouncil);
+    assertEq(address(newSecurityCouncil.PROTOCOL_UPGRADE_HANDLER()), PROTOCOL_UPGRADE_HANDLER);
+    for (uint256 i = 0; i < 8; i++) {
+      assertEq(newSecurityCouncil.members(i), SecurityCouncil(V31_SECURITY_COUNCIL).members(i));
+    }
+    EmergencyUpgradeBoard newBoard = EmergencyUpgradeBoard(redeployed.emergencyUpgradeBoard);
+    assertEq(address(newBoard.PROTOCOL_UPGRADE_HANDLER()), PROTOCOL_UPGRADE_HANDLER);
+    assertEq(newBoard.SECURITY_COUNCIL(), redeployed.securityCouncil);
+    assertEq(newBoard.ZK_FOUNDATION_SAFE(), zkFoundationSafe);
+
+    // The generated calls rotate both through the regular upgrade flow.
+    IProtocolUpgradeHandler.UpgradeProposal memory rotation = IProtocolUpgradeHandler.UpgradeProposal({
+      calls: redeploy.getGeneratedCalls(), salt: bytes32(0), executor: address(0)
+    });
+    _passUpgrade(rotation);
+    handler.execute(rotation);
+    assertEq(handler.securityCouncil(), redeployed.securityCouncil);
+    assertEq(handler.emergencyUpgradeBoard(), redeployed.emergencyUpgradeBoard);
+    assertEq(handler.zkFoundation(), zkFoundationSafe);
   }
 }

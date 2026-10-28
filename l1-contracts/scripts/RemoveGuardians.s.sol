@@ -292,6 +292,11 @@ contract RemoveGuardians is Script {
         }
     }
 
+    /// @dev Where to write the output TOML, nothing is written when empty.
+    function _outputPath() internal view virtual returns (string memory) {
+        return vm.envOr("DEPLOY_OUTPUT_TOML", string(""));
+    }
+
     function _writeOutput(
         address _newImplementation,
         address _newEmergencyUpgradeBoard,
@@ -300,7 +305,7 @@ contract RemoveGuardians is Script {
         bytes memory _l2Calldata,
         bytes32 _upgradeId
     ) internal {
-        string memory outPath = vm.envOr("DEPLOY_OUTPUT_TOML", string(""));
+        string memory outPath = _outputPath();
         if (bytes(outPath).length == 0) {
             return;
         }
