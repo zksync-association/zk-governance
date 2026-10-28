@@ -25,6 +25,18 @@
 
 [fmt]
   bracket_spacing = false
+  # The deployed sources that the current forge fmt would reformat, which would change their verified source. The other
+  # deployed sources are already formatted as forge fmt formats them. `.scopelint` separately lists the deployed sources
+  # that break a naming rule.
+  ignore = [
+    "src/ZkGovOpsGovernor.sol",
+    "src/ZkMerkleDistributor.sol",
+    "src/ZkProtocolGovernor.sol",
+    "src/ZkTokenGovernor.sol",
+    "src/ZkTokenV1.sol",
+    "src/lib/GovernorCountingFractional.sol",
+    "src/lib/Nonces.sol",
+  ]
   int_types = "long"
   line_length = 120
   multiline_func_header = "attributes_first"

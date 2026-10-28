@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {ZkProtocolGovernor} from "src/ZkProtocolGovernor.sol";
@@ -20,7 +20,7 @@ contract Constructor is ZkProtocolGovernorTest {
     uint64 _voteExtension
   ) public {
     vm.assume(_votingPeriod != 0);
-    ZkProtocolGovernor governor = new ZkProtocolGovernor(
+    ZkProtocolGovernor _governor = new ZkProtocolGovernor(
       _name,
       IVotes(_token),
       TimelockController(_timelock),
@@ -31,13 +31,13 @@ contract Constructor is ZkProtocolGovernorTest {
       _voteExtension
     );
 
-    assertEq(governor.name(), _name);
-    assertEq(address(governor.token()), _token);
-    assertEq(address(governor.timelock()), _timelock);
-    assertEq(governor.votingDelay(), _votingDelay);
-    assertEq(governor.votingPeriod(), _votingPeriod);
-    assertEq(governor.proposalThreshold(), _proposalThreshold);
-    assertEq(governor.quorum(block.timestamp), _initialQuorum);
-    assertEq(governor.lateQuorumVoteExtension(), _voteExtension);
+    assertEq(_governor.name(), _name);
+    assertEq(address(_governor.token()), _token);
+    assertEq(address(_governor.timelock()), _timelock);
+    assertEq(_governor.votingDelay(), _votingDelay);
+    assertEq(_governor.votingPeriod(), _votingPeriod);
+    assertEq(_governor.proposalThreshold(), _proposalThreshold);
+    assertEq(_governor.quorum(block.timestamp), _initialQuorum);
+    assertEq(_governor.lateQuorumVoteExtension(), _voteExtension);
   }
 }

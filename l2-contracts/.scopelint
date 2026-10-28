@@ -1,0 +1,18 @@
+# The contracts below are deployed on ZKsync Era, and their sources must stay identical to the verified, audited code.
+# They predate scopelint's current naming rules, so the specific rules each file violates are suppressed here rather
+# than editing deployed sources (renaming an error would also change its selector). All other rules still apply to
+# them, and new files are checked in full.
+[ignore.overrides]
+"src/ZkCappedMinterFactory.sol" = ["variable"]
+"src/ZkCappedMinterV2.sol" = ["variable"]
+"src/ZkCappedMinterV2Factory.sol" = ["variable"]
+"src/ZkMerkleDistributor.sol" = ["variable"]
+"src/ZkTokenGovernor.sol" = ["variable"]
+# eip712: false positive. scopelint miscounts the `abi.encode` arguments for DELEGATION_TYPEHASH because of the nested
+# `_useNonce(_signer)` call; the typehash and encoding both have four fields.
+"src/ZkTokenV1.sol" = ["eip712", "error", "import"]
+"src/extensions/GovernorGuardianVeto.sol" = ["error", "variable"]
+"src/extensions/GovernorSettableFixedQuorum.sol" = ["variable"]
+"src/lib/GovernorCountingFractional.sol" = ["variable"]
+"src/lib/L2ContractHelper.sol" = ["variable"]
+"src/lib/Nonces.sol" = ["error", "variable"]

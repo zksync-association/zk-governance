@@ -1,0 +1,74 @@
+name: council
+
+# Tests and lints the self-contained council project in l2-contracts/council. Runs only when a change touches it.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "l2-contracts/council/**"
+      - ".github/workflows/council.yml"
+      - ".github/actions/**"
+      - ".gitmodules"
+  push:
+    branches:
+      - master
+    paths:
+      - "l2-contracts/council/**"
+      - ".github/workflows/council.yml"
+      - ".github/actions/**"
+      - ".gitmodules"
+
+env:
+  FOUNDRY_PROFILE: ci
+
+# Every step has a timeout so a hung step (e.g. a stalled --zksync build or test) fails instead of holding a runner until
+# the 6-hour job limit.
+jobs:
+  council-test:
+    defaults:
+      run:
+        working-directory: ./l2-contracts/council
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          fetch-depth: 1
+
+      - name: Install Foundry
+        timeout-minutes: 5
+        uses: ./.github/actions/setup-foundry-zksync
+
+      # Installs only this project's submodules: council-governance and its own nested OpenZeppelin and forge-std.
+      - name: Install dependencies
+        timeout-minutes: 10
+        run: git submodule update --init --recursive lib/council-governance
+
+      # Compiles for both the EVM and EraVM, so there is no separate build step.
+      - name: Run forge tests (ZKsync)
+        timeout-minutes: 30
+        run: forge test --zksync
+
+  council-lint:
+    defaults:
+      run:
+        working-directory: ./l2-contracts/council
+    runs-on: ubuntu-latest
+    steps:
+      # scopelint only reads the sources, so the job needs no submodules.
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          fetch-depth: 1
+
+      - name: Install Foundry
+        timeout-minutes: 5
+        uses: ./.github/actions/setup-foundry-zksync
+
+      - name: Install scopelint
+        timeout-minutes: 5
+        uses: ./.github/actions/setup-scopelint
+
+      - name: Check formatting
+        timeout-minutes: 5
+        run: scopelint check

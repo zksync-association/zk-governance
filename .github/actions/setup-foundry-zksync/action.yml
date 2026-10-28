@@ -1,0 +1,17 @@
+name: Set up foundry-zksync
+description: Installs the foundry-zksync release every workflow in this repository builds and tests with.
+
+inputs:
+  cache:
+    description: Whether to cache Foundry's RPC responses between runs.
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: dutterbutter/foundry-zksync-toolchain@v1
+      with:
+        # Pinned so a new release can't change test results without a code change. The l2-contracts duplicate-minter
+        # factory tests expect this release's `HashIsNonZero` error.
+        version: v0.1.10
+        cache: ${{ inputs.cache }}

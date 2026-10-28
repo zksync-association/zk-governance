@@ -1,0 +1,204 @@
+name: l2-contracts
+
+# Builds, tests and lints the main l2-contracts project. Runs only when a change touches it; the council project in
+# l2-contracts/council has its own workflow.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "l2-contracts/**"
+      - "!l2-contracts/council/**"
+      # Shared with the council project and imported by this project's deploy script.
+      - "l2-contracts/council/script/DeployBase.sol"
+      - "l2-contracts/council/script/SupermajorityGovernorChecks.sol"
+      - "l2-contracts/council/script/configs/**"
+      - ".github/workflows/l2-contracts.yml"
+      - ".github/actions/**"
+      - ".gitmodules"
+  push:
+    branches:
+      - master
+    paths:
+      - "l2-contracts/**"
+      - "!l2-contracts/council/**"
+      # Shared with the council project and imported by this project's deploy script.
+      - "l2-contracts/council/script/DeployBase.sol"
+      - "l2-contracts/council/script/SupermajorityGovernorChecks.sol"
+      - "l2-contracts/council/script/configs/**"
+      - ".github/workflows/l2-contracts.yml"
+      - ".github/actions/**"
+      - ".gitmodules"
+
+env:
+  FOUNDRY_PROFILE: ci
+
+# Every step has a timeout so a hung step (e.g. a stalled --zksync build or test) fails instead of holding a runner until
+# the 6-hour job limit. Each timeout is a few times the step's slowest observed duration.
+jobs:
+  build:
+    defaults:
+      run:
+        working-directory: ./l2-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install Foundry
+        timeout-minutes: 5
+        uses: ./.github/actions/setup-foundry-zksync
+
+      # Pinned because the hardhat zksync plugin fails on newer Node releases ("maxRedirections is not supported"), which
+      # newer runner images ship by default.
+      - name: Install Node
+        timeout-minutes: 5
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        timeout-minutes: 10
+        run: forge install && npm install
+
+      - name: Build
+        timeout-minutes: 30
+        run: npm run compile
+
+  # The forge tests run under --zksync, where each test executes in an emulated EraVM and takes minutes, so they are
+  # split across parallel shards. Test contracts are assigned round-robin by name, so every suite runs in exactly one
+  # shard (contracts that share a name across files stay together) and new test files are picked up automatically.
+  forge-test:
+    name: forge-test (${{ matrix.shard }}/${{ strategy.job-total }})
+    defaults:
+      run:
+        working-directory: ./l2-contracts
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      # Integration tests are excluded from both the shard selection and the run, so the two stay in step.
+      EXCLUDED_TEST_PATH: test/*.integration.t.sol
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install Foundry
+        timeout-minutes: 5
+        uses: ./.github/actions/setup-foundry-zksync
+        with:
+          # The action only caches RPC responses, and these tests make no RPC calls.
+          cache: "false"
+
+      - name: Install dependencies
+        timeout-minutes: 10
+        run: forge install
+
+      - name: Select test contracts
+        timeout-minutes: 10
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARD_COUNT: ${{ strategy.job-total }}
+        run: |
+          forge test --list --json --no-match-path "$EXCLUDED_TEST_PATH" > test-list.json
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, os, re
+          tests = json.load(open("test-list.json"))
+          names = sorted({name for contracts in tests.values() for name in contracts})
+          if not names:
+              raise SystemExit("forge test --list found no test contracts")
+          shard, count = int(os.environ["SHARD"]), int(os.environ["SHARD_COUNT"])
+          selected = names[shard - 1 :: count]
+          # Solidity identifiers may contain `$`, so names are escaped before joining them into a regex.
+          print(f"MATCH_CONTRACT=^({'|'.join(map(re.escape, selected))})$" if selected else "MATCH_CONTRACT=")
+          PY
+
+      - name: Run forge tests
+        timeout-minutes: 60
+        run: |
+          if [ -z "$MATCH_CONTRACT" ]; then
+            echo "No test contracts were assigned to this shard"
+            exit 0
+          fi
+          echo "Running test contracts matching $MATCH_CONTRACT"
+          forge test --no-match-path "$EXCLUDED_TEST_PATH" --match-contract "$MATCH_CONTRACT" --zksync
+
+  # Hardhat compiles against OpenZeppelin from node_modules, so this job needs neither Foundry nor the submodules.
+  hardhat-test:
+    defaults:
+      run:
+        working-directory: ./l2-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          fetch-depth: 1
+
+      # Pinned because the hardhat zksync plugin fails on newer Node releases ("maxRedirections is not supported"), which
+      # newer runner images ship by default.
+      - name: Install Node
+        timeout-minutes: 5
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        timeout-minutes: 10
+        run: npm install
+
+      - name: Build
+        timeout-minutes: 15
+        run: npx hardhat compile
+
+      - name: Run Era test node
+        timeout-minutes: 5
+        uses: dutterbutter/era-test-node-action@v0.1.3
+
+      - name: Run hardhat tests
+        timeout-minutes: 15
+        run: npx hardhat test
+
+  lint:
+    defaults:
+      run:
+        working-directory: ./l2-contracts
+    runs-on: ubuntu-latest
+    steps:
+      # scopelint only reads the sources, so the job needs no submodules.
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          fetch-depth: 1
+
+      - name: Install Foundry
+        timeout-minutes: 5
+        uses: ./.github/actions/setup-foundry-zksync
+
+      - name: Install scopelint
+        timeout-minutes: 5
+        uses: ./.github/actions/setup-scopelint
+
+      - name: Check formatting
+        timeout-minutes: 5
+        run: scopelint check
+
+  # One check covering the build and every test job, so branch protection can require a single `test`. It always runs,
+  # because GitHub reports a skipped required check as passed.
+  test:
+    if: always()
+    needs: [build, forge-test, hardhat-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check build and test results
+        timeout-minutes: 5
+        run: |
+          [ "${{ needs.build.result }}" = "success" ] && [ "${{ needs.forge-test.result }}" = "success" ] \
+            && [ "${{ needs.hardhat-test.result }}" = "success" ]
