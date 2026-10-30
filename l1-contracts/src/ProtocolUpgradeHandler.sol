@@ -18,10 +18,10 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 /// The upgrade process follows these key stages:
 /// 1. Proposal: Token holders on L2 propose the protocol upgrades and send the L2 -> L1 message
 ///    that this contract reads and starts the upgrade process.
-/// 2. Legal veto: During this period, the guardians can veto the upgrade **offchain**. The default legal period review
-///    takes 3 days but can be extended by guardians onchain for 7 days in total.
-/// 3. Approval: Requires approval from either the guardians or the Security Council. The Security Council can
-///    immediately move the proposal to the next stage, while guardians approval will move the proposal to the
+/// 2. Legal veto: During this period, the ZK Foundation can veto the upgrade **offchain**. The default legal period
+///    review takes 3 days but can be extended by the ZK Foundation onchain for 7 days in total.
+/// 3. Approval: Requires approval from either the ZK Foundation or the Security Council. The Security Council can
+///    immediately move the proposal to the next stage, while the ZK Foundation approval will move the proposal to the
 ///    next stage only after 30 days delay after the legal veto passes. If no approval is received within the specified
 /// period, the proposal is expired.
 /// 4. Pending: A mandatory delay period before the actual execution of the upgrade, allowing for final
@@ -30,7 +30,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 ///    completing the upgrade process.
 ///
 /// The contract implements the state machine that represents the logic of moving upgrade from each
-/// stage by time changes and Guardians/Security Council actions.
+/// stage by time changes and ZK Foundation/Security Council actions.
 contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /// @dev Duration of the standard legal veto period.
   /// Note: this value should not exceed EXTENDED_LEGAL_VETO_PERIOD.
@@ -48,10 +48,10 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     return 1 days;
   }
 
-  /// @dev Time limit for an upgrade proposal to be approved by guardians or expire, and the waiting period for
-  /// execution post-guardians approval. If the Security Council approves, the upgrade can proceed immediately;
-  /// otherwise,
-  /// the proposal will expire after this period if not approved, or wait this period after guardians approval.
+  /// @dev Time limit for an upgrade proposal to be approved by the ZK Foundation or expire, and the waiting period for
+  /// execution post-ZK Foundation approval. If the Security Council approves, the upgrade can proceed immediately;
+  /// otherwise, the proposal will expire after this period if not approved, or wait this period after the ZK Foundation
+  /// approval.
   uint256 internal constant UPGRADE_WAIT_OR_EXPIRE_PERIOD = 30 days;
 
   /// @dev Duration of a soft freeze which temporarily pause protocol contract functionality.
@@ -95,8 +95,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /// @notice The address of the Security Council.
   address public securityCouncil;
 
-  /// @notice The address of the guardians.
-  address public guardians;
+  /// @notice The address of the ZK Foundation multisig.
+  address public zkFoundation;
 
   /// @notice The address of the smart contract that can execute protocol emergency upgrade.
   address public emergencyUpgradeBoard;
@@ -110,8 +110,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /// @notice Stores the timestamp until which the protocol remains frozen.
   uint256 public protocolFrozenUntil;
 
-  /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting
-  /// governor. @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
+  /// @notice Initializes the contract with the address of L2 voting governor and the addresses of the protocol
+  /// contracts. @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
   /// @param _eraChainTypeManager The address of the Era chain type manager.
   /// @param _zksyncOSChainTypeManager The address of the ZKsync OS chain type manager.
   /// @param _bridgeHub The address of the bridgehub.
@@ -168,9 +168,9 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     _;
   }
 
-  /// @notice Checks that the message sender is an active guardians.
-  modifier onlyGuardians() {
-    require(msg.sender == guardians, "Only guardians is allowed to call this function");
+  /// @notice Checks that the message sender is the active ZK Foundation.
+  modifier onlyZkFoundation() {
+    require(msg.sender == zkFoundation, "Only ZK Foundation is allowed to call this function");
     _;
   }
 
@@ -205,7 +205,8 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     }
 
     // Legal veto period
-    uint256 legalVetoTime = upg.guardiansExtendedLegalVeto ? EXTENDED_LEGAL_VETO_PERIOD : STANDARD_LEGAL_VETO_PERIOD();
+    uint256 legalVetoTime =
+      upg.zkFoundationExtendedLegalVeto ? EXTENDED_LEGAL_VETO_PERIOD : STANDARD_LEGAL_VETO_PERIOD();
     if (block.timestamp < upg.creationTimestamp + legalVetoTime) {
       return UpgradeState.LegalVetoPeriod;
     }
@@ -218,12 +219,12 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
 
     uint256 waitOrExpiryTimestamp = upg.creationTimestamp + legalVetoTime + UPGRADE_WAIT_OR_EXPIRE_PERIOD;
     if (block.timestamp >= waitOrExpiryTimestamp) {
-      if (!upg.guardiansApproval) {
+      if (!upg.zkFoundationApproval) {
         return UpgradeState.Expired;
       }
 
-      uint256 readyWithGuardiansTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD();
-      return block.timestamp >= readyWithGuardiansTimestamp ? UpgradeState.Ready : UpgradeState.ExecutionPending;
+      uint256 readyWithZkFoundationTimestamp = waitOrExpiryTimestamp + UPGRADE_DELAY_PERIOD();
+      return block.timestamp >= readyWithZkFoundationTimestamp ? UpgradeState.Ready : UpgradeState.ExecutionPending;
     }
 
     return UpgradeState.Waiting;
@@ -263,13 +264,13 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     emit UpgradeStarted(id, _proposal);
   }
 
-  /// @notice Extends the legal veto period by the guardians.
+  /// @notice Extends the legal veto period by the ZK Foundation.
   /// @param _id The unique identifier of the upgrade proposal to be approved.
-  function extendLegalVeto(bytes32 _id) external onlyGuardians {
-    require(!upgradeStatus[_id].guardiansExtendedLegalVeto, "Legal veto period is already extended");
+  function extendLegalVeto(bytes32 _id) external onlyZkFoundation {
+    require(!upgradeStatus[_id].zkFoundationExtendedLegalVeto, "Legal veto period is already extended");
     UpgradeState upgState = upgradeState(_id);
     require(upgState == UpgradeState.LegalVetoPeriod, "Upgrade with this id is not in the legal veto period");
-    upgradeStatus[_id].guardiansExtendedLegalVeto = true;
+    upgradeStatus[_id].zkFoundationExtendedLegalVeto = true;
 
     emit UpgradeLegalVetoExtended(_id);
   }
@@ -287,17 +288,17 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     emit UpgradeApprovedBySecurityCouncil(_id);
   }
 
-  /// @notice Approves an upgrade proposal by the guardians.
-  /// @dev Marks the upgrade proposal identified by `_id` as approved by guardians.
+  /// @notice Approves an upgrade proposal by the ZK Foundation.
+  /// @dev Marks the upgrade proposal identified by `_id` as approved by the ZK Foundation.
   /// @param _id The unique identifier of the upgrade proposal to approve.
-  function approveUpgradeGuardians(bytes32 _id) external onlyGuardians {
-    require(!upgradeStatus[_id].guardiansApproval, "Upgrade is already approved by guardians");
+  function approveUpgradeZkFoundation(bytes32 _id) external onlyZkFoundation {
+    require(!upgradeStatus[_id].zkFoundationApproval, "Upgrade is already approved by ZK Foundation");
 
     UpgradeState upgState = upgradeState(_id);
-    require(upgState == UpgradeState.Waiting, "Upgrade with this id is not waiting for the approval from Guardians");
-    upgradeStatus[_id].guardiansApproval = true;
+    require(upgState == UpgradeState.Waiting, "Upgrade with this id is not waiting for the approval from ZK Foundation");
+    upgradeStatus[_id].zkFoundationApproval = true;
 
-    emit UpgradeApprovedByGuardians(_id);
+    emit UpgradeApprovedByZkFoundation(_id);
   }
 
   /// @notice Executes an upgrade proposal that has reached the 'Ready' state.
@@ -495,15 +496,15 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
     securityCouncil = _newSecurityCouncil;
   }
 
-  /// @dev Updates the address of the guardians.
-  /// @param _newGuardians The address of the guardians.
-  function updateGuardians(address _newGuardians) external onlySelf {
-    emit ChangeGuardians(guardians, _newGuardians);
-    guardians = _newGuardians;
+  /// @dev Updates the address of the ZK Foundation.
+  /// @param _newZkFoundation The address of the ZK Foundation multisig.
+  function updateZkFoundation(address _newZkFoundation) external onlySelf {
+    emit ChangeZkFoundation(zkFoundation, _newZkFoundation);
+    zkFoundation = _newZkFoundation;
   }
 
   /// @dev Updates the address of the emergency upgrade board.
-  /// @param _newEmergencyUpgradeBoard The address of the guardians.
+  /// @param _newEmergencyUpgradeBoard The address of the emergency upgrade board.
   function updateEmergencyUpgradeBoard(address _newEmergencyUpgradeBoard) external onlySelf {
     emit ChangeEmergencyUpgradeBoard(emergencyUpgradeBoard, _newEmergencyUpgradeBoard);
     emergencyUpgradeBoard = _newEmergencyUpgradeBoard;
@@ -519,15 +520,18 @@ contract ProtocolUpgradeHandler is IProtocolUpgradeHandler, Initializable {
   /*//////////////////////////////////////////////////////////////
                       PROXY INITIALIZER
   //////////////////////////////////////////////////////////////*/
-  function initialize(address _securityCouncil, address _guardians, address _emergencyUpgradeBoard)
+  /// @dev Sets the roles of a freshly deployed proxy. The mainnet and testnet proxies are already initialized at this
+  /// version, so implementation upgrades of them must not re-initialize and rotate the roles via the `update*`
+  /// functions instead.
+  function initialize(address _securityCouncil, address _zkFoundation, address _emergencyUpgradeBoard)
     external
     reinitializer(2)
   {
     securityCouncil = _securityCouncil;
     emit ChangeSecurityCouncil(address(0), _securityCouncil);
 
-    guardians = _guardians;
-    emit ChangeGuardians(address(0), _guardians);
+    zkFoundation = _zkFoundation;
+    emit ChangeZkFoundation(address(0), _zkFoundation);
 
     emergencyUpgradeBoard = _emergencyUpgradeBoard;
     emit ChangeEmergencyUpgradeBoard(address(0), _emergencyUpgradeBoard);

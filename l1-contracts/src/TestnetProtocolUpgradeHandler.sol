@@ -22,8 +22,8 @@ contract TestnetProtocolUpgradeHandler is ProtocolUpgradeHandler {
     return 0 days;
   }
 
-  /// @notice Initializes the contract with the Security Council address, guardians address and address of L2 voting
-  /// governor.
+  /// @notice Initializes the contract with the address of L2 voting governor and the addresses of the protocol
+  /// contracts.
   /// @param _l2ProtocolGovernor The address of the L2 voting governor contract for protocol upgrades.
   /// @param _eraChainTypeManager The address of the Era chain type manager.
   /// @param _zksyncOSChainTypeManager The address of the ZKsync OS chain type manager.

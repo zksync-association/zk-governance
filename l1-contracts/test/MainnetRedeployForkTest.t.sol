@@ -28,24 +28,22 @@ contract MainnetRedeployForkTest is Test {
   MainnetRedeploy script;
   DeployedContracts addresses;
 
+  /// @dev Needs a mainnet fork (`--fork-url <L1_MAINNET_RPC>`), the tests are reported as skipped without one.
   modifier onlyMainnet() {
-    if (block.chainid == 1) {
-      _;
-    } else {
-      return;
-    }
+    vm.skip(block.chainid != 1);
+    _;
   }
 
   function setUp() external onlyMainnet {
-    if (block.chainid != 1) {
-      return;
-    }
-
     Vm.Wallet memory deployerWallet = vm.createWallet("deployerWalelt");
 
     vm.setEnv("PRIVATE_KEY", vm.toString(deployerWallet.privateKey));
     vm.setEnv("L2_PROTOCOL_GOVERNOR", vm.toString(address(uint160(1))));
     vm.setEnv("ZKSYNC_OS_CHAIN_TYPE_MANAGER", vm.toString(address(uint160(2))));
+    // The rest of the inputs `scripts/README.md` lists for MainnetRedeploy.
+    vm.setEnv("CREATE3_FACTORY", "0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf");
+    vm.setEnv("PUH_PROXY_MAINNET", "0xE30Dca3047B37dc7d88849dE4A4Dc07937ad5Ab3");
+    vm.setEnv("ERA_CHAIN_ID", "324");
 
     MainnetRedeploy script = new MainnetRedeploy();
     script.run();
@@ -78,12 +76,12 @@ contract MainnetRedeployForkTest is Test {
       )
     );
 
-    // We upgrade to an incorrect address (guradians), we just test that we can upgrade to a different impl.
+    // We upgrade to an incorrect address (Security Council), we just test that we can upgrade to a different impl.
     emergencyUpgradeCall(
       proxyAdmin,
       abi.encodeCall(
         ProxyAdmin.upgradeAndCall,
-        (ITransparentUpgradeableProxy(addresses.protocolUpgradeHandlerProxy), addresses.guardians, hex"")
+        (ITransparentUpgradeableProxy(addresses.protocolUpgradeHandlerProxy), addresses.securityCouncil, hex"")
       )
     );
   }
