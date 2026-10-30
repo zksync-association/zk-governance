@@ -151,8 +151,8 @@ contract TestProtocolUpgradeHandler is Test {
     } else {
       vm.warp(block.timestamp + 30 days);
     }
-    uint256 delayAfterApprove = bound(_delayAfterApprove, 1, type(uint256).max - block.timestamp - 9 days);
-    vm.warp(block.timestamp + 9 days + delayAfterApprove);
+    uint256 delayAfterApprove = bound(_delayAfterApprove, 1, type(uint256).max - block.timestamp - 1 days);
+    vm.warp(block.timestamp + 1 days + delayAfterApprove);
   }
 
   constructor() {
@@ -451,7 +451,7 @@ contract TestProtocolUpgradeHandler is Test {
     _passLegalVeto(_extendedLegalPeriod, id);
     vm.prank(securityCouncil);
     handler.approveUpgradeSecurityCouncil(id);
-    vm.warp(block.timestamp + 9 days);
+    vm.warp(block.timestamp + 1 days);
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Ready));
   }
 
@@ -515,7 +515,7 @@ contract TestProtocolUpgradeHandler is Test {
     vm.warp(block.timestamp + 30 days);
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.ExecutionPending));
 
-    vm.warp(block.timestamp + 9 days);
+    vm.warp(block.timestamp + 1 days);
     assertEq(uint8(handler.upgradeState(id)), uint8(IProtocolUpgradeHandler.UpgradeState.Ready));
   }
 
@@ -535,7 +535,7 @@ contract TestProtocolUpgradeHandler is Test {
 
     // Now, it should work fine.
 
-    vm.warp(block.timestamp + 9 days);
+    vm.warp(block.timestamp + 1 days);
 
     vm.expectEmit(true, false, false, true);
     emit IProtocolUpgradeHandler.UpgradeExecuted(id);
