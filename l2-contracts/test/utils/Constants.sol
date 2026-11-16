@@ -7,6 +7,8 @@ contract Constants {
   uint256 constant INITIAL_PROPOSAL_THRESHOLD = 500_000e18;
   uint224 constant INITIAL_QUORUM = 1_000_000e18;
   uint64 constant INITIAL_VOTE_EXTENSION = 1 days;
+  uint224 constant SUPERMAJORITY_QUORUM = 1_260_000_000e18;
+  uint256 constant MAX_SUPERMAJORITY_VOTES = 10 * uint256(SUPERMAJORITY_QUORUM);
   string constant DESCRIPTION = "Description";
   uint256 constant TIMELOCK_MIN_DELAY = 0;
   address constant DEPLOYED_TOKEN_ADDRESS = 0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E;
