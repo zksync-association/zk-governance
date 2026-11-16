@@ -5,6 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
+import {GovernorSettings} from "@openzeppelin/contracts/governance/extensions/GovernorSettings.sol";
 import {BasicCouncilVetoGovernor} from "council-governance/BasicCouncilVetoGovernor.sol";
 import {ZkProtocolUpgradeVetoGovernor} from "src/ZkProtocolUpgradeVetoGovernor.sol";
 import {FakeVotesToken} from "test/fakes/FakeVotesToken.sol";
@@ -54,6 +55,7 @@ contract ZkProtocolUpgradeVetoGovernorTest is TestHelpers, Constants {
     // The token needs code, since the constructor reads its clock.
     _params.token = address(token);
     _params.vetoThresholdNumerator = 0;
+    _params.proposalThreshold = 0;
     vm.assume(_params.governorAdmin != address(0));
     vm.assume(_params.votingPeriod != 0);
     _params.votingPeriodExtensionThresholdPct = uint16(_bound(_params.votingPeriodExtensionThresholdPct, 0, 100));
@@ -169,6 +171,54 @@ contract Constructor is ZkProtocolUpgradeVetoGovernorTest {
 
     vm.expectRevert(ZkProtocolUpgradeVetoGovernor.ZkProtocolUpgradeVetoGovernor__VetoThresholdFractionDisabled.selector);
     new ZkProtocolUpgradeVetoGovernor(_params, _vetoThreshold);
+  }
+
+  function testFuzz_RevertIf_TheProposalThresholdIsNonZero(
+    BasicCouncilVetoGovernor.ConstructorParams memory _params,
+    uint256 _proposalThreshold,
+    uint256 _vetoThreshold
+  ) public {
+    _params = _boundToValidConstructorParams(_params);
+    _params.proposalThreshold = _bound(_proposalThreshold, 1, type(uint256).max);
+    _vetoThreshold = _boundToValidVetoThreshold(_vetoThreshold);
+
+    vm.expectRevert(ZkProtocolUpgradeVetoGovernor.ZkProtocolUpgradeVetoGovernor__ProposalThresholdNotZero.selector);
+    new ZkProtocolUpgradeVetoGovernor(_params, _vetoThreshold);
+  }
+}
+
+contract SetProposalThreshold is ZkProtocolUpgradeVetoGovernorTest {
+  function testFuzz_RevertIf_TheAdminSetsANonZeroProposalThreshold(uint256 _newProposalThreshold) public {
+    _newProposalThreshold = _bound(_newProposalThreshold, 1, type(uint256).max);
+    ZkProtocolUpgradeVetoGovernor _governor = _deployGovernorWithVetoThreshold(MAX_VETO_THRESHOLD);
+
+    vm.expectRevert(ZkProtocolUpgradeVetoGovernor.ZkProtocolUpgradeVetoGovernor__ProposalThresholdNotZero.selector);
+    vm.prank(governorAdmin);
+    _governor.setProposalThreshold(_newProposalThreshold);
+  }
+
+  function testFuzz_LetsTheAdminSetAZeroProposalThreshold(address _governorAdmin) public {
+    _assumeNotASystemAddress(_governorAdmin);
+    BasicCouncilVetoGovernor.ConstructorParams memory _params = _constructorParams(0);
+    _params.governorAdmin = _governorAdmin;
+    ZkProtocolUpgradeVetoGovernor _governor = new ZkProtocolUpgradeVetoGovernor(_params, MAX_VETO_THRESHOLD);
+
+    vm.expectEmit(address(_governor));
+    emit GovernorSettings.ProposalThresholdSet(0, 0);
+    vm.prank(_governorAdmin);
+    _governor.setProposalThreshold(0);
+
+    assertEq(_governor.proposalThreshold(), 0);
+  }
+
+  function testFuzz_RevertIf_TheCallerIsNotTheGovernorAdmin(address _caller) public {
+    _assumeNotASystemAddress(_caller);
+    vm.assume(_caller != governorAdmin);
+    ZkProtocolUpgradeVetoGovernor _governor = _deployGovernorWithVetoThreshold(MAX_VETO_THRESHOLD);
+
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _caller));
+    vm.prank(_caller);
+    _governor.setProposalThreshold(0);
   }
 }
 

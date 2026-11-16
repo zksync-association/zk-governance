@@ -34,6 +34,9 @@ contract ZkProtocolUpgradeVetoGovernor is BasicCouncilVetoGovernor {
   /// @notice Thrown when the veto threshold is set to zero, which would veto every proposal.
   error ZkProtocolUpgradeVetoGovernor__InvalidVetoThreshold();
 
+  /// @notice Thrown when a proposal threshold other than zero is set, at construction or by the admin.
+  error ZkProtocolUpgradeVetoGovernor__ProposalThresholdNotZero();
+
   /// @notice Thrown when a fraction-of-supply veto threshold other than zero is set, at construction or by the admin.
   error ZkProtocolUpgradeVetoGovernor__VetoThresholdFractionDisabled();
 
@@ -69,6 +72,17 @@ contract ZkProtocolUpgradeVetoGovernor is BasicCouncilVetoGovernor {
     }
     (uint256 _oldVetoThreshold,) = vetoThresholdCheckpoints.push(clock(), SafeCast.toUint208(_newVetoThreshold));
     emit VetoThresholdSet(_oldVetoThreshold, _newVetoThreshold);
+  }
+
+  /// @notice Rejects any proposal threshold other than zero, at construction and on every `setProposalThreshold` call.
+  /// Only the council governor can propose here, and it holds no voting power in the token, so a non-zero threshold
+  /// would stop the council from queueing proposals.
+  /// @param _newProposalThreshold The new proposal threshold.
+  function _setProposalThreshold(uint256 _newProposalThreshold) internal virtual override {
+    if (_newProposalThreshold != 0) {
+      revert ZkProtocolUpgradeVetoGovernor__ProposalThresholdNotZero();
+    }
+    super._setProposalThreshold(_newProposalThreshold);
   }
 
   /// @notice Accepts only a zero fraction-of-supply numerator, and records nothing, since the veto threshold is set in
