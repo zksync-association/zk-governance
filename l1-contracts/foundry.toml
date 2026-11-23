@@ -2,11 +2,10 @@
   evm_version = "cancun"
   fs_permissions = [
     { access = "read", path = "./zkout" },
-    # `DeployPUHAndGuardians.s.sol` writes a small TOML with the new PUH impl
-    # + Guardians addresses to `script-out/`. The protocol-ops `gov
-    # upgrade-puh-guardians` command consumes that file, then copies it next
-    # to its own output. Keeping the write inside zk-governance keeps these
-    # `fs_permissions` tight.
+    # Deploy scripts (e.g. `RemoveGuardians.s.sol` via `DEPLOY_OUTPUT_TOML`)
+    # write a small TOML with the deployed addresses and governance calls to
+    # `script-out/` for the calldata tooling to consume. Keeping the write
+    # inside zk-governance keeps these `fs_permissions` tight.
     { access = "read-write", path = "./script-out" },
   ]
   fuzz = { runs = 50 }

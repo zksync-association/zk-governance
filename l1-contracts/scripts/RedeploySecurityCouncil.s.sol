@@ -8,7 +8,6 @@ import {Vm, console2} from "forge-std/Test.sol";
 import "./Utils.sol";
 
 import "../src/SecurityCouncil.sol";
-import "../src/Guardians.sol";
 import "../src/EmergencyUpgradeBoard.sol";
 import "../src/Multisig.sol";
 import {ProtocolUpgradeHandler} from "../src/ProtocolUpgradeHandler.sol";
@@ -23,11 +22,21 @@ struct SCRedeployedContracts {
 /// @notice Base script for redeploying the SecurityCouncil (8 members, 4/8 upgrade approval threshold)
 /// and EmergencyUpgradeBoard, then generating the Call[] for the ProtocolUpgradeHandler
 /// to update its references.
+///
+/// The new EmergencyUpgradeBoard checks only Security Council and ZK Foundation signatures, so the
+/// script requires a handler the Guardians are already removed from (see RemoveGuardians). Before
+/// that, the handler still relies on the Guardians for standard upgrades, and rotating the Security
+/// Council would make a pending removal proposal revert at its Security Council check.
 contract RedeploySecurityCouncil is Script {
     SCRedeployedContracts internal deployedAddresses;
+    IProtocolUpgradeHandler.Call[] internal generatedCalls;
 
     function getDeployedAddresses() public view returns (SCRedeployedContracts memory) {
         return deployedAddresses;
+    }
+
+    function getGeneratedCalls() public view returns (IProtocolUpgradeHandler.Call[] memory) {
+        return generatedCalls;
     }
 
     function readMembers(address _multisig) internal view returns (address[] memory members) {
@@ -58,15 +67,22 @@ contract RedeploySecurityCouncil is Script {
         ProtocolUpgradeHandler currentHandler = ProtocolUpgradeHandler(payable(_currentHandler));
 
         address currentSecurityCouncil = currentHandler.securityCouncil();
-        address currentGuardians = currentHandler.guardians();
         address currentEmergencyUpgradeBoard = currentHandler.emergencyUpgradeBoard();
         EmergencyUpgradeBoard eub = EmergencyUpgradeBoard(currentEmergencyUpgradeBoard);
         address zkFoundationSafe = eub.ZK_FOUNDATION_SAFE();
 
+        // The guardians removal implementation exposes `zkFoundation()` in place of `guardians()`.
+        address handlerZkFoundation;
+        try currentHandler.zkFoundation() returns (address zkFoundation) {
+            handlerZkFoundation = zkFoundation;
+        } catch {
+            revert("The Guardians must be removed from the handler first");
+        }
+        require(handlerZkFoundation == zkFoundationSafe, "Handler and board disagree on the ZK Foundation");
+
         console2.log("=== Current System State ===");
         console2.log("ProtocolUpgradeHandler:", _currentHandler);
         console2.log("Current SecurityCouncil:", currentSecurityCouncil);
-        console2.log("Current Guardians:", currentGuardians);
         console2.log("Current EmergencyUpgradeBoard:", currentEmergencyUpgradeBoard);
         console2.log("ZK Foundation Safe:", zkFoundationSafe);
 
@@ -112,7 +128,6 @@ contract RedeploySecurityCouncil is Script {
         EmergencyUpgradeBoard newEmergencyUpgradeBoard = new EmergencyUpgradeBoard(
             IProtocolUpgradeHandler(_currentHandler),
             address(newSecurityCouncil),
-            currentGuardians,
             zkFoundationSafe
         );
         vm.stopBroadcast();
@@ -141,6 +156,11 @@ contract RedeploySecurityCouncil is Script {
             value: 0,
             data: abi.encodeCall(ProtocolUpgradeHandler.updateEmergencyUpgradeBoard, (address(newEmergencyUpgradeBoard)))
         });
+
+        delete generatedCalls;
+        for (uint256 i = 0; i < calls.length; i++) {
+            generatedCalls.push(calls[i]);
+        }
 
         bytes memory encodedCalls = abi.encode(calls);
 

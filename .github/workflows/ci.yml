@@ -5,7 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - master
 
 env:
   FOUNDRY_PROFILE: ci
@@ -59,6 +59,31 @@ jobs:
 
       - name: Run hardhat tests
         run: npx hardhat test
+
+  l1-test:
+    # The mainnet fork suites (RemoveGuardiansForkTest, MainnetRedeployForkTest) need `--fork-url` and are
+    # reported as skipped here; run them locally with `forge test --fork-url <L1_MAINNET_RPC>`.
+    defaults:
+      run:
+        working-directory: ./l1-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install zksync-foundry
+        uses: ./.github/actions/install-zksync-foundry
+
+      - name: Install dependencies
+        run: forge install
+
+      - name: Build
+        run: forge build
+
+      - name: Run forge tests
+        run: forge test
 
   lint:
     defaults:

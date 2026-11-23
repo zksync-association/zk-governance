@@ -11,7 +11,6 @@ import "./IGnosisSafeProxyFactory.sol";
 import "./ICREATE3Factory.sol";
 
 import "../src/SecurityCouncil.sol";
-import "../src/Guardians.sol";
 import "../src/EmergencyUpgradeBoard.sol";
 import "../src/Multisig.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -22,7 +21,6 @@ import {TestnetProtocolUpgradeHandler} from "../src/TestnetProtocolUpgradeHandle
 struct DeployedContracts {
     address protocolUpgradeHandlerImpl;
     address protocolUpgradeHandlerProxy;
-    address guardians;
     address securityCouncil;
     address emergencyUpgradeBoard;
 }
@@ -33,13 +31,11 @@ contract Redeploy is Script {
 
     bytes32 PROTOCOL_UPGRADE_HANDLER_PROXY_SALT = keccak256("ProtocolUpgradeHandlerProxy"); 
     bytes32 PROTOCOL_UPGRADE_HANDLER_IMPL_SALT = keccak256("ProtocolUpgradeHandlerImpl");
-    bytes32 GUARDIANS_SALT = keccak256("Guardians");
     bytes32 SECURITY_COUNCIL_SALT = keccak256("SecurityCouncil");
     bytes32 EMERGENCY_UPGRADE_BOARD_SALT = keccak256("EmergencyUpgradeBoard");
 
     struct CurrentSystemParams {
         address[] securityCouncilMembers;
-        address[] guardiansMembers;
         address zkFoundationSafe;
         uint256 eraChainId;
         address stateTransitionManager;
@@ -79,7 +75,6 @@ contract Redeploy is Script {
     // To reduce a chance for error, we just copy as much data as possible from the existing protocol upgrade handler.
     function extractDataFromProtocolUpgradeHandler(ProtocolUpgradeHandler _currentProtocolUpgradeHandler) internal view returns (CurrentSystemParams memory) {
         address securityCouncil = _currentProtocolUpgradeHandler.securityCouncil();
-        address guardians = _currentProtocolUpgradeHandler.guardians();
         EmergencyUpgradeBoard emergencyUpgradeBoard = EmergencyUpgradeBoard(_currentProtocolUpgradeHandler.emergencyUpgradeBoard());
 
         uint256 eraChainId = vm.envUint("ERA_CHAIN_ID");//TODO after the next redeployment, update to _currentProtocolUpgradeHandler.ERA_CHAIN_ID();
@@ -93,12 +88,10 @@ contract Redeploy is Script {
 
         // A small cross check for consistency
         require(emergencyUpgradeBoard.SECURITY_COUNCIL() == securityCouncil, "incorrect security council");
-        require(emergencyUpgradeBoard.GUARDIANS() == guardians, "incorrect guardians");
         require(emergencyUpgradeBoard.PROTOCOL_UPGRADE_HANDLER() == IProtocolUpgradeHandler(address(_currentProtocolUpgradeHandler)), "incorrect protocol upgrade handler");
 
         return CurrentSystemParams({
             securityCouncilMembers: readMembers(securityCouncil),
-            guardiansMembers: readMembers(guardians),
             zkFoundationSafe: emergencyUpgradeBoard.ZK_FOUNDATION_SAFE(),
             eraChainId: eraChainId,
             stateTransitionManager: stateTransitionManager,
@@ -156,7 +149,8 @@ contract Redeploy is Script {
         {
             // Note, that the proxy is itself the owner. The calls to the proxy impl will still be allowed, since
             // the TransparentUpgradeableProxy automatically creates a ProxyAdmin instance. 
-            bytes memory initdata = abi.encodeCall(ProtocolUpgradeHandler.initialize, (addresses.securityCouncil, addresses.guardians, addresses.emergencyUpgradeBoard));
+            // The ZK Foundation role goes to the same ZK Foundation Safe that co-signs emergency upgrades.
+            bytes memory initdata = abi.encodeCall(ProtocolUpgradeHandler.initialize, (addresses.securityCouncil, info.zkFoundationSafe, addresses.emergencyUpgradeBoard));
             bytes memory proxyConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerImpl, addresses.protocolUpgradeHandlerProxy, initdata);
             bytes memory proxyCreationCode = abi.encodePacked(type(TransparentUpgradeableProxy).creationCode, proxyConstructorArgs);
 
@@ -165,15 +159,6 @@ contract Redeploy is Script {
             vm.stopBroadcast();
         }
         
-        // Deploying guardians
-        {
-            bytes memory guardiansConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.bridgehub, info.eraChainId, info.guardiansMembers);
-            bytes memory guardiansCreationCode = abi.encodePacked(type(Guardians).creationCode, guardiansConstructorArgs);   
-            vm.startBroadcast(deployerWallet.addr);
-            CREATE3_FACTORY.deploy(GUARDIANS_SALT, guardiansCreationCode);
-            vm.stopBroadcast();
-        }
-
         // Deploying security council
         {
             bytes memory securityCouncilConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, info.securityCouncilMembers);
@@ -186,7 +171,7 @@ contract Redeploy is Script {
 
         // Deploying emergency upgrade board
         {
-            bytes memory emergencyUpgradeBoardConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, addresses.securityCouncil, addresses.guardians, info.zkFoundationSafe);
+            bytes memory emergencyUpgradeBoardConstructorArgs = abi.encode(addresses.protocolUpgradeHandlerProxy, addresses.securityCouncil, info.zkFoundationSafe);
             bytes memory emergencyUpgradeBoardCreationCode = abi.encodePacked(type(EmergencyUpgradeBoard).creationCode, emergencyUpgradeBoardConstructorArgs);
             
             vm.startBroadcast(deployerWallet.addr);
@@ -203,8 +188,6 @@ contract Redeploy is Script {
         console2.log("Protocol Upgrade Handler impl address: ", deployedContracts.protocolUpgradeHandlerImpl);
         deployedContracts.protocolUpgradeHandlerProxy = CREATE3_FACTORY.getDeployed(deployerWallet, PROTOCOL_UPGRADE_HANDLER_PROXY_SALT);
         console2.log("Protocol Upgrade Handler proxy address: ", deployedContracts.protocolUpgradeHandlerProxy);
-        deployedContracts.guardians = CREATE3_FACTORY.getDeployed(deployerWallet, GUARDIANS_SALT);
-        console2.log("Guardians address: ", deployedContracts.guardians);
         deployedContracts.securityCouncil = CREATE3_FACTORY.getDeployed(deployerWallet, SECURITY_COUNCIL_SALT);
         console2.log("Security Council address: ", deployedContracts.securityCouncil);
         deployedContracts.emergencyUpgradeBoard = CREATE3_FACTORY.getDeployed(deployerWallet, EMERGENCY_UPGRADE_BOARD_SALT);
