@@ -1,110 +1,23 @@
 name: L2 contracts ci
 
+# THROWAWAY: probe for nondeterministic L2 zkBytecodeHash values across runners (PR #56). Do not merge.
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - master
 
 env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  build:
-    defaults:
-      run:
-        working-directory: ./l2-contracts
+  zk-hash-probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 1
-
-      - name: Install zksync-foundry
-        uses: ./.github/actions/install-zksync-foundry
-
-      # Pinned because the hardhat zksync plugin fails on newer Node releases ("maxRedirections is not supported"),
-      # which newer runner images ship by default. Matches the volta pin in l2-contracts/package.json.
-      - name: Install Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: forge install && npm install
-
-      - name: Build
-        run: npm run compile
-
-  test:
-    defaults:
-      run:
-        working-directory: ./l2-contracts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 1
-
-      - name: Install zksync-foundry
-        uses: ./.github/actions/install-zksync-foundry
-
-      # Pinned because the hardhat zksync plugin fails on newer Node releases ("maxRedirections is not supported"),
-      # which newer runner images ship by default. Matches the volta pin in l2-contracts/package.json.
-      - name: Install Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: forge install && npm install
-
-      - name: Build
-        run: npm run compile
-
-      - name: Run forge tests
-        run: npm run foundry-test
-
-      - name: Run Era test node
-        uses: dutterbutter/era-test-node-action@v0.1.3
-
-      - name: Run hardhat tests
-        run: npx hardhat test
-
-  l1-test:
-    # The mainnet fork suites (RemoveGuardiansForkTest, MainnetRedeployForkTest) need `--fork-url` and are
-    # reported as skipped here; run them locally with `forge test --fork-url <L1_MAINNET_RPC>`.
-    defaults:
-      run:
-        working-directory: ./l1-contracts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 1
-
-      - name: Install zksync-foundry
-        uses: ./.github/actions/install-zksync-foundry
-
-      - name: Install dependencies
-        run: forge install
-
-      - name: Build
-        run: forge build
-
-      - name: Run forge tests
-        run: forge test
-
-  lint:
     defaults:
       run:
         shell: bash
         working-directory: ./l2-contracts
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -114,58 +27,59 @@ jobs:
       - name: Install zksync-foundry
         uses: ./.github/actions/install-zksync-foundry
 
-      - name: Install dependencies
-        run: forge install
-
-      - name: Install scopelint
-        uses: engineerd/configurator@v0.0.8
-        with:
-          name: scopelint
-          repo: ScopeLift/scopelint
-          fromGitHubReleases: true
-          version: latest
-          pathInArchive: scopelint-x86_64-linux/scopelint
-          urlTemplate: https://github.com/ScopeLift/scopelint/releases/download/{{version}}/scopelint-x86_64-linux.tar.xz
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check formatting
-        run: |
-          scopelint --version
-          scopelint check
-
-  hashes:
-    # Rebuild both projects from source, recompute every contract's
-    # bytecode hash, and fail the build if AllContractsHashes.json doesn't
-    # match. Mirrors era-contracts' `calculate-hashes:check` so reviewers
-    # can spot any unexpected bytecode drift across PRs without doing a
-    # fresh build locally.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 1
-
-      - name: Install zksync-foundry
-        uses: ./.github/actions/install-zksync-foundry
-
-      # Pinned because the hardhat zksync plugin fails on newer Node releases ("maxRedirections is not supported"),
-      # which newer runner images ship by default. Matches the volta pin in l2-contracts/package.json.
       - name: Install Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install l1-contracts deps + build (EVM)
-        working-directory: ./l1-contracts
-        run: forge install && forge build
+      - name: Install dependencies
+        run: forge install && npm install
 
-      - name: Install l2-contracts deps + build (EVM + zkSync)
-        working-directory: ./l2-contracts
-        run: forge install && npm install && npm run compile
+      - name: Diagnostics (pre-build)
+        run: |
+          P="${GITHUB_WORKSPACE}/probe"; mkdir -p "$P"
+          { echo "image: ${ImageOS} ${ImageVersion}"; uname -a; nproc; lscpu; df -T .; } > "$P/env.txt" 2>&1
+          forge remappings > "$P/remappings.txt" 2>&1
+          forge config --json > "$P/config.json" 2>&1 || true
+          { echo "== lib"; ls -f lib; for d in lib/*/lib lib/*/lib/*/lib; do echo "== $d"; ls -f "$d"; done; echo "== node_modules/@openzeppelin"; ls -f node_modules/@openzeppelin; } > "$P/readdir.txt" 2>&1
+          { ls -la ~/.zksync; } > "$P/zksync-pre.txt" 2>&1
+          echo "image: ${ImageOS} ${ImageVersion}"; sha256sum "$P/remappings.txt"; cat "$P/remappings.txt"
 
-      - name: Install root deps
-        run: yarn install --frozen-lockfile
+      - name: Build (zkSync) with build-info
+        run: forge build --zksync --build-info
 
-      - name: Check AllContractsHashes.json is up to date
-        run: yarn calculate-hashes:check
+      - name: Diagnostics (post-build)
+        run: |
+          P="${GITHUB_WORKSPACE}/probe"
+          { ls -la ~/.zksync; sha256sum ~/.zksync/*; for b in ~/.zksync/*; do echo "== $b"; "$b" --version 2>&1 | head -3; done; } > "$P/zksync-post.txt" 2>&1
+          cat "$P/zksync-post.txt"
+          mkdir -p "$P/artifacts"
+          cp zkout/Address.sol/Address.json zkout/ZkTokenGovernor.sol/ZkTokenGovernor.json "$P/artifacts/"
+          python3 - "$P" <<'EOF'
+          import json, glob, os, sys
+          P = sys.argv[1]
+          sets = {"01000b17af2b": "A (matches on-chain)", "01000b179566": "B (e589fd9)"}
+          tok = json.load(open("zkout/ZkTokenGovernor.sol/ZkTokenGovernor.json"))["hash"]
+          addr = json.load(open("zkout/Address.sol/Address.json"))["hash"]
+          verdict = sets.get(tok[:12], "UNKNOWN")
+          print(f"ZkTokenGovernor={tok}\nAddress={addr}\nSET={verdict}")
+          open(os.path.join(P, "result.txt"), "w").write(f"image={os.environ.get('ImageVersion')}\nZkTokenGovernor={tok}\nAddress={addr}\nSET={verdict}\n")
+          summary = {}
+          for f in glob.glob("zkout/build-info/*.json"):
+              d = json.load(open(f))
+              inp = d.get("input", {})
+              s = dict(inp.get("settings", {}))
+              s.pop("outputSelection", None)
+              summary[os.path.basename(f)] = {
+                  "top": {k: v for k, v in d.items() if k not in ("input", "output", "source_id_to_path")},
+                  "settings": s,
+                  "n_sources": len(inp.get("sources", {})),
+              }
+          json.dump(summary, open(os.path.join(P, "build-info-summary.json"), "w"), indent=1, sort_keys=True)
+          EOF
+          cp -r zkout/build-info "$P/build-info"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-${{ matrix.n }}
+          path: probe/
