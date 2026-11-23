@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -56,8 +55,8 @@ jobs:
           if [[ -n "$(git status --porcelain AllContractsHashes.json)" ]]; then
             git add AllContractsHashes.json
             git commit -m "chore: regenerate AllContractsHashes.json"
-            git push origin HEAD:${{ github.ref_name }}
-            echo "Pushed regen commit to ${{ github.ref_name }}."
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+            echo "Pushed regen commit to ${GITHUB_REF_NAME}."
           else
             echo "AllContractsHashes.json already up to date — nothing to commit."
           fi

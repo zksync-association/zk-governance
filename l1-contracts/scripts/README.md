@@ -52,15 +52,16 @@ forge script scripts/MainnetRemoveGuardians.s.sol:MainnetRemoveGuardians --rpc-u
 ```
 
 The fork test replays the v31 handler upgrade, runs the script against it and passes the generated
-proposal through the `ProtocolUpgradeHandler` state machine; until v31 is executed on mainnet, this is
-how to reproduce the script output:
+proposal through the `ProtocolUpgradeHandler` state machine. Mainnet executed the removal at block 26455823,
+so pin the fork to the block before it to reproduce the script output:
 
 ```bash
-forge test --match-contract RemoveGuardiansForkTest --fork-url $MAINNET_RPC
+forge test --match-contract RemoveGuardiansForkTest --fork-url $MAINNET_RPC --fork-block-number 26455822
 ```
 
-Without `--fork-url` the mainnet fork suites are reported as skipped, and the tests that need a fork predating v31
-are skipped once mainnet runs v31.
+Without `--fork-url` the mainnet fork suites are reported as skipped. `RemoveGuardiansForkTest` is also skipped on
+a fork that already includes the removal, and the tests that need a fork predating v31 are skipped once mainnet
+runs v31.
 
 The L2 side (the veto seats of the `ZkTokenGovernor` and `ZkGovOpsGovernor`) is handled by
 `l2-contracts/script/RedeployZkTokenGovernor.ts` and `l2-contracts/script/RedeployZkGovOpsGovernor.ts`,

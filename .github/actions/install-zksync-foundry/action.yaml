@@ -8,6 +8,11 @@ inputs:
     description: "Version of zksync-foundry to install."
     required: false
     default: "v0.1.5"
+  sha256:
+    type: string
+    description: "sha256 of the linux_amd64 tarball of that version, as listed in the GitHub release."
+    required: false
+    default: "3835574db25f52650df01df854886aebed25f63c561826708dccd46c3fc401bd"
 
 runs:
   using: composite
@@ -17,11 +22,14 @@ runs:
       env:
         ZKSYNC_FOUNDRY_URL: "https://github.com/matter-labs/foundry-zksync/releases/download"
         VERSION: "${{ inputs.version }}"
+        SHA256: "${{ inputs.sha256 }}"
         INSTALL_DIR: "foundry-zksync"
       run: |
         mkdir "${INSTALL_DIR}"
-        curl -LO ${ZKSYNC_FOUNDRY_URL}/foundry-zksync-${VERSION}/foundry_zksync_${VERSION}_linux_amd64.tar.gz
-        tar zxf foundry_zksync_${VERSION}_linux_amd64.tar.gz -C ./${INSTALL_DIR}
+        TARBALL="foundry_zksync_${VERSION}_linux_amd64.tar.gz"
+        curl -fsSLO "${ZKSYNC_FOUNDRY_URL}/foundry-zksync-${VERSION}/${TARBALL}"
+        echo "${SHA256}  ${TARBALL}" | sha256sum --check
+        tar zxf "${TARBALL}" -C ./${INSTALL_DIR}
         chmod +x ./${INSTALL_DIR}/forge ./${INSTALL_DIR}/cast
         echo "${PWD}/${INSTALL_DIR}" >> "${GITHUB_PATH}"
         ./${INSTALL_DIR}/forge --version

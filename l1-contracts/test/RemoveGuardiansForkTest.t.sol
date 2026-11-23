@@ -57,7 +57,7 @@ contract RemoveGuardiansForkTest is Test {
   uint256 constant UPGRADE_STATUS_SLOT = 3;
   // Mainnet `STANDARD_LEGAL_VETO_PERIOD` and `UPGRADE_DELAY_PERIOD` of the ProtocolUpgradeHandler.
   uint256 constant LEGAL_VETO_PERIOD = 3 days;
-  uint256 constant UPGRADE_DELAY_PERIOD = 9 days;
+  uint256 constant UPGRADE_DELAY_PERIOD = 1 days;
   // L1Messenger system contract on Era, the target of the ZIP action.
   address constant L1_MESSENGER = 0x0000000000000000000000000000000000008008;
 
@@ -81,6 +81,11 @@ contract RemoveGuardiansForkTest is Test {
 
   function setUp() external onlyMainnet {
     handler = ProtocolUpgradeHandler(payable(PROTOCOL_UPGRADE_HANDLER));
+    // Mainnet ran the removal at block 26455823, so there is nothing left to replay on a later fork
+    // (`--fork-block-number 26455822` replays it).
+    try handler.zkFoundation() returns (address) {
+      vm.skip(true);
+    } catch {}
     zkFoundationSafe = EmergencyUpgradeBoard(V31_EMERGENCY_UPGRADE_BOARD).ZK_FOUNDATION_SAFE();
 
     // The script reads the post-v31 state from the handler.

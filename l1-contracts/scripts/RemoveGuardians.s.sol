@@ -316,6 +316,8 @@ contract RemoveGuardians is Script {
         vm.serializeAddress("deploy", "zip_target", L1_MESSENGER);
         vm.serializeBytes("deploy", "zip_calldata", _l2Calldata);
         string memory toml = vm.serializeBytes32("deploy", "upgrade_id", _upgradeId);
+        // `fs_permissions` only allows writes inside `script-out`, which a fresh checkout doesn't have.
+        vm.createDir("./script-out", true);
         vm.writeToml(toml, outPath);
     }
 }

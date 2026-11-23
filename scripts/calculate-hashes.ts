@@ -1,5 +1,5 @@
-// Walk every compiled Solidity artifact in `l1-contracts/{out,zkout}` and
-// `l2-contracts/{out,zkout}`, hash the bytecode, and emit a sorted snapshot at
+// Walk every compiled Solidity artifact in `l1-contracts/out` and
+// `l2-contracts/zkout`, hash the bytecode, and emit a sorted snapshot at
 // `AllContractsHashes.json`. Mirrors the same script in `era-contracts`
 // (`contracts/scripts/calculate-hashes.ts`) so reviewers can spot any unexpected
 // bytecode drift across PRs without diffing against a fresh `forge build`.
@@ -23,6 +23,14 @@ import { hashBytecode } from "zksync-ethers/build/utils";
 // list (`SKIPPED_FOLDERS`) can be expressed as source dirs rather than
 // post-build artifact paths.
 const SOLIDITY_SOURCE_CODE_PATHS = ["l1-contracts/", "l2-contracts/"];
+
+// The artifacts the CI `hashes` job builds for each project: L1 is deployed as EVM bytecode, L2 on Era as zkSync
+// bytecode. Other artifacts a local build leaves behind (e.g. the EVM `out/` that `forge test` writes in
+// l2-contracts) are not walked, so a local `calculate-hashes:fix` agrees with CI.
+const ARTIFACT_KINDS: Record<string, { evm: boolean; zk: boolean }> = {
+  "l1-contracts/": { evm: true, zk: false },
+  "l2-contracts/": { evm: false, zk: true },
+};
 const OUTPUT_FILE_PATH = "AllContractsHashes.json";
 
 // Source folders whose artifacts are not part of the deployed surface (tests
@@ -310,8 +318,9 @@ const getEVMSolidityContractsDetailsWithArtifactsDir = (workDir: string): Source
 };
 
 const getSolidityContractsDetails = (dir: string): ContractsInfo[] => {
-  const zkContracts = getZkSolidityContractsDetailsWithArtifactsDir(dir);
-  const contracts = getEVMSolidityContractsDetailsWithArtifactsDir(dir);
+  const kinds = ARTIFACT_KINDS[dir];
+  const zkContracts = kinds.zk ? getZkSolidityContractsDetailsWithArtifactsDir(dir) : [];
+  const contracts = kinds.evm ? getEVMSolidityContractsDetailsWithArtifactsDir(dir) : [];
 
   const mergedContracts: ContractsInfo[] = [];
 
@@ -459,7 +468,7 @@ main()
   .catch((err) => {
     console.error("Error:", err.message || err);
     console.log(
-      "Please make sure to run `yarn --cwd l1-contracts build && yarn --cwd l2-contracts compile` before running this script."
+      "Please make sure to run `yarn build-all-contracts` before running this script."
     );
     process.exit(1);
   });

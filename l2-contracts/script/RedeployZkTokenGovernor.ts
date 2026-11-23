@@ -1,14 +1,20 @@
 import { config as dotEnvConfig } from "dotenv";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
+import { ZkSyncArtifact } from "@matterlabs/hardhat-zksync-deploy/dist/types";
 import { Contract, Wallet } from "zksync-ethers";
 import { getAddress, keccak256, toUtf8Bytes } from "ethers";
 import * as hre from "hardhat";
+import * as fs from "fs";
+import * as path from "path";
 
 // Redeploys the ZkTokenGovernor as part of the guardians removal: the new instance keeps
 // the live settings, token and TimelockController of the current governor, but swaps the
 // immutable veto seat:
 //   - VETO_GUARDIAN    -> the native ZK Foundation Safe on Era (NEW_VETO_GUARDIAN)
 //   - PROPOSE_GUARDIAN -> kept as is (the ZK Foundation) unless NEW_PROPOSE_GUARDIAN is set
+//
+// The new governor is deployed from the forge zkSync build (`forge build --zksync` first), and its
+// code hash must equal its AllContractsHashes.json entry before the migration is printed.
 //
 // The script does NOT touch the timelock: it prints the proposal actions that must be
 // passed through the *current* governor to hand the timelock roles over to the new one.
@@ -39,6 +45,41 @@ function requireEqual(label: string, actual: unknown, expected: unknown) {
   }
 }
 
+// AccountCodeStorage system contract: `getRawCodeHash` returns the bytecode hash an Era contract was deployed with.
+const ACCOUNT_CODE_STORAGE = "0x0000000000000000000000000000000000008002";
+
+// The governor as `forge build --zksync` builds it (zksolc 1.5.17, foundry.toml), not the hardhat artifact
+// (zksolc 1.4.0, hardhat.config.ts): this is the build AllContractsHashes.json and the deployed governors match.
+function loadForgeZkArtifact(name: string): ZkSyncArtifact {
+  const file = path.join(__dirname, "..", "zkout", `${name}.sol`, `${name}.json`);
+  const json = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (Object.keys(json.factoryDependencies ?? {}).length > 0) {
+    throw `${name} has factory dependencies, which this script does not deploy`;
+  }
+  return {
+    _format: "hh-zksolc-artifact-1",
+    contractName: name,
+    sourceName: `src/${name}.sol`,
+    abi: json.abi,
+    bytecode: "0x" + json.bytecode.object,
+    deployedBytecode: "0x" + json.bytecode.object,
+    linkReferences: {},
+    deployedLinkReferences: {},
+    factoryDeps: {},
+    sourceMapping: "",
+  };
+}
+
+function expectedCodeHash(name: string): string {
+  const file = path.join(__dirname, "..", "..", "AllContractsHashes.json");
+  const entries: { contractName: string; zkBytecodeHash: string | null }[] = JSON.parse(fs.readFileSync(file, "utf8"));
+  const hash = entries.find((e) => e.contractName === `l2-contracts/${name}`)?.zkBytecodeHash;
+  if (!hash) {
+    throw `No zkBytecodeHash for l2-contracts/${name} in AllContractsHashes.json`;
+  }
+  return hash.toLowerCase();
+}
+
 async function main() {
   dotEnvConfig();
 
@@ -49,7 +90,7 @@ async function main() {
   const zkWallet = new Wallet(deployerPrivateKey);
   const deployer = new Deployer(hre, zkWallet);
 
-  const governorArtifact = await deployer.loadArtifact(contractName);
+  const governorArtifact = loadForgeZkArtifact(contractName);
   const currentGovernor = new Contract(currentGovernorAddress, governorArtifact.abi, deployer.zkWallet);
 
   // Read the live configuration from the current governor.
@@ -129,6 +170,15 @@ async function main() {
     console.log(`${contractName} was deployed to ${newGovernorAddress}`);
   }
   console.log("constructor args:" + currentGovernor.interface.encodeDeploy(constructorArgs));
+
+  // The new governor must be exactly the reviewed build, not just a contract with matching getters.
+  const accountCodeStorage = new Contract(
+    ACCOUNT_CODE_STORAGE,
+    ["function getRawCodeHash(address) view returns (bytes32)"],
+    deployer.zkWallet
+  );
+  const codeHash = String(await accountCodeStorage.getRawCodeHash(newGovernorAddress)).toLowerCase();
+  requireEqual("code hash", codeHash, expectedCodeHash(contractName));
 
   // Everything but the guardian seats must match the current governor.
   const deployedGovernor = new Contract(newGovernorAddress, governorArtifact.abi, deployer.zkWallet);
