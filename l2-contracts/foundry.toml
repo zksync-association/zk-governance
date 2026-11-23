@@ -9,6 +9,11 @@
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
     "@murky/=lib/murky/",
+    # Unused by our sources, but auto-detection resolves these two from equally deep candidates in readdir order,
+    # which differs between CI runner images. Remappings are part of the solc metadata hashed into every zk
+    # bytecode, so leaving them to chance flips every L2 zkBytecodeHash. Pinned to the deployed set.
+    "erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/",
+    "openzeppelin/=lib/openzeppelin-contracts-upgradeable/contracts/",
   ]
   solc_version = "0.8.24"
   verbosity = 3
