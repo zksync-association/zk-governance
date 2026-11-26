@@ -5,12 +5,12 @@ import {ZkTokenTest} from "test/utils/ZkTokenTest.sol";
 import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 import {ZkMerkleDistributor} from "src/ZkMerkleDistributor.sol";
 import {Merkle} from "@murky/src/Merkle.sol";
-import {console2, stdStorage, StdStorage} from "forge-std/Test.sol";
+import {stdStorage, StdStorage} from "forge-std/Test.sol";
 
 contract ZkMerkleDistributorTest is ZkTokenTest {
   Merkle merkle;
 
-  error ZkMerkleDistributor__InvalidProof();
+  error ZkMerkleDistributorTest_InvalidProof();
 
   /// @notice Type hash of the data that makes up the claim request.
   bytes32 public constant ZK_CLAIM_TYPEHASH =
@@ -67,7 +67,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
   // The function is also given a sample claim index, which will be used to leave an empty spot in the tree for a sample
   // claim.
   // Both the tree and the total claimable amount in the tree are returned.
-  function makeTreeArray(uint256 _treeSize, uint256 _seed, uint256 sampleClaimIndex)
+  function makeTreeArray(uint256 _treeSize, uint256 _seed, uint256 _sampleClaimIndex)
     public
     view
     returns (bytes32[] memory, uint256 _totalClaimableAmountInTree)
@@ -76,7 +76,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     _totalClaimableAmountInTree = 0;
     for (uint256 _index = 0; _index < _treeSize; _index++) {
       uint256 _nodeAmount = bound(_seed, 1, MAX_AMOUNT);
-      if (_index != sampleClaimIndex) {
+      if (_index != _sampleClaimIndex) {
         _tree[_index] = makeNode(_index, makeAddress(_index, _seed), _nodeAmount);
         _totalClaimableAmountInTree += _nodeAmount;
       }
@@ -130,9 +130,7 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_claimantPrivateKey, _messageHash);
 
     return ZkMerkleDistributor.DelegateInfo({
-      delegatee: _delegatee,
-      signature: abi.encodePacked(_r, _s, _v),
-      expiry: block.timestamp + 12 hours
+      delegatee: _delegatee, signature: abi.encodePacked(_r, _s, _v), expiry: block.timestamp + 12 hours
     });
   }
 
@@ -146,11 +144,10 @@ contract ZkMerkleDistributorTest is ZkTokenTest {
     bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_claimantPrivateKey, _messageHash);
 
-    return ZkMerkleDistributor.DelegateInfo({
-      delegatee: _delegatee,
-      signature: abi.encodePacked(_r, _s, _v),
-      expiry: _expiry
-    });
+    return
+      ZkMerkleDistributor.DelegateInfo({
+        delegatee: _delegatee, signature: abi.encodePacked(_r, _s, _v), expiry: _expiry
+      });
   }
 
   // Creates a claim signature with the provided parameters.
@@ -1155,9 +1152,7 @@ contract ClaimAndDelegateOnBehalf is ZkMerkleDistributorTest {
     );
 
     ZkMerkleDistributor.ClaimSignatureInfo memory _claimSignatureInfo = ZkMerkleDistributor.ClaimSignatureInfo({
-      signature: _claimSignature,
-      claimant: _claimant,
-      expiry: block.timestamp + 7 hours
+      signature: _claimSignature, claimant: _claimant, expiry: block.timestamp + 7 hours
     });
     _distributor.claimAndDelegateOnBehalf(_claimIndex, 1000, _proof, _claimSignatureInfo, _delegateeInfo);
     assertEq(token.balanceOf(_claimant), 1000);

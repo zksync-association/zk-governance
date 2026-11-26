@@ -7,7 +7,7 @@ import {ProposalBuilder} from "test/helpers/ProposalBuilder.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
-import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
+
 import {IGovernorTimelock} from "@openzeppelin/contracts/governance/extensions/IGovernorTimelock.sol";
 
 interface ERC20VotesMintable is IVotes, IAccessControl {

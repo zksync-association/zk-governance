@@ -1,0 +1,55 @@
+name: "Install zksync-foundry"
+
+description: "Installs zksync-foundry with specified version."
+
+inputs:
+  version:
+    type: string
+    description: "Version of zksync-foundry to install."
+    required: false
+    default: "v0.1.5"
+  sha256:
+    type: string
+    description: "sha256 of the linux_amd64 tarball of that version, as listed in the GitHub release."
+    required: false
+    default: "3835574db25f52650df01df854886aebed25f63c561826708dccd46c3fc401bd"
+
+runs:
+  using: composite
+  steps:
+    - name: Install zksync-foundry
+      shell: "bash -ex {0}"
+      env:
+        ZKSYNC_FOUNDRY_URL: "https://github.com/matter-labs/foundry-zksync/releases/download"
+        VERSION: "${{ inputs.version }}"
+        SHA256: "${{ inputs.sha256 }}"
+        INSTALL_DIR: "foundry-zksync"
+      run: |
+        mkdir "${INSTALL_DIR}"
+        TARBALL="foundry_zksync_${VERSION}_linux_amd64.tar.gz"
+        curl -fsSLO "${ZKSYNC_FOUNDRY_URL}/foundry-zksync-${VERSION}/${TARBALL}"
+        echo "${SHA256}  ${TARBALL}" | sha256sum --check
+        tar zxf "${TARBALL}" -C ./${INSTALL_DIR}
+        chmod +x ./${INSTALL_DIR}/forge ./${INSTALL_DIR}/cast
+        echo "${PWD}/${INSTALL_DIR}" >> "${GITHUB_PATH}"
+        ./${INSTALL_DIR}/forge --version
+        ./${INSTALL_DIR}/cast --version
+        echo "Installed zksync-foundry version: ${VERSION}"
+
+    # zksync-foundry downloads zksolc from matter-labs/zksolc-bin, which stops at 1.5.15. The zksolc the
+    # L2 contracts are built with (l2-contracts/foundry.toml) is only released in era-compiler-solidity,
+    # so it is put where zksync-foundry looks for installed versions (~/.zksync) beforehand.
+    - name: Install zksolc
+      shell: "bash -ex {0}"
+      env:
+        ZKSOLC_VERSION: "1.5.17"
+        # sha256 of zksolc-linux-amd64-musl-v1.5.17, as listed in the GitHub release.
+        ZKSOLC_SHA256: "3bda51f97a3087e7d959c05aa992f7d00f98acedfdc9caede64b334aaa76181f"
+      run: |
+        ZKSOLC="${HOME}/.zksync/zksolc-linux-amd64-musl-v${ZKSOLC_VERSION}"
+        mkdir -p "${HOME}/.zksync"
+        curl -fsSL -o "${ZKSOLC}" \
+          "https://github.com/matter-labs/era-compiler-solidity/releases/download/${ZKSOLC_VERSION}/zksolc-linux-amd64-musl-v${ZKSOLC_VERSION}"
+        echo "${ZKSOLC_SHA256}  ${ZKSOLC}" | sha256sum --check
+        chmod +x "${ZKSOLC}"
+        "${ZKSOLC}" --version

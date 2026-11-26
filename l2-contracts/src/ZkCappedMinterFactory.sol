@@ -33,10 +33,10 @@ contract ZkCappedMinterFactory {
     external
     returns (address minterAddress)
   {
-    bytes memory saltArgs = abi.encode(_token, _admin, _cap);
-    bytes32 salt = _calculateSalt(saltArgs, _saltNonce);
-    ZkCappedMinter instance = new ZkCappedMinter{salt: salt}(_token, _admin, _cap);
-    minterAddress = address(instance);
+    bytes memory _saltArgs = abi.encode(_token, _admin, _cap);
+    bytes32 _salt = _calculateSalt(_saltArgs, _saltNonce);
+    ZkCappedMinter _instance = new ZkCappedMinter{salt: _salt}(_token, _admin, _cap);
+    minterAddress = address(_instance);
 
     emit CappedMinterCreated(minterAddress, _token, _admin, _cap);
   }
@@ -52,10 +52,10 @@ contract ZkCappedMinterFactory {
     view
     returns (address addr)
   {
-    bytes memory saltArgs = abi.encode(_token, _admin, _cap);
-    bytes32 salt = _calculateSalt(saltArgs, _saltNonce);
+    bytes memory _saltArgs = abi.encode(_token, _admin, _cap);
+    bytes32 _salt = _calculateSalt(_saltArgs, _saltNonce);
     addr = L2ContractHelper.computeCreate2Address(
-      address(this), salt, BYTECODE_HASH, keccak256(abi.encode(_token, _admin, _cap))
+      address(this), _salt, BYTECODE_HASH, keccak256(abi.encode(_token, _admin, _cap))
     );
   }
 

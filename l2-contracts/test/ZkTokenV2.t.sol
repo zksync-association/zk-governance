@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ZkTokenV1} from "src/ZkTokenV1.sol";
 import {ZkTokenV2} from "src/ZkTokenV2.sol";
-import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+
 import {
   TransparentUpgradeableProxy,
   ITransparentUpgradeableProxy
@@ -40,21 +40,22 @@ contract Initialize is Test {
   }
 
   function test_UpgradeTransparentUpgradeableProxyFromTokenV1ToTokenV2() public {
-    address tokenV1 = address(new ZkTokenV1());
-    address proxyAdmin = address(new ProxyAdmin());
+    address _tokenV1 = address(new ZkTokenV1());
+    address _proxyAdmin = address(new ProxyAdmin());
 
-    bytes memory initializeV1Data = abi.encodeCall(ZkTokenV1.initialize, (admin, initMintReceiver, INITIAL_MINT_AMOUNT));
-    address proxy = address(new TransparentUpgradeableProxy(tokenV1, proxyAdmin, initializeV1Data));
+    bytes memory _initializeV1Data =
+      abi.encodeCall(ZkTokenV1.initialize, (admin, initMintReceiver, INITIAL_MINT_AMOUNT));
+    address _proxy = address(new TransparentUpgradeableProxy(_tokenV1, _proxyAdmin, _initializeV1Data));
 
-    assertEq(ZkTokenV1(proxy).symbol(), "ZK");
-    assertEq(ZkTokenV1(proxy).name(), "ZKsync");
+    assertEq(ZkTokenV1(_proxy).symbol(), "ZK");
+    assertEq(ZkTokenV1(_proxy).name(), "ZKsync");
 
-    bytes memory initializeV2Data = abi.encodeCall(ZkTokenV2.initializeV2, ());
-    vm.prank(proxyAdmin);
-    ITransparentUpgradeableProxy(proxy).upgradeToAndCall(address(tokenV2), initializeV2Data);
+    bytes memory _initializeV2Data = abi.encodeCall(ZkTokenV2.initializeV2, ());
+    vm.prank(_proxyAdmin);
+    ITransparentUpgradeableProxy(_proxy).upgradeToAndCall(address(tokenV2), _initializeV2Data);
 
-    assertEq(ZkTokenV2(proxy).symbol(), "ZK");
-    assertEq(ZkTokenV2(proxy).name(), "ZKsync");
+    assertEq(ZkTokenV2(_proxy).symbol(), "ZK");
+    assertEq(ZkTokenV2(_proxy).name(), "ZKsync");
   }
 
   function test_InitializesTheTokenWithTheCorrectConfigurationWhenDeployedViaUpgrades() public {

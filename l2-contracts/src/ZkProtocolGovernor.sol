@@ -63,8 +63,9 @@ contract ZkProtocolGovernor is
     bytes32 _r,
     bytes32 _s
   ) public override(Governor, GovernorCountingFractional, IGovernor) returns (uint256) {
-    return
-      GovernorCountingFractional.castVoteWithReasonAndParamsBySig(_proposalId, _support, _reason, _params, _v, _r, _s);
+    return GovernorCountingFractional.castVoteWithReasonAndParamsBySig(
+      _proposalId, _support, _reason, _params, _v, _r, _s
+    );
   }
 
   /// @inheritdoc GovernorPreventLateQuorum

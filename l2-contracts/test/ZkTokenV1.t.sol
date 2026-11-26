@@ -115,11 +115,11 @@ contract CLOCK_MODE is ZkTokenTest {
 
   function testFuzz_RevertIf_TokenUpgradedWithNewClock(uint256 _initialValue, uint24 _warpAhead) public {
     vm.assume(_warpAhead != 0);
-    ZkTokenFakeV2ClockChange token = new ZkTokenFakeV2ClockChange();
-    token.initializeFakeV2(_initialValue);
-    vm.expectRevert(ZkTokenV1.ERC6372InconsistentClock.selector);
+    ZkTokenFakeV2ClockChange _token = new ZkTokenFakeV2ClockChange();
+    _token.initializeFakeV2(_initialValue);
+    vm.expectRevert(ZkTokenV1.ZkTokenV1_ERC6372InconsistentClock.selector);
     vm.warp(block.timestamp + _warpAhead);
-    token.CLOCK_MODE();
+    _token.CLOCK_MODE();
   }
 }
 
@@ -132,16 +132,16 @@ contract Mint is ZkTokenTest {
     vm.assume(_receiver != address(0) && _receiver != initMintReceiver);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
-    ZkTokenV1 token = new ZkTokenV1();
-    token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
+    ZkTokenV1 _token = new ZkTokenV1();
+    _token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
-    token.grantRole(MINTER_ROLE, _minter);
+    _token.grantRole(MINTER_ROLE, _minter);
 
     vm.prank(_minter);
-    token.mint(_receiver, _amount);
+    _token.mint(_receiver, _amount);
 
-    assertEq(token.balanceOf(_receiver), _amount);
+    assertEq(_token.balanceOf(_receiver), _amount);
   }
 
   function testFuzz_AllowsAnAccountWithTheMinterRoleToMintTokens(address _minter, address _receiver, uint256 _amount)
@@ -268,22 +268,22 @@ contract Burn is ZkTokenV1BurnTest {
     _mintAmount = _assumeSafeReceiverBoundAndMint(_receiver, _mintAmount);
     _burnAmount = bound(_burnAmount, 0, _mintAmount);
 
-    ZkTokenV1 token = new ZkTokenV1();
-    token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
+    ZkTokenV1 _token = new ZkTokenV1();
+    _token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
-    token.grantRole(MINTER_ROLE, _burner);
+    _token.grantRole(MINTER_ROLE, _burner);
 
     vm.prank(_burner);
-    token.mint(_receiver, _mintAmount);
+    _token.mint(_receiver, _mintAmount);
 
     vm.prank(admin);
-    token.grantRole(BURNER_ROLE, _burner);
+    _token.grantRole(BURNER_ROLE, _burner);
 
     vm.prank(_burner);
-    token.burn(_receiver, _burnAmount);
+    _token.burn(_receiver, _burnAmount);
 
-    assertEq(token.balanceOf(_receiver), _mintAmount - _burnAmount);
+    assertEq(_token.balanceOf(_receiver), _mintAmount - _burnAmount);
   }
 
   function testFuzz_AllowsAnAccountWithTheBurnerRoleToBurnTokens(
@@ -474,34 +474,34 @@ contract Permit is ZkTokenTest {
 
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
-    ZkTokenV1 token = new ZkTokenV1();
-    token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
+    ZkTokenV1 _token = new ZkTokenV1();
+    _token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
-    token.grantRole(MINTER_ROLE, _owner);
+    _token.grantRole(MINTER_ROLE, _owner);
     vm.prank(_owner);
-    token.mint(_owner, _amount);
+    _token.mint(_owner, _amount);
 
     // verify the owner has the expected balance
-    assertEq(token.balanceOf(_owner), _amount);
+    assertEq(_token.balanceOf(_owner), _amount);
 
     bytes32 _message =
-      keccak256(abi.encode(PERMIT_TYPEHASH, _owner, _spender, _amount, token.nonces(_owner), _deadline));
+      keccak256(abi.encode(PERMIT_TYPEHASH, _owner, _spender, _amount, _token.nonces(_owner), _deadline));
 
-    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), _message));
+    bytes32 _messageHash = keccak256(abi.encodePacked("\x19\x01", _token.DOMAIN_SEPARATOR(), _message));
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_ownerPrivateKey, _messageHash);
 
     vm.prank(_spender);
-    token.permit(_owner, _spender, _amount, _deadline, _v, _r, _s);
+    _token.permit(_owner, _spender, _amount, _deadline, _v, _r, _s);
 
     vm.prank(_spender);
-    token.transferFrom(_owner, _receiver, _amount);
+    _token.transferFrom(_owner, _receiver, _amount);
 
     // verify the receiver has the expected balance
-    assertEq(token.balanceOf(_receiver), _amount);
+    assertEq(_token.balanceOf(_receiver), _amount);
 
     // verify the owner has the zero balance
-    assertEq(token.balanceOf(_owner), 0);
+    assertEq(_token.balanceOf(_owner), 0);
   }
 
   function testFuzz_RevertIf_ThePermitSignatureIsInvalidWithoutProxy(
@@ -521,22 +521,22 @@ contract Permit is ZkTokenTest {
     vm.assume(_notOwner != _owner);
     _amount = bound(_amount, 0, MAX_MINT_SUPPLY);
 
-    ZkTokenV1 token = new ZkTokenV1();
-    token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
+    ZkTokenV1 _token = new ZkTokenV1();
+    _token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
 
     vm.prank(admin);
-    token.grantRole(MINTER_ROLE, _owner);
+    _token.grantRole(MINTER_ROLE, _owner);
     vm.prank(_owner);
-    token.mint(_owner, _amount);
+    _token.mint(_owner, _amount);
 
     // verify the owner has the expected balance
-    assertEq(token.balanceOf(_owner), _amount);
+    assertEq(_token.balanceOf(_owner), _amount);
 
     bytes32 _messageHash = keccak256(
       abi.encodePacked(
         "\x19\x01",
-        token.DOMAIN_SEPARATOR(),
-        keccak256(abi.encode(PERMIT_TYPEHASH, _notOwner, _spender, _amount, token.nonces(_notOwner), _deadline))
+        _token.DOMAIN_SEPARATOR(),
+        keccak256(abi.encode(PERMIT_TYPEHASH, _notOwner, _spender, _amount, _token.nonces(_notOwner), _deadline))
       )
     );
     (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_ownerPrivateKey, _messageHash);
@@ -544,7 +544,7 @@ contract Permit is ZkTokenTest {
     // verify the permit signature is invalid
     vm.prank(_spender);
     vm.expectRevert("ERC20Permit: invalid signature");
-    token.permit(_notOwner, _spender, _amount, _deadline, _v, _r, _s);
+    _token.permit(_notOwner, _spender, _amount, _deadline, _v, _r, _s);
   }
 }
 
@@ -553,10 +553,10 @@ contract Permit is ZkTokenTest {
 contract Nonces is ZkTokenTest {
   function testFuzz_NoncesWithoutProxy(address _owner) public {
     vm.assume(_owner != address(0));
-    ZkTokenV1 token = new ZkTokenV1();
-    token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
-    uint256 _nonce = token.nonces(_owner);
-    assertEq(token.nonces(_owner), _nonce);
+    ZkTokenV1 _token = new ZkTokenV1();
+    _token.initialize(admin, initMintReceiver, INITIAL_MINT_AMOUNT);
+    uint256 _nonce = _token.nonces(_owner);
+    assertEq(_token.nonces(_owner), _nonce);
   }
 }
 
@@ -588,7 +588,7 @@ contract DelegateOnBehalf is ZkTokenTest {
     // verify the signer has no delegate
     assertEq(token.delegates(_signer), address(0));
 
-    vm.expectRevert(abi.encodeWithSelector(ZkTokenV1.DelegateSignatureExpired.selector, _expiry));
+    vm.expectRevert(abi.encodeWithSelector(ZkTokenV1.ZkTokenV1_DelegateSignatureExpired.selector, _expiry));
     token.delegateOnBehalf(_signer, _delegatee, _expiry, "");
   }
 
@@ -701,7 +701,7 @@ contract DelegateOnBehalf is ZkTokenTest {
     // verify the signer has no delegate
     assertEq(token.delegates(_signer), address(0));
 
-    vm.expectRevert(ZkTokenV1.DelegateSignatureIsInvalid.selector);
+    vm.expectRevert(ZkTokenV1.ZkTokenV1_DelegateSignatureIsInvalid.selector);
     token.delegateOnBehalf(_signer, _delegatee, _expiry, abi.encodePacked(_r, _s, _v));
   }
 }

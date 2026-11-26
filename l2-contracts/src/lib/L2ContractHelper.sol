@@ -105,13 +105,13 @@ library L2ContractHelper {
     pure
     returns (address)
   {
-    bytes32 senderBytes = bytes32(uint256(uint160(_sender)));
-    bytes32 data = keccak256(
+    bytes32 _senderBytes = bytes32(uint256(uint160(_sender)));
+    bytes32 _data = keccak256(
       // solhint-disable-next-line func-named-parameters
-      bytes.concat(CREATE2_PREFIX, senderBytes, _salt, _bytecodeHash, _constructorInputHash)
+      bytes.concat(CREATE2_PREFIX, _senderBytes, _salt, _bytecodeHash, _constructorInputHash)
     );
 
-    return address(uint160(uint256(data)));
+    return address(uint160(uint256(_data)));
   }
 }
 

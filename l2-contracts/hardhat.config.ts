@@ -37,12 +37,13 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       zksync: false,
-      url: "https://eth-mainnet.g.alchemy.com/v2/SECRET",
+      url: process.env.MAINNET_RPC_URL ? process.env.MAINNET_RPC_URL : "https://eth-mainnet.g.alchemy.com/v2/SECRET",
     },
     zkSyncEra: {
       zksync: true,
       ethNetwork: "mainnet",
-      url: "https://zksync-mainnet.g.alchemy.com/v2/SECRET",
+      url: process.env.ZKSYNC_ERA_RPC_URL ? process.env.ZKSYNC_ERA_RPC_URL : "https://zksync-mainnet.g.alchemy.com/v2/SECRET",
+      verifyURL: "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
     },
     zkSyncTestnet: {
       zksync: true,

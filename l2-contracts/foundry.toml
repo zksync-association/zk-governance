@@ -1,14 +1,31 @@
 [profile.default]
-  evm_version = "paris"
+  evm_version = "cancun"
   fs_permissions = [{ access = "read", path = "./zkout" }]
   fuzz = { runs = 50 }
   optimizer = true
   optimizer_runs = 10_000_000
+  # Remappings are part of the solc metadata hashed into every zk bytecode, so the full set is listed and
+  # auto-detection is off: it resolved `openzeppelin/` and `erc4626-tests/` in readdir order (which differs between
+  # CI runner images) and picked up `node_modules`, flipping every L2 zkBytecodeHash. Our sources import through
+  # `@openzeppelin/*`, `@murky/` and `forge-std/`; the other entries keep the set the deployed governors were
+  # built with.
+  auto_detect_remappings = false
   remappings = [
-    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
-    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
-    "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
     "@murky/=lib/murky/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
+    "ds-test/=lib/forge-std/lib/ds-test/src/",
+    "erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/",
+    "eth-gas-reporter/=node_modules/eth-gas-reporter/",
+    "flexible-voting/=lib/flexible-voting/",
+    "forge-std/=lib/forge-std/src/",
+    "hardhat/=node_modules/hardhat/",
+    "murky/=lib/murky/",
+    "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+    "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+    "openzeppelin/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "solmate/=lib/flexible-voting/lib/solmate/src/",
   ]
   solc_version = "0.8.24"
   verbosity = 3
@@ -36,3 +53,7 @@
 
 [rpc_endpoints]
   zksync = "${ZKSYNC_RPC_URL}"
+
+# The newest zksolc the Era explorer verifies; the governors redeployed for the Guardians removal are built with it.
+[profile.default.zksync]
+  zksolc = "1.5.17"

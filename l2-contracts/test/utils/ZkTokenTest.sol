@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {ZkTokenV1} from "src/ZkTokenV1.sol";
-import {IMintableAndDelegatable} from "src/interfaces/IMintableAndDelegatable.sol";
 
 contract ZkTokenTest is Test {
   ZkTokenV1 token;

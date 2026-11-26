@@ -10,7 +10,7 @@ import {RedeploySecurityCouncil} from "./RedeploySecurityCouncil.s.sol";
 /// @title MainnetRedeploySecurityCouncil
 /// @notice Redeploys the SecurityCouncil and EmergencyUpgradeBoard on L1 mainnet
 /// with the 8 retained ZKSC members. Verifies all new members were part of the
-/// previous SecurityCouncil.
+/// previous SecurityCouncil. Runs only once the Guardians are removed (MainnetRemoveGuardians).
 ///
 /// Usage:
 ///   PRIVATE_KEY=<deployer_pk> forge script scripts/MainnetRedeploySecurityCouncil.s.sol:MainnetRedeploySecurityCouncil \

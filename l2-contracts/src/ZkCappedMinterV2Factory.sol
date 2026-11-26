@@ -50,10 +50,10 @@ contract ZkCappedMinterV2Factory {
     uint48 _expirationTime,
     uint256 _saltNonce
   ) external returns (address minterAddress) {
-    bytes memory saltArgs = abi.encode(_mintable, _admin, _cap, _startTime, _expirationTime);
-    bytes32 salt = _calculateSalt(saltArgs, _saltNonce);
-    ZkCappedMinterV2 instance = new ZkCappedMinterV2{salt: salt}(_mintable, _admin, _cap, _startTime, _expirationTime);
-    minterAddress = address(instance);
+    bytes memory _saltArgs = abi.encode(_mintable, _admin, _cap, _startTime, _expirationTime);
+    bytes32 _salt = _calculateSalt(_saltArgs, _saltNonce);
+    ZkCappedMinterV2 _instance = new ZkCappedMinterV2{salt: _salt}(_mintable, _admin, _cap, _startTime, _expirationTime);
+    minterAddress = address(_instance);
 
     emit CappedMinterV2Created(minterAddress, _mintable, _admin, _cap, _startTime, _expirationTime);
   }
@@ -74,10 +74,10 @@ contract ZkCappedMinterV2Factory {
     uint48 _expirationTime,
     uint256 _saltNonce
   ) external view returns (address addr) {
-    bytes memory saltArgs = abi.encode(_mintable, _admin, _cap, _startTime, _expirationTime);
-    bytes32 salt = _calculateSalt(saltArgs, _saltNonce);
+    bytes memory _saltArgs = abi.encode(_mintable, _admin, _cap, _startTime, _expirationTime);
+    bytes32 _salt = _calculateSalt(_saltArgs, _saltNonce);
     addr = L2ContractHelper.computeCreate2Address(
-      address(this), salt, BYTECODE_HASH, keccak256(abi.encode(_mintable, _admin, _cap, _startTime, _expirationTime))
+      address(this), _salt, BYTECODE_HASH, keccak256(abi.encode(_mintable, _admin, _cap, _startTime, _expirationTime))
     );
   }
 
