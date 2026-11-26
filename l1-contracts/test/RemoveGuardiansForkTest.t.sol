@@ -69,6 +69,8 @@ contract RemoveGuardiansForkTest is Test {
   address newEmergencyUpgradeBoard;
   address stateCheck;
 
+  // Whether the fork already includes the removal: mainnet ran it at block 26455823.
+  bool forkIncludesRemoval;
   // Whether the fork predates v31, and its state before the v31 replay.
   bool forkPredatesV31;
   uint256 preV31Snapshot;
@@ -79,14 +81,22 @@ contract RemoveGuardiansForkTest is Test {
     _;
   }
 
+  /// @dev Replays the removal, so needs a fork that predates it (`--fork-block-number 26455822`).
+  modifier onlyBeforeRemoval() {
+    vm.skip(forkIncludesRemoval);
+    _;
+  }
+
   function setUp() external onlyMainnet {
     handler = ProtocolUpgradeHandler(payable(PROTOCOL_UPGRADE_HANDLER));
-    // Mainnet ran the removal at block 26455823, so there is nothing left to replay on a later fork
-    // (`--fork-block-number 26455822` replays it).
-    try handler.zkFoundation() returns (address) {
-      vm.skip(true);
-    } catch {}
     zkFoundationSafe = EmergencyUpgradeBoard(V31_EMERGENCY_UPGRADE_BOARD).ZK_FOUNDATION_SAFE();
+
+    // The removal implementation exposes `zkFoundation()` in place of `guardians()`. A fork that includes it only
+    // runs the Security Council redeploy tests, the script reverts on it.
+    try handler.zkFoundation() returns (address) {
+      forkIncludesRemoval = true;
+      return;
+    } catch {}
 
     // The script reads the post-v31 state from the handler.
     forkPredatesV31 = handler.securityCouncil() != V31_SECURITY_COUNCIL;
@@ -154,14 +164,21 @@ contract RemoveGuardiansForkTest is Test {
     handler.execute(proposal);
   }
 
-  function test_MainnetForkNewBoardConfiguration() external onlyMainnet {
+  /// @dev The Security Council redeploy follows the removal: replays it unless the fork already includes it.
+  function _removeGuardiansUnlessDone() internal {
+    if (!forkIncludesRemoval) {
+      _executeRemoveGuardians();
+    }
+  }
+
+  function test_MainnetForkNewBoardConfiguration() external onlyMainnet onlyBeforeRemoval {
     EmergencyUpgradeBoard newBoard = EmergencyUpgradeBoard(newEmergencyUpgradeBoard);
     assertEq(address(newBoard.PROTOCOL_UPGRADE_HANDLER()), PROTOCOL_UPGRADE_HANDLER);
     assertEq(newBoard.SECURITY_COUNCIL(), V31_SECURITY_COUNCIL);
     assertEq(newBoard.ZK_FOUNDATION_SAFE(), zkFoundationSafe);
   }
 
-  function test_MainnetForkGeneratedCalls() external onlyMainnet {
+  function test_MainnetForkGeneratedCalls() external onlyMainnet onlyBeforeRemoval {
     IProtocolUpgradeHandler.Call[] memory calls = script.getGeneratedCalls();
     assertEq(calls.length, 4);
 
@@ -202,7 +219,7 @@ contract RemoveGuardiansForkTest is Test {
     }
   }
 
-  function test_MainnetForkRevertWhen_ScriptRunsBeforeV31() external onlyMainnet {
+  function test_MainnetForkRevertWhen_ScriptRunsBeforeV31() external onlyMainnet onlyBeforeRemoval {
     // Needs a fork that predates v31.
     vm.skip(!forkPredatesV31);
     vm.revertTo(preV31Snapshot);
@@ -212,7 +229,7 @@ contract RemoveGuardiansForkTest is Test {
     preV31Script.run();
   }
 
-  function test_MainnetForkRevertWhen_ScriptRunsAfterRemoval() external onlyMainnet {
+  function test_MainnetForkRevertWhen_ScriptRunsAfterRemoval() external onlyMainnet onlyBeforeRemoval {
     _executeRemoveGuardians();
 
     MainnetRemoveGuardians postRemovalScript = new MainnetRemoveGuardians();
@@ -220,7 +237,7 @@ contract RemoveGuardiansForkTest is Test {
     postRemovalScript.run();
   }
 
-  function test_MainnetForkRevertWhen_ExecutedBeforeV31() external onlyMainnet {
+  function test_MainnetForkRevertWhen_ExecutedBeforeV31() external onlyMainnet onlyBeforeRemoval {
     // Needs a fork that predates v31, the ordering can't be checked once the fork includes it.
     vm.skip(!forkPredatesV31);
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = _removeGuardiansProposal();
@@ -236,7 +253,7 @@ contract RemoveGuardiansForkTest is Test {
     assertEq(handler.zkFoundation(), zkFoundationSafe);
   }
 
-  function test_MainnetForkHandlerUpgraded() external onlyMainnet {
+  function test_MainnetForkHandlerUpgraded() external onlyMainnet onlyBeforeRemoval {
     ProtocolUpgradeHandler v31Implementation = ProtocolUpgradeHandler(payable(V31_PROTOCOL_UPGRADE_HANDLER_IMPL));
     _executeRemoveGuardians();
 
@@ -259,14 +276,14 @@ contract RemoveGuardiansForkTest is Test {
     assertEq(handler.ERA_CHAIN_ID(), v31Implementation.ERA_CHAIN_ID());
   }
 
-  function test_MainnetForkRevertWhen_ReinitializedAfterUpgrade() external onlyMainnet {
+  function test_MainnetForkRevertWhen_ReinitializedAfterUpgrade() external onlyMainnet onlyBeforeRemoval {
     _executeRemoveGuardians();
 
     vm.expectRevert(Initializable.InvalidInitialization.selector);
     handler.initialize(address(1), address(2), address(3));
   }
 
-  function test_MainnetForkInFlightUpgradeSurvives() external onlyMainnet {
+  function test_MainnetForkInFlightUpgradeSurvives() external onlyMainnet onlyBeforeRemoval {
     _applyV31();
     IProtocolUpgradeHandler.UpgradeProposal memory inFlight = IProtocolUpgradeHandler.UpgradeProposal({
       calls: new IProtocolUpgradeHandler.Call[](0), salt: keccak256("in flight"), executor: address(0)
@@ -285,7 +302,7 @@ contract RemoveGuardiansForkTest is Test {
     assertTrue(zkFoundationApproval);
   }
 
-  function test_MainnetForkFoundationHoldsRole() external onlyMainnet {
+  function test_MainnetForkFoundationHoldsRole() external onlyMainnet onlyBeforeRemoval {
     _executeRemoveGuardians();
     bytes32 unknownId = keccak256("unknown upgrade");
 
@@ -306,7 +323,7 @@ contract RemoveGuardiansForkTest is Test {
     vm.stopPrank();
   }
 
-  function test_MainnetForkOldBoardLosesEmergencyPowers() external onlyMainnet {
+  function test_MainnetForkOldBoardLosesEmergencyPowers() external onlyMainnet onlyBeforeRemoval {
     _executeRemoveGuardians();
 
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = IProtocolUpgradeHandler.UpgradeProposal({
@@ -318,7 +335,7 @@ contract RemoveGuardiansForkTest is Test {
     handler.executeEmergencyUpgrade(proposal);
   }
 
-  function test_MainnetForkNewBoardCanExecuteEmergencyUpgrade() external onlyMainnet {
+  function test_MainnetForkNewBoardCanExecuteEmergencyUpgrade() external onlyMainnet onlyBeforeRemoval {
     _executeRemoveGuardians();
 
     IProtocolUpgradeHandler.UpgradeProposal memory proposal = IProtocolUpgradeHandler.UpgradeProposal({
@@ -333,8 +350,7 @@ contract RemoveGuardiansForkTest is Test {
     );
   }
 
-  function test_MainnetForkScriptOutput() external onlyMainnet {
-    vm.createDir("./script-out", true);
+  function test_MainnetForkScriptOutput() external onlyMainnet onlyBeforeRemoval {
     new MainnetRemoveGuardiansWithOutput().run();
     string memory toml = vm.readFile(REMOVE_GUARDIANS_OUTPUT);
     vm.removeFile(REMOVE_GUARDIANS_OUTPUT);
@@ -355,14 +371,14 @@ contract RemoveGuardiansForkTest is Test {
     _redeploy.run();
   }
 
-  function test_MainnetForkRevertWhen_SecurityCouncilRedeployedBeforeRemoval() external onlyMainnet {
+  function test_MainnetForkRevertWhen_SecurityCouncilRedeployedBeforeRemoval() external onlyMainnet onlyBeforeRemoval {
     MainnetRedeploySecurityCouncil redeploy = new MainnetRedeploySecurityCouncil();
     vm.expectRevert("The Guardians must be removed from the handler first");
     redeploy.run();
   }
 
   function test_MainnetForkRevertWhen_SecurityCouncilRedeployedWithAnotherZkFoundation() external onlyMainnet {
-    _executeRemoveGuardians();
+    _removeGuardiansUnlessDone();
     vm.prank(PROTOCOL_UPGRADE_HANDLER);
     handler.updateZkFoundation(makeAddr("another ZK Foundation"));
 
@@ -372,7 +388,7 @@ contract RemoveGuardiansForkTest is Test {
   }
 
   function test_MainnetForkSecurityCouncilRedeployedAfterRemoval() external onlyMainnet {
-    _executeRemoveGuardians();
+    _removeGuardiansUnlessDone();
     MainnetRedeploySecurityCouncil redeploy = _redeploySecurityCouncil();
     SCRedeployedContracts memory redeployed = redeploy.getDeployedAddresses();
 

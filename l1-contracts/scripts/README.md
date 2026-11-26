@@ -13,14 +13,17 @@ PUH_PROXY_MAINNET=0xE30Dca3047B37dc7d88849dE4A4Dc07937ad5Ab3
 ERA_CHAIN_ID=324
 ```
 
-`TestnetRedeploy.s.sol`
+`TestnetRedeploy.s.sol` (deploys `TestnetProtocolUpgradeHandler`). The values are Stage's (Sepolia, Era chain 270), the
+handler `StageRemoveGuardians.s.sol` targets too. The Era Sepolia testnet's handler `0x9B956d24…` can't be used: it isn't
+a proxy, predates the getters the script reads (it reverts at `CHAIN_TYPE_MANAGER()`) and no longer owns the testnet
+Bridgehub.
 ```bash
 PRIVATE_KEY= # Deployer
-CREATE3_FACTORY=
-L2_PROTOCOL_GOVERNOR=0x085b8B6407f150D62adB1EF926F7f304600ec714
-ZKSYNC_OS_CHAIN_TYPE_MANAGER=
-PUH_PROXY_TESTNET=0x9B956d242e6806044877C7C1B530D475E371d544
-ERA_CHAIN_ID=321
+CREATE3_FACTORY=0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf
+L2_PROTOCOL_GOVERNOR=0x504d39a2DE2ff99A2Da8D95e6ef811Bd9b107968
+ZKSYNC_OS_CHAIN_TYPE_MANAGER=0x73Bee414c6e006525F3CcEedf6d8004C0370502e
+PUH_PROXY_TESTNET=0x8f08627524aeD610192132A425D6b9C32a1727EF
+ERA_CHAIN_ID=270
 ```
 ## Guardians removal
 
@@ -59,9 +62,9 @@ so pin the fork to the block before it to reproduce the script output:
 forge test --match-contract RemoveGuardiansForkTest --fork-url $MAINNET_RPC --fork-block-number 26455822
 ```
 
-Without `--fork-url` the mainnet fork suites are reported as skipped. `RemoveGuardiansForkTest` is also skipped on
-a fork that already includes the removal, and the tests that need a fork predating v31 are skipped once mainnet
-runs v31.
+Without `--fork-url` the mainnet fork suites are reported as skipped. On a fork that already includes the removal,
+`RemoveGuardiansForkTest` only runs the Security Council redeploy tests, and the tests that need a fork predating v31
+are skipped once mainnet runs v31.
 
 The L2 side (the veto seats of the `ZkTokenGovernor` and `ZkGovOpsGovernor`) is handled by
 `l2-contracts/script/RedeployZkTokenGovernor.ts` and `l2-contracts/script/RedeployZkGovOpsGovernor.ts`,
